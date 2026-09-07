@@ -27,7 +27,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
       args:
-        GOPROXY: https://goproxy.cn,direct
+        GOPROXY: https://mirrors.aliyun.com/goproxy/,direct
     image: new-api-dev:local
     container_name: new-api-dev
     restart: always
