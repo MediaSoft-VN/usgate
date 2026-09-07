@@ -1,0 +1,54 @@
+# New-API Local Development with External PostgreSQL & Redis
+# 
+# This configuration connects the new-api container to PostgreSQL and Redis
+# running on the host machine (not Docker containers).
+# 
+# Nginx runs directly on the host machine providing HTTPS via domain on port 443.
+# The new-api container is accessible at:
+#   http://localhost:9991   (internal)
+#   http://host-ip:9991     (from host network)
+#
+# Nginx on host should proxy to new-api at port 9991.
+#
+# Prerequisites:
+# - Create .env file from .env.example with your configuration
+# - PostgreSQL running on host:5432 (set SQL_DSN in .env)
+# - Redis running on host:6379 (set REDIS_CONN_STRING in .env)
+# - Nginx installed and configured on the host machine
+# - Domain name pointed to host machine IP
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml up -d
+#   # Then start nginx on host
+
+version: '3.4'
+
+services:
+  new-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: new-api-dev:local
+    container_name: new-api-dev
+    restart: always
+    command: --log-dir /app/logs
+    env_file:
+      - .env
+    environment:
+      - PORT=9991
+    ports:
+      - "9991:9991"
+    volumes:
+      - ${DATA_DIR}:/data
+      - ${LOG_DIR}:/app/logs
+    networks:
+      - new-api-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:9991/api/status | grep -o '\"success\":\\s*true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  new-api-network:
+    driver: bridge
