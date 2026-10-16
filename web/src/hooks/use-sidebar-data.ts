@@ -29,6 +29,7 @@ import {
   MessageSquare,
   PlugZap,
   Radio,
+  ReceiptText,
   ServerCog,
   Settings,
   ShieldCheck,
@@ -156,6 +157,11 @@ export function useSidebarData(): SidebarData {
             title: `${t('Provider')} ${t('Wallet')}`,
             url: '/provider-wallet',
             icon: Wallet,
+          },
+          {
+            title: t('Top-up'),
+            url: '/topup-records',
+            icon: ReceiptText,
           },
           {
             title: t('Redemption Codes'),
