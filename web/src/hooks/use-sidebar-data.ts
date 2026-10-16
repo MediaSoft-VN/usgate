@@ -164,6 +164,12 @@ export function useSidebarData(): SidebarData {
             icon: ReceiptText,
           },
           {
+            title: t('Billing'),
+            url: '/usage-logs/common',
+            activeUrls: ['/usage-logs'],
+            icon: FileText,
+          },
+          {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
