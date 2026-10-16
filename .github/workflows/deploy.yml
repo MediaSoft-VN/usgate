@@ -1,0 +1,78 @@
+name: Deploy native release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - deploy/new-api
+      - .github/scripts/deploy-native.sh
+      - .github/workflows/deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy prebuilt binary
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+
+      - name: Validate prebuilt binary
+        run: |
+          set -euo pipefail
+          test -f deploy/new-api
+          test -x deploy/new-api || chmod +x deploy/new-api
+          file deploy/new-api
+          sha256sum deploy/new-api
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "${DEPLOY_SSH_PRIVATE_KEY}"
+          test -n "${DEPLOY_KNOWN_HOSTS}"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_PRIVATE_KEY}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload prebuilt binary
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?DEPLOY_HOST is required}"
+          : "${DEPLOY_PORT:?DEPLOY_PORT is required}"
+          : "${DEPLOY_USER:?DEPLOY_USER is required}"
+          scp -P "${DEPLOY_PORT}" \
+            deploy/new-api \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-${GITHUB_SHA}"
+
+      - name: Activate release and verify health
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          checksum="$(sha256sum deploy/new-api | cut -d' ' -f1)"
+          ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "RELEASE_ID='${GITHUB_SHA}' EXPECTED_SHA256='${checksum}' bash -s" \
+            < .github/scripts/deploy-native.sh

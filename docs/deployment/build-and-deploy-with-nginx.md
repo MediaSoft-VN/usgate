@@ -70,6 +70,38 @@ Sau khi kiểm tra, tạo symlink phiên bản đang chạy:
 ln -sfn /opt/new-api/releases/new-api-<version> /opt/new-api/new-api
 ```
 
+### Chuẩn bị cho GitHub Actions
+
+Workflow `.github/workflows/deploy.yml` không build lại source. Nó yêu cầu
+binary đã build sẵn được commit tại `deploy/new-api`:
+
+```bash
+mkdir -p deploy
+cp /opt/new-api/releases/new-api-<version> deploy/new-api
+chmod 0755 deploy/new-api
+git add -f deploy/new-api
+git commit -m "chore: publish native release <version>"
+git push origin main
+```
+
+Không commit file môi trường, private key hoặc credential vào repository.
+Workflow upload binary lên `/tmp`, kiểm tra SHA-256, cài vào
+`/opt/new-api/releases`, đổi symlink, restart systemd và gọi health check. SSH
+user cần quyền `sudo -n` cho `install`, `ln`, `systemctl` và `rm` trên máy chủ.
+
+Tạo các GitHub Environment secrets trong environment `production`:
+
+- `DEPLOY_HOST`: hostname hoặc IP máy chủ.
+- `DEPLOY_PORT`: cổng SSH, thường là `22`.
+- `DEPLOY_USER`: user SSH dùng để deploy.
+- `DEPLOY_SSH_PRIVATE_KEY`: private key tương ứng với public key trên máy chủ.
+- `DEPLOY_KNOWN_HOSTS`: output đã xác minh của `ssh-keyscan`, không lấy động
+  trong workflow.
+
+Workflow hiện tự deploy khi có push vào branch `main` có binary mới. Có thể
+chạy thủ công bằng `workflow_dispatch`; production environment nên bật
+required reviewers nếu cần phê duyệt trước deploy.
+
 ## 4. Cấu hình môi trường
 
 Tạo file chỉ root được đọc:
