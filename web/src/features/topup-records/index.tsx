@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ReceiptText } from 'lucide-react'
+import { Download, ReceiptText } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -46,6 +46,50 @@ export function TopupRecords() {
   return (
     <SectionPageLayout fixedContent>
       <SectionPageLayout.Title>{t('Top-up')}</SectionPageLayout.Title>
+      <SectionPageLayout.Actions>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={!data?.items.length}
+          onClick={() => {
+            if (!data?.items.length) return
+            const escapeCsv = (value: unknown) =>
+              `"${String(value ?? '').replaceAll('"', '""')}"`
+            const rows = [
+              [
+                'ID',
+                'User ID',
+                'Amount',
+                'Money',
+                'Payment',
+                'Created',
+                'Status',
+              ],
+              ...data.items.map((record) => [
+                record.id,
+                record.user_id,
+                record.amount,
+                record.money,
+                record.payment_method,
+                formatTimestamp(record.create_time),
+                record.status,
+              ]),
+            ]
+            const csv = `\uFEFF${rows.map((row) => row.map(escapeCsv).join(',')).join('\n')}`
+            const url = URL.createObjectURL(
+              new Blob([csv], { type: 'text/csv;charset=utf-8' })
+            )
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `topup-records-page-${page}.csv`
+            link.click()
+            URL.revokeObjectURL(url)
+          }}
+        >
+          <Download className='size-4' aria-hidden='true' />
+          {t('Export')}
+        </Button>
+      </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         {topupsQuery.isLoading && <LoadingState />}
         {topupsQuery.isError && (
