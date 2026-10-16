@@ -76,6 +76,7 @@ jobs:
           DOMAIN: ${{ vars.PROD_DOMAIN }}
           OLD_DOMAIN: ${{ vars.OLD_DOMAIN }}
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+          NEW_API_ENV: ${{ secrets.NEW_API_ENV }}
         run: |
           set -euo pipefail
           : "${DEPLOY_HOST:?DEPLOY_HOST is required}"
@@ -83,6 +84,7 @@ jobs:
           : "${DEPLOY_USER:?DEPLOY_USER is required}"
           : "${DOMAIN:?PROD_DOMAIN environment variable is required}"
           : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
+          : "${NEW_API_ENV:?NEW_API_ENV secret is required}"
           checksum="$(sha256sum deploy/new-api | cut -d' ' -f1)"
           {
             printf 'APP_USER=%q\n' "${APP_USER:-${DEPLOY_USER}}"
@@ -91,6 +93,7 @@ jobs:
             printf 'DOMAIN=%q\n' "${DOMAIN}"
             printf 'OLD_DOMAIN=%q\n' "${OLD_DOMAIN:-}"
             printf 'CERTBOT_EMAIL=%q\n' "${CERTBOT_EMAIL}"
+            printf 'NEW_API_ENV=%q\n' "${NEW_API_ENV}"
             printf 'RELEASE_ID=%q\n' "${GITHUB_SHA}"
             printf 'EXPECTED_SHA256=%q\n' "${checksum}"
             printf 'SSH_USER=%q\n' "${DEPLOY_USER}"

@@ -108,6 +108,8 @@ Tạo thêm Environment variables:
 - `PROD_DOMAIN`: domain live, ví dụ `api.example.com`.
 - `OLD_DOMAIN`: domain cũ cần xóa certificate, có thể bỏ trống.
 - `CERTBOT_EMAIL`: email nhận thông báo Let's Encrypt (Environment secret).
+- `NEW_API_ENV`: toàn bộ nội dung file runtime `.env` của New API (Environment
+  secret dạng multiline).
 
 Workflow hiện tự deploy khi có push vào branch `main` có binary mới. Có thể
 chạy thủ công bằng `workflow_dispatch`; production environment nên bật
@@ -128,11 +130,14 @@ check ở các lần deploy sau.
 
 ## 4. Cấu hình môi trường
 
-Tạo file chỉ root được đọc:
+Không lưu runtime env tại `/etc/new-api.env`. Workflow lấy nội dung từ secret
+`NEW_API_ENV` của GitHub Environment `production`, sau đó ghi thành
+`/opt/new-api/.env` cạnh binary với quyền `0600`. File này được giữ lại khi
+deploy release mới.
 
 ```bash
-sudo install -o root -g root -m 0600 /dev/null /etc/new-api.env
-sudoedit /etc/new-api.env
+sudo install -o new-api -g new-api -m 0600 /opt/new-api/.env
+sudoedit /opt/new-api/.env
 ```
 
 Ví dụ tối thiểu:
@@ -177,7 +182,7 @@ Type=simple
 User=new-api
 Group=new-api
 WorkingDirectory=/opt/new-api
-EnvironmentFile=/etc/new-api.env
+EnvironmentFile=/opt/new-api/.env
 ExecStart=/opt/new-api/new-api --port 3000 --log-dir /opt/new-api/logs
 Restart=on-failure
 RestartSec=5

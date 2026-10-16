@@ -7,6 +7,7 @@ set -Eeuo pipefail
 : "${APP_USER:?APP_USER is required}"
 : "${DOMAIN:?DOMAIN is required}"
 : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
+: "${NEW_API_ENV:?NEW_API_ENV is required}"
 : "${RELEASE_ID:?RELEASE_ID is required}"
 : "${EXPECTED_SHA256:?EXPECTED_SHA256 is required}"
 : "${SSH_USER:?SSH_USER is required}"
@@ -16,6 +17,7 @@ uploaded_file="/tmp/new-api-${RELEASE_ID}"
 release_file="${APP_DIR}/releases/new-api-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
 nginx_site=/etc/nginx/sites-available/new-api.conf
+env_file="${APP_DIR}/.env"
 port_file="${APP_DIR}/.app-port"
 previous_target="$(readlink "${APP_DIR}/new-api" 2>/dev/null || true)"
 
@@ -110,6 +112,12 @@ printf '%s\n' "${APP_PORT}" | sudo -n tee "${port_file}" >/dev/null
 sudo -n chown "${APP_USER}:${app_group}" "${port_file}"
 sudo -n chmod 0644 "${port_file}"
 
+# Keep runtime configuration beside the release directory. The content comes
+# from the protected GitHub Environment secret and is never printed.
+printf '%s\n' "${NEW_API_ENV}" | sudo -n tee "${env_file}" >/dev/null
+sudo -n chown "${APP_USER}:${app_group}" "${env_file}"
+sudo -n chmod 0600 "${env_file}"
+
 sudo -n install -o "${APP_USER}" -g "${app_group}" -m 0755 \
   "${uploaded_file}" "${release_file}"
 sudo -n ln -sfn "${release_file}" "${APP_DIR}/new-api"
@@ -125,7 +133,7 @@ Type=simple
 User=${APP_USER}
 Group=${app_group}
 WorkingDirectory=${APP_DIR}
-EnvironmentFile=-/etc/new-api.env
+EnvironmentFile=${env_file}
 ExecStart=${APP_DIR}/new-api --port ${APP_PORT} --log-dir ${APP_DIR}/logs
 Restart=always
 RestartSec=5
