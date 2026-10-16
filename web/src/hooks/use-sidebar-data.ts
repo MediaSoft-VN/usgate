@@ -182,6 +182,12 @@ export function useSidebarData(): SidebarData {
             requiredRole: ROLE.SUPER_ADMIN,
           },
           {
+            title: `${t('Billing')} ${t('Audit Logs')}`,
+            url: '/usage-logs/audit',
+            activeUrls: ['/usage-logs/audit'],
+            icon: ClipboardList,
+          },
+          {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
