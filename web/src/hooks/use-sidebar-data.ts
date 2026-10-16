@@ -175,6 +175,13 @@ export function useSidebarData(): SidebarData {
             icon: Activity,
           },
           {
+            title: t('Pricing'),
+            url: '/system-settings/billing/model-pricing',
+            activeUrls: ['/system-settings/billing'],
+            icon: CreditCard,
+            requiredRole: ROLE.SUPER_ADMIN,
+          },
+          {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
