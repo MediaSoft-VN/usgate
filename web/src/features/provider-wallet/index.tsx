@@ -1,13 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WalletCards } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -20,9 +22,64 @@ import { formatQuotaWithCurrency } from '@/lib/currency'
 import { formatCurrencyUSD } from '@/lib/format'
 import { createServerError } from '@/lib/server-error-message'
 
-import { getChannels } from '../channels/api'
+import {
+  getChannels,
+  getProviderCredit,
+  updateProviderCredit,
+} from '../channels/api'
+import type { Channel } from '../channels/types'
 
 const PAGE_SIZE = 20
+
+function ProviderCreditControl({ channel }: { channel: Channel }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const creditQuery = useQuery({
+    queryKey: ['provider-credit', channel.id],
+    queryFn: () => getProviderCredit(channel.id),
+  })
+  const [threshold, setThreshold] = useState('0')
+
+  useEffect(() => {
+    if (creditQuery.data) {
+      setThreshold(String(creditQuery.data.threshold))
+    }
+  }, [creditQuery.data])
+
+  const saveMutation = useMutation({
+    mutationFn: () => updateProviderCredit(channel.id, Number(threshold)),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['provider-credit', channel.id], data)
+      toast.success(t('Provider credit threshold saved'))
+    },
+  })
+
+  if (creditQuery.isLoading) {
+    return <span className='text-muted-foreground text-xs'>...</span>
+  }
+
+  return (
+    <div className='flex min-w-44 items-center gap-2'>
+      <Input
+        aria-label={t('Credit threshold')}
+        className='h-8 w-24'
+        min={0}
+        onChange={(event) => setThreshold(event.target.value)}
+        step='0.01'
+        type='number'
+        value={threshold}
+      />
+      <Button
+        disabled={saveMutation.isPending || threshold === ''}
+        onClick={() => saveMutation.mutate()}
+        size='sm'
+        variant='outline'
+      >
+        {t('Save')}
+      </Button>
+    </div>
+  )
+}
 
 export function ProviderWallet() {
   const { t } = useTranslation()
@@ -70,6 +127,7 @@ export function ProviderWallet() {
                   <TableHead>{t('Provider')}</TableHead>
                   <TableHead>{t('Balance')}</TableHead>
                   <TableHead>{t('Used amount')}</TableHead>
+                  <TableHead>{t('Credit threshold')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -92,6 +150,9 @@ export function ProviderWallet() {
                       {formatQuotaWithCurrency(channel.used_quota, {
                         showSymbol: false,
                       })}
+                    </TableCell>
+                    <TableCell>
+                      <ProviderCreditControl channel={channel} />
                     </TableCell>
                     <TableCell>
                       {channel.status === 1 ? t('Enabled') : t('Disabled')}
