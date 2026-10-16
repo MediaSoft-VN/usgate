@@ -87,7 +87,7 @@ jobs:
           {
             printf 'APP_USER=%q\n' "${APP_USER:-${DEPLOY_USER}}"
             printf 'APP_DIR=%q\n' "${APP_DIR:-/opt/new-api}"
-            printf 'APP_PORT=%q\n' "${APP_PORT:-3000}"
+            printf 'APP_PORT=%q\n' "${APP_PORT:-}"
             printf 'DOMAIN=%q\n' "${DOMAIN}"
             printf 'OLD_DOMAIN=%q\n' "${OLD_DOMAIN:-}"
             printf 'CERTBOT_EMAIL=%q\n' "${CERTBOT_EMAIL}"

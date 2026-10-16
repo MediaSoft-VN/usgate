@@ -102,7 +102,9 @@ Tạo thêm Environment variables:
 
 - `APP_USER`: user chạy `new-api`; nếu bỏ trống sẽ dùng `DEPLOY_USER`.
 - `APP_DIR`: mặc định `/opt/new-api`.
-- `APP_PORT`: mặc định `3000`.
+- `APP_PORT`: port ưu tiên; nếu bỏ trống, workflow đọc port trước đó từ
+  `/opt/new-api/.app-port`, mặc định bắt đầu từ `3000`, rồi tự chọn port trống
+  trong phạm vi 20 port tiếp theo nếu port đang bị dịch vụ khác sử dụng.
 - `PROD_DOMAIN`: domain live, ví dụ `api.example.com`.
 - `OLD_DOMAIN`: domain cũ cần xóa certificate, có thể bỏ trống.
 - `CERTBOT_EMAIL`: email nhận thông báo Let's Encrypt (Environment secret).
@@ -116,6 +118,11 @@ theo binary hiện tại, chạy `daemon-reload`, `enable`, `restart` và kiểm
 `/api/status`. Nó cũng ghi lại Nginx server block cho domain mới, cấp hoặc
 renew Let's Encrypt bằng Certbot, bật redirect HTTPS và xóa certificate của
 `OLD_DOMAIN` nếu có.
+
+Trước khi chọn port, workflow dừng `new-api` để không coi port của chính
+phiên bản cũ là xung đột. Port được chọn sẽ được lưu tại
+`/opt/new-api/.app-port` và được dùng đồng thời cho systemd, Nginx và health
+check ở các lần deploy sau.
 
 ## 4. Cấu hình môi trường
 

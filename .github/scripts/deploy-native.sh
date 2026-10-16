@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 : "${APP_DIR:=/opt/new-api}"
-: "${APP_PORT:=3000}"
+: "${APP_PORT:=}"
 : "${APP_USER:?APP_USER is required}"
 : "${DOMAIN:?DOMAIN is required}"
 : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
@@ -16,6 +16,7 @@ uploaded_file="/tmp/new-api-${RELEASE_ID}"
 release_file="${APP_DIR}/releases/new-api-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
 nginx_site=/etc/nginx/sites-available/new-api.conf
+port_file="${APP_DIR}/.app-port"
 previous_target="$(readlink "${APP_DIR}/new-api" 2>/dev/null || true)"
 
 validate_value() {
@@ -29,7 +30,9 @@ validate_value() {
 }
 
 validate_value APP_DIR "${APP_DIR}" '^/[A-Za-z0-9._/-]+$'
-validate_value APP_PORT "${APP_PORT}" '^[0-9]+$'
+if [[ -n ${APP_PORT} ]]; then
+  validate_value APP_PORT "${APP_PORT}" '^[0-9]+$'
+fi
 validate_value APP_USER "${APP_USER}" '^[A-Za-z_][A-Za-z0-9_-]*$'
 validate_value DOMAIN "${DOMAIN}" '^[A-Za-z0-9.-]+$'
 validate_value CERTBOT_EMAIL "${CERTBOT_EMAIL}" '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
@@ -54,6 +57,49 @@ fi
 app_group="$(id -gn "${APP_USER}")"
 sudo -n install -d -o "${APP_USER}" -g "${app_group}" -m 0755 \
   "${APP_DIR}" "${APP_DIR}/releases" "${APP_DIR}/logs" "${APP_DIR}/data"
+
+preferred_port="${APP_PORT}"
+if [[ -z ${preferred_port} && -f ${port_file} ]]; then
+  preferred_port="$(sudo -n cat "${port_file}")"
+fi
+preferred_port="${preferred_port:-3000}"
+validate_value PREFERRED_PORT "${preferred_port}" '^[0-9]+$'
+if (( preferred_port < 1 || preferred_port > 65535 )); then
+  echo "Preferred port is outside the valid range" >&2
+  exit 1
+fi
+
+# Stop the current service before checking ports so its own port is not
+# mistaken for a conflict. The preferred port is retained whenever possible;
+# otherwise the first free port in the next 20 ports is selected.
+sudo -n systemctl stop new-api 2>/dev/null || true
+if ! command -v ss >/dev/null 2>&1; then
+  echo "The ss command is required for automatic port selection" >&2
+  sudo -n systemctl start new-api 2>/dev/null || true
+  exit 1
+fi
+
+selected_port=""
+last_port=$((preferred_port + 19))
+if (( last_port > 65535 )); then
+  last_port=65535
+fi
+for ((candidate = preferred_port; candidate <= last_port; candidate++)); do
+  if ! ss -ltnH "sport = :${candidate}" | grep -q .; then
+    selected_port=${candidate}
+    break
+  fi
+done
+if [[ -z ${selected_port} ]]; then
+  echo "No free application port found" >&2
+  sudo -n systemctl start new-api 2>/dev/null || true
+  exit 1
+fi
+APP_PORT=${selected_port}
+printf '%s\n' "${APP_PORT}" | sudo -n tee "${port_file}" >/dev/null
+sudo -n chown "${APP_USER}:${app_group}" "${port_file}"
+sudo -n chmod 0644 "${port_file}"
+
 sudo -n install -o "${APP_USER}" -g "${app_group}" -m 0755 \
   "${uploaded_file}" "${release_file}"
 sudo -n ln -sfn "${release_file}" "${APP_DIR}/new-api"
