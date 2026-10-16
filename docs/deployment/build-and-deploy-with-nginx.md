@@ -41,33 +41,34 @@ git status --short
 
 Working tree phải sạch và đúng phiên bản muốn phát hành.
 
-## 3. Build frontend và backend
+## 3. Build và đóng gói ở local
 
-Frontend được embed vào binary Go, vì vậy phải build frontend trước:
+Frontend được embed vào binary Go. Từ repository root, chạy một lệnh:
 
 ```bash
-cd /opt/new-api/source/web
-bun install --frozen-lockfile
-bun run typecheck
-bun run lint
-bun run build
+make package-native
+```
 
-cd /opt/new-api/source
-go mod download
-go build -trimpath -ldflags "-s -w -X github.com/QuantumNous/new-api/common.Version=$(cat VERSION)" -o /opt/new-api/releases/new-api-<version> .
-chmod 0755 /opt/new-api/releases/new-api-<version>
+Lệnh trên dùng Bun để build `web`, sau đó dùng Go để tạo binary tại
+`deploy/new-api`. Có thể đổi output nếu không muốn ghi đè binary hiện tại:
+
+```bash
+make package-native NATIVE_OUTPUT="deploy/new-api-$(cat VERSION)"
 ```
 
 Kiểm tra binary:
 
 ```bash
-/opt/new-api/releases/new-api-<version> --help
+deploy/new-api --help
+file deploy/new-api
 ```
 
-Sau khi kiểm tra, tạo symlink phiên bản đang chạy:
+Trước khi commit, kiểm tra đúng commit và binary:
 
 ```bash
-ln -sfn /opt/new-api/releases/new-api-<version> /opt/new-api/new-api
+git rev-parse HEAD
+git status --short
+sha256sum deploy/new-api
 ```
 
 ### Chuẩn bị cho GitHub Actions
@@ -76,11 +77,8 @@ Workflow `.github/workflows/deploy.yml` không build lại source. Nó yêu cầ
 binary đã build sẵn được commit tại `deploy/new-api`:
 
 ```bash
-mkdir -p deploy
-cp /opt/new-api/releases/new-api-<version> deploy/new-api
-chmod 0755 deploy/new-api
-git add -f deploy/new-api
-git commit -m "chore: publish native release <version>"
+git add deploy/new-api
+git commit -m "chore: publish native release $(cat VERSION)"
 git push origin main
 ```
 

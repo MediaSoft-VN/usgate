@@ -7,8 +7,9 @@ DEV_API_SERVICE = new-api
 DEV_POSTGRES_DB = new-api
 DEV_POSTGRES_USER = root
 DEV_SQLITE_PATH ?= one-api.db
+NATIVE_OUTPUT ?= deploy/new-api
 
-.PHONY: all build-web build-all-web start-api dev dev-api dev-api-rebuild dev-web reset-setup test
+.PHONY: all build-web build-all-web package-native start-api dev dev-api dev-api-rebuild dev-web reset-setup test
 
 all: build-all-web start-api
 
@@ -18,6 +19,14 @@ build-web:
 	@cd $(WEB_DIR) && DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$$(cat ../VERSION) bun run build
 
 build-all-web: build-web
+
+package-native: build-web
+	@echo "Packaging native release at $(NATIVE_OUTPUT)..."
+	@mkdir -p $$(dirname "$(NATIVE_OUTPUT)")
+	@GOWORK=off go mod download
+	@GOWORK=off go build -trimpath -ldflags "-s -w -X github.com/QuantumNous/new-api/common.Version=$$(cat VERSION)" -o "$(NATIVE_OUTPUT)" .
+	@chmod 0755 "$(NATIVE_OUTPUT)"
+	@sha256sum "$(NATIVE_OUTPUT)"
 
 start-api:
 	@echo "Starting api dev server..."
