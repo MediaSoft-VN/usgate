@@ -153,6 +153,11 @@ export function useSidebarData(): SidebarData {
             icon: Wallet,
           },
           {
+            title: `${t('Provider')} ${t('Wallet')}`,
+            url: '/provider-wallet',
+            icon: Wallet,
+          },
+          {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
