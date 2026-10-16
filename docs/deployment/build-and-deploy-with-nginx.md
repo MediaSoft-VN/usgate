@@ -43,17 +43,23 @@ Working tree phải sạch và đúng phiên bản muốn phát hành.
 
 ## 3. Build và đóng gói ở local
 
-Frontend được embed vào binary Go. Từ repository root, chạy một lệnh:
+Frontend được embed vào binary Go. Từ repository root, chạy script:
+
+```bash
+./scripts/package-native.sh
+```
+
+Script dùng Bun để build `web`, sau đó dùng Go để tạo binary tại
+`deploy/new-api`. Có thể đổi output qua biến môi trường:
+
+```bash
+NATIVE_OUTPUT="deploy/new-api-$(cat VERSION)" ./scripts/package-native.sh
+```
+
+Nếu muốn gọi qua Make:
 
 ```bash
 make package-native
-```
-
-Lệnh trên dùng Bun để build `web`, sau đó dùng Go để tạo binary tại
-`deploy/new-api`. Có thể đổi output nếu không muốn ghi đè binary hiện tại:
-
-```bash
-make package-native NATIVE_OUTPUT="deploy/new-api-$(cat VERSION)"
 ```
 
 Kiểm tra binary:

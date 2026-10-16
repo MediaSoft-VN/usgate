@@ -20,13 +20,8 @@ build-web:
 
 build-all-web: build-web
 
-package-native: build-web
-	@echo "Packaging native release at $(NATIVE_OUTPUT)..."
-	@mkdir -p $$(dirname "$(NATIVE_OUTPUT)")
-	@GOWORK=off go mod download
-	@GOWORK=off go build -trimpath -ldflags "-s -w -X github.com/QuantumNous/new-api/common.Version=$$(cat VERSION)" -o "$(NATIVE_OUTPUT)" .
-	@chmod 0755 "$(NATIVE_OUTPUT)"
-	@sha256sum "$(NATIVE_OUTPUT)"
+package-native:
+	@NATIVE_OUTPUT="$(NATIVE_OUTPUT)" ./scripts/package-native.sh
 
 start-api:
 	@echo "Starting api dev server..."
