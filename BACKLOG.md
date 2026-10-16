@@ -93,6 +93,94 @@ Trạng thái: `todo` → `processing` → `done` → `reviewing` → `reviewed`
 - Cross-tenant settlement.
 - Mobile app.
 
+## P1 — AI Gateway và provider operations
+
+- [ ] **FIN-055** Chuẩn hóa provider/channel health check.
+- [ ] **FIN-056** Provider balance API integration.
+- [ ] **FIN-057** Tự động reconcile provider usage và provider invoice.
+- [ ] **FIN-058** Channel draining trước khi disable channel.
+- [ ] **FIN-059** Provider failover theo health, credit và latency.
+- [ ] **FIN-060** Phát hiện cost anomaly.
+- [ ] **FIN-061** Quản lý model mapping, priority, weight và channel affinity.
+- [ ] **FIN-062** Quản lý nhiều API key cho một provider/channel.
+- [ ] **FIN-063** Chuẩn hóa retry policy và circuit breaker.
+- [ ] **FIN-064** Theo dõi latency, error rate và availability theo provider.
+
+## P1 — Tài chính production
+
+- [ ] **FIN-065** Hoàn thiện double-entry ledger bất biến.
+- [ ] **FIN-066** Refund/adjustment approval workflow.
+- [ ] **FIN-067** Immutable financial audit trail.
+- [ ] **FIN-068** Invoice và billing statement.
+- [ ] **FIN-069** Multi-currency và exchange rate policy.
+- [ ] **FIN-070** Tax/fee policy.
+- [ ] **FIN-071** Period close và khóa kỳ kế toán.
+- [ ] **FIN-072** Financial report consistency checks.
+- [ ] **FIN-073** Reconciliation exception queue.
+- [ ] **FIN-074** Export financial reports.
+
+## P1 — Organization và enterprise
+
+- [ ] **FIN-075** Organization hierarchy.
+- [ ] **FIN-076** Membership, role và RBAC theo organization.
+- [ ] **FIN-077** Cost center và project.
+- [ ] **FIN-078** Member budget và spending limit.
+- [ ] **FIN-079** Approval workflow cho top-up/adjustment.
+- [ ] **FIN-080** SSO/OIDC theo tenant.
+- [ ] **FIN-081** Per-tenant branding.
+- [ ] **FIN-082** Custom domain.
+- [ ] **FIN-083** Cross-tenant settlement policy.
+
+## P1 — Reliability và security
+
+- [ ] **FIN-084** Distributed wallet locking cho nhiều node.
+- [ ] **FIN-085** Outbox/event processing.
+- [ ] **FIN-086** Dead-letter queue và retry event.
+- [ ] **FIN-087** Replay usage event an toàn.
+- [ ] **FIN-088** Disaster recovery và backup/restore rehearsal.
+- [ ] **FIN-089** Rate limit và quota guard theo tenant.
+- [ ] **FIN-090** Secret rotation cho provider credentials.
+- [ ] **FIN-091** Security audit cho payment, wallet và API credentials.
+- [ ] **FIN-092** Monitoring dashboard và alert routing.
+- [ ] **FIN-093** Runbook xử lý lỗi tài chính và provider.
+
+## P2 — AI Gateway mở rộng
+
+- [ ] **FIN-094** Hoàn thiện OpenAI Chat Completions/Responses relay.
+- [ ] **FIN-095** Hoàn thiện Anthropic Messages relay.
+- [ ] **FIN-096** Hoàn thiện Gemini relay.
+- [ ] **FIN-097** Hỗ trợ realtime/WebSocket theo channel.
+- [ ] **FIN-098** Hỗ trợ image, audio, embedding và rerank.
+- [ ] **FIN-099** Hỗ trợ multimodal input và file handling.
+- [ ] **FIN-100** Tool calling và reasoning compatibility tests.
+- [ ] **FIN-101** JavaScript task plugin lifecycle và task polling.
+- [ ] **FIN-102** Task artifact storage và download authorization.
+- [ ] **FIN-103** Plugin marketplace/install/update management.
+- [ ] **FIN-104** Playground cho debug request và response.
+- [ ] **FIN-105** API documentation và OpenAPI contract verification.
+
+## P2 — Console và vận hành
+
+- [ ] **FIN-106** Dashboard request, cost, latency và error metrics.
+- [ ] **FIN-107** Usage log search/filter/export.
+- [ ] **FIN-108** Channel/model configuration console.
+- [ ] **FIN-109** User, group, API key và access-token management.
+- [ ] **FIN-110** Subscription/package management.
+- [ ] **FIN-111** OAuth/OIDC, MFA, passkey và session management review.
+- [ ] **FIN-112** System settings và feature flags.
+- [ ] **FIN-113** Localization đầy đủ cho các màn hình mới.
+- [ ] **FIN-114** Accessibility và responsive UI audit.
+- [ ] **FIN-115** E2E test cho các luồng admin và customer.
+
+## P2 — Data migration và compatibility
+
+- [ ] **FIN-116** Migration quota cũ sang wallet mới.
+- [ ] **FIN-117** Migration pricing/subscription cũ.
+- [ ] **FIN-118** Backfill usage event từ usage logs.
+- [ ] **FIN-119** Kiểm tra backward compatibility API.
+- [ ] **FIN-120** Rollback migration và disaster recovery rehearsal.
+- [ ] **FIN-121** Kiểm thử dữ liệu trên SQLite, MySQL và PostgreSQL.
+
 ## Phụ thuộc chính
 
 ```text
@@ -102,4 +190,8 @@ FIN-001..005
   → FIN-025..038
   → FIN-039..046
   → FIN-047..054
+  → FIN-055..074
+  → FIN-075..093
+  → FIN-094..115
+  → FIN-116..121
 ```
