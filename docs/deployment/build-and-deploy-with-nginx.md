@@ -119,8 +119,10 @@ theo binary hiện tại, chạy `daemon-reload`, `enable`, `restart` và kiểm
 renew Let's Encrypt bằng Certbot, bật redirect HTTPS và xóa certificate của
 `OLD_DOMAIN` nếu có.
 
-Trước khi chọn port, workflow dừng `new-api` để không coi port của chính
-phiên bản cũ là xung đột. Port được chọn sẽ được lưu tại
+Nếu `new-api` đang chạy, workflow đọc port từ `ExecStart` của service hiện tại
+và tiếp tục dùng đúng port đó; service không bị dừng trong bước dò port. Nếu
+service chưa chạy, workflow dùng `APP_PORT`, `/opt/new-api/.app-port` hoặc bắt
+đầu từ `3000`, rồi tự chọn port trống trong phạm vi 20 port. Port được chọn sẽ được lưu tại
 `/opt/new-api/.app-port` và được dùng đồng thời cho systemd, Nginx và health
 check ở các lần deploy sau.
 

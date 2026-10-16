@@ -58,7 +58,18 @@ app_group="$(id -gn "${APP_USER}")"
 sudo -n install -d -o "${APP_USER}" -g "${app_group}" -m 0755 \
   "${APP_DIR}" "${APP_DIR}/releases" "${APP_DIR}/logs" "${APP_DIR}/data"
 
-preferred_port="${APP_PORT}"
+service_port=""
+if sudo -n systemctl is-active --quiet new-api; then
+  service_port="$(sudo -n sed -nE 's/^[[:space:]]*ExecStart=.*--port[[:space:]]+([0-9]+).*/\1/p' \
+    "${service_file}" 2>/dev/null | sed -n '1p')"
+  if [[ -z ${service_port} && -f ${port_file} ]]; then
+    service_port="$(sudo -n cat "${port_file}")"
+  fi
+fi
+
+# Keep the port already used by the running service. APP_PORT and .app-port
+# are only preferences when no existing service is active.
+preferred_port="${service_port:-${APP_PORT}}"
 if [[ -z ${preferred_port} && -f ${port_file} ]]; then
   preferred_port="$(sudo -n cat "${port_file}")"
 fi
@@ -69,10 +80,9 @@ if (( preferred_port < 1 || preferred_port > 65535 )); then
   exit 1
 fi
 
-# Stop the current service before checking ports so its own port is not
-# mistaken for a conflict. The preferred port is retained whenever possible;
-# otherwise the first free port in the next 20 ports is selected.
-sudo -n systemctl stop new-api 2>/dev/null || true
+# The preferred port is retained whenever possible; otherwise the first free
+# port in the next 20 ports is selected. A running new-api service is never
+# stopped just to probe its port.
 if ! command -v ss >/dev/null 2>&1; then
   echo "The ss command is required for automatic port selection" >&2
   sudo -n systemctl start new-api 2>/dev/null || true
