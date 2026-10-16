@@ -170,6 +170,11 @@ export function useSidebarData(): SidebarData {
             icon: FileText,
           },
           {
+            title: `${t('Provider')} ${t('Status')}`,
+            url: '/provider-status',
+            icon: Activity,
+          },
+          {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,

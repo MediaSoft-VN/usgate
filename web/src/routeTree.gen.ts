@@ -45,6 +45,7 @@ import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
 import { Route as AuthenticatedPlaygroundIndexRouteImport } from './routes/_authenticated/playground/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
+import { Route as AuthenticatedProviderStatusIndexRouteImport } from './routes/_authenticated/provider-status/index'
 import { Route as AuthenticatedProviderWalletIndexRouteImport } from './routes/_authenticated/provider-wallet/index'
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
 import { Route as AuthenticatedSecurityIndexRouteImport } from './routes/_authenticated/security/index'
@@ -264,6 +265,12 @@ const AuthenticatedProfileIndexRoute =
     path: '/profile/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProviderStatusIndexRoute =
+  AuthenticatedProviderStatusIndexRouteImport.update({
+    id: '/provider-status/',
+    path: '/provider-status/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProviderWalletIndexRoute =
   AuthenticatedProviderWalletIndexRouteImport.update({
     id: '/provider-wallet/',
@@ -480,6 +487,7 @@ export interface FileRoutesByFullPath {
   '/models/': typeof AuthenticatedModelsIndexRoute
   '/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
+  '/provider-status/': typeof AuthenticatedProviderStatusIndexRoute
   '/provider-wallet/': typeof AuthenticatedProviderWalletIndexRoute
   '/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
   '/security/': typeof AuthenticatedSecurityIndexRoute
@@ -545,6 +553,7 @@ export interface FileRoutesByTo {
   '/models': typeof AuthenticatedModelsIndexRoute
   '/playground': typeof AuthenticatedPlaygroundIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
+  '/provider-status': typeof AuthenticatedProviderStatusIndexRoute
   '/provider-wallet': typeof AuthenticatedProviderWalletIndexRoute
   '/redemption-codes': typeof AuthenticatedRedemptionCodesIndexRoute
   '/security': typeof AuthenticatedSecurityIndexRoute
@@ -614,6 +623,7 @@ export interface FileRoutesById {
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
   '/_authenticated/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
+  '/_authenticated/provider-status/': typeof AuthenticatedProviderStatusIndexRoute
   '/_authenticated/provider-wallet/': typeof AuthenticatedProviderWalletIndexRoute
   '/_authenticated/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
   '/_authenticated/security/': typeof AuthenticatedSecurityIndexRoute
@@ -682,6 +692,7 @@ export interface FileRouteTypes {
     | '/models/'
     | '/playground/'
     | '/profile/'
+    | '/provider-status/'
     | '/provider-wallet/'
     | '/redemption-codes/'
     | '/security/'
@@ -747,6 +758,7 @@ export interface FileRouteTypes {
     | '/models'
     | '/playground'
     | '/profile'
+    | '/provider-status'
     | '/provider-wallet'
     | '/redemption-codes'
     | '/security'
@@ -815,6 +827,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models/'
     | '/_authenticated/playground/'
     | '/_authenticated/profile/'
+    | '/_authenticated/provider-status/'
     | '/_authenticated/provider-wallet/'
     | '/_authenticated/redemption-codes/'
     | '/_authenticated/security/'
@@ -1116,6 +1129,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile/'
       preLoaderRoute: typeof AuthenticatedProfileIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/provider-status/': {
+      id: '/_authenticated/provider-status/'
+      path: '/provider-status'
+      fullPath: '/provider-status/'
+      preLoaderRoute: typeof AuthenticatedProviderStatusIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/provider-wallet/': {
@@ -1436,6 +1456,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
   AuthenticatedPlaygroundIndexRoute: typeof AuthenticatedPlaygroundIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
+  AuthenticatedProviderStatusIndexRoute: typeof AuthenticatedProviderStatusIndexRoute
   AuthenticatedProviderWalletIndexRoute: typeof AuthenticatedProviderWalletIndexRoute
   AuthenticatedRedemptionCodesIndexRoute: typeof AuthenticatedRedemptionCodesIndexRoute
   AuthenticatedSecurityIndexRoute: typeof AuthenticatedSecurityIndexRoute
@@ -1465,6 +1486,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
   AuthenticatedPlaygroundIndexRoute: AuthenticatedPlaygroundIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
+  AuthenticatedProviderStatusIndexRoute: AuthenticatedProviderStatusIndexRoute,
   AuthenticatedProviderWalletIndexRoute: AuthenticatedProviderWalletIndexRoute,
   AuthenticatedRedemptionCodesIndexRoute:
     AuthenticatedRedemptionCodesIndexRoute,
