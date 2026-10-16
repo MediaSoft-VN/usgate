@@ -49,8 +49,8 @@ Frontend được embed vào binary Go. Từ repository root, chạy script:
 ./scripts/package-native.sh
 ```
 
-Script dùng Docker để build frontend và backend theo target `builder2` trong
-`Dockerfile`, sau đó tạo hai archive:
+Script dùng `docker-compose.build.yml` để build frontend và backend theo target
+`builder2` trong `Dockerfile`, sau đó tạo hai archive:
 
 - `deploy/new-api.gz`: binary server nén, khoảng 42 MB.
 - `deploy/new-api-client.tar.gz`: client frontend (`web/dist`) đóng gói riêng.
@@ -68,6 +68,10 @@ Mặc định target là `linux/amd64`. Có thể build cho kiến trúc khác:
 ```bash
 NATIVE_PLATFORM="linux/arm64" ./scripts/package-native.sh
 ```
+
+Compose giữ lại Docker BuildKit cache cho Bun, Go modules và Go build cache.
+Không chạy `docker compose down --volumes` đối với file build nếu muốn giữ
+cache giữa các lần đóng gói.
 
 Nếu muốn gọi qua Make:
 

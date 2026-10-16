@@ -12,40 +12,30 @@ command -v docker >/dev/null 2>&1 || {
   echo "docker is required" >&2
   exit 1
 }
+docker compose version >/dev/null 2>&1 || {
+  echo "docker compose is required" >&2
+  exit 1
+}
 test -f VERSION || {
   echo "VERSION file is missing" >&2
   exit 1
 }
 
-echo "==> Building native binary in Docker: ${OUTPUT}"
+echo "==> Building native binary with Docker Compose: ${OUTPUT}"
 mkdir -p "$(dirname -- "${OUTPUT}")"
 mkdir -p "$(dirname -- "${CLIENT_OUTPUT}")"
 if [[ ${OUTPUT} == *.gz ]]; then
   rm -f "${OUTPUT%.gz}"
 fi
-image_name="new-api-native-builder:local"
-container_name="new-api-native-builder-$$"
-client_stage="$(mktemp -d "${TMPDIR:-/tmp}/new-api-client.XXXXXX")"
-cleanup() {
-  docker rm -f "${container_name}" >/dev/null 2>&1 || true
-  docker image rm "${image_name}" >/dev/null 2>&1 || true
-  rm -rf "${client_stage}"
-}
-trap cleanup EXIT
+NATIVE_PLATFORM="${NATIVE_PLATFORM:-linux/amd64}" \
+  docker compose -f docker-compose.build.yml run --rm --build native-builder
 
-docker build \
-  --platform "${NATIVE_PLATFORM:-linux/amd64}" \
-  --target builder2 \
-  --tag "${image_name}" \
-  .
-docker create --name "${container_name}" "${image_name}" >/dev/null
-binary_output="$(mktemp "${TMPDIR:-/tmp}/new-api.XXXXXX")"
-docker cp "${container_name}:/build/new-api" "${binary_output}"
-chmod 0755 "${binary_output}"
-gzip -n -c "${binary_output}" > "${OUTPUT}"
-rm -f "${binary_output}"
-docker cp "${container_name}:/build/web/dist/." "${client_stage}/"
-tar -czf "${CLIENT_OUTPUT}" -C "${client_stage}" .
+if [[ ${OUTPUT} != deploy/new-api.gz ]]; then
+  mv deploy/new-api.gz "${OUTPUT}"
+fi
+if [[ ${CLIENT_OUTPUT} != deploy/new-api-client.tar.gz ]]; then
+  mv deploy/new-api-client.tar.gz "${CLIENT_OUTPUT}"
+fi
 
 echo "==> Release checksum"
 sha256sum "${OUTPUT}"
