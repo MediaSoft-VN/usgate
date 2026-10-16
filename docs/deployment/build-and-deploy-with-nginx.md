@@ -50,9 +50,14 @@ Frontend được embed vào binary Go. Từ repository root, chạy script:
 ```
 
 Script dùng Docker để build frontend và backend theo target `builder2` trong
-`Dockerfile`, sau đó tạo archive nén tại `deploy/new-api.gz`. Binary thô khoảng
-130 MB, vượt giới hạn file 100 MB của GitHub, còn archive khoảng 42 MB. Có thể
-đổi output qua biến môi trường:
+`Dockerfile`, sau đó tạo hai archive:
+
+- `deploy/new-api.gz`: binary server nén, khoảng 42 MB.
+- `deploy/new-api-client.tar.gz`: client frontend (`web/dist`) đóng gói riêng.
+
+Binary thô khoảng 130 MB, vượt giới hạn file 100 MB của GitHub. Client đã được
+embed trong binary để server chạy một file, còn archive client riêng dùng để
+kiểm tra hoặc phân phối. Có thể đổi output binary qua biến môi trường:
 
 ```bash
 NATIVE_OUTPUT="deploy/new-api-$(cat VERSION).gz" ./scripts/package-native.sh
@@ -77,6 +82,7 @@ gzip -dc deploy/new-api.gz > /tmp/new-api
 chmod 0755 /tmp/new-api
 /tmp/new-api --help
 file deploy/new-api.gz
+tar -tzf deploy/new-api-client.tar.gz >/dev/null
 ```
 
 Trước khi commit, kiểm tra đúng commit và binary:
