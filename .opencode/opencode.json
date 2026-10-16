@@ -1,0 +1,114 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "../AGENTS.md",
+    "../web/AGENTS.md"
+  ],
+  "model": "google/gemini-2.0-flash",
+  "small_model": "opencode/north-mini-code-free",
+  "default_agent": "build",
+  "agent": {
+    "build": {
+      "description": "Primary developer for the Go AI gateway, React frontend, plugins, and Electron app",
+      "mode": "primary",
+      "color": "#4ECDC4"
+    },
+    "plan": {
+      "description": "Read-only planner for the Go gateway and React frontend",
+      "mode": "primary",
+      "color": "#45B7D1"
+    },
+    "reviewer": {
+      "description": "Read-only reviewer for Go, React, security, compatibility, and tests",
+      "mode": "subagent",
+      "color": "#DDA0DD",
+      "permission": {
+        "edit": "deny",
+        "bash": {
+          "git diff *": "allow",
+          "git log *": "allow",
+          "go test *": "allow",
+          "*": "ask"
+        }
+      }
+    },
+    "designer": {
+      "description": "Architecture and API design assistant for this Go/React repository",
+      "mode": "subagent",
+      "color": "#96CEB4"
+    },
+    "tester": {
+      "description": "Test engineer for Go backend, database compatibility, plugins, and React frontend",
+      "mode": "subagent",
+      "color": "#FF8C94"
+    },
+    "ops": {
+      "description": "Build, Docker, release, and operations assistant",
+      "mode": "subagent",
+      "color": "#F39C12"
+    },
+    "guide": {
+      "description": "Documentation assistant for user-facing and operator-facing guides",
+      "mode": "subagent",
+      "color": "#2ECC71"
+    },
+    "pm": {
+      "description": "Project planning assistant for scoped work breakdowns and estimates",
+      "mode": "subagent",
+      "color": "#E74C3C"
+    }
+  },
+  "command": {
+    "plan": {
+      "description": "Analyze the repository and produce an implementation plan",
+      "agent": "plan",
+      "template": "Analyze the requested change using the repository's actual Go, React, Bun, Docker, and test conventions. Inspect relevant code before proposing changes. Include scope, affected files, behavior, compatibility risks, test plan, and exact verification commands. Do not create files unless requested.\n\nRequest: $ARGUMENTS"
+    },
+    "code": {
+      "description": "Implement a change using the repository conventions",
+      "agent": "build",
+      "template": "Implement exactly one task at a time. First inspect the relevant code and local AGENTS.md files, define observable acceptance criteria and an E2E test path, then implement only that task. Follow the Go 1.26/Gin/GORM architecture and the web/AGENTS.md frontend rules. Preserve SQLite, MySQL, and PostgreSQL compatibility for database changes. Read docs/plugin-api/v1.md before changing task plugins. Add focused tests, run the relevant E2E and narrow checks, inspect git diff/status, and commit only the completed task after verification passes. Do not begin another task until the commit succeeds. Report failed or unavailable checks; never claim unobserved results.\n\nTask: $ARGUMENTS"
+    },
+    "test": {
+      "description": "Run focused tests and report evidence",
+      "agent": "tester",
+      "template": "Test the requested change. Inspect package scripts and local instructions first. Prefer focused deterministic tests, then expand to the relevant suite. For database changes, verify all supported database dialects when available. Report exact commands, results, and any environment blockers.\n\nTarget: $ARGUMENTS"
+    },
+    "review": {
+      "description": "Review a change without editing files",
+      "agent": "reviewer",
+      "template": "Review the requested change in read-only mode. Check behavior, security, error handling, Go conventions, frontend conventions, database compatibility, plugin API compatibility, tests, and regressions. Cite file paths and line numbers. Return findings ordered by severity and a final verdict.\n\nChange: $ARGUMENTS"
+    },
+    "fix": {
+      "description": "Diagnose and fix a bug",
+      "agent": "build",
+      "template": "Diagnose the reported bug from reproduction and relevant code paths, identify the root cause, implement the smallest safe fix, and add a regression test. Do not guess at unrelated behavior.\n\nIssue: $ARGUMENTS"
+    },
+    "explain": {
+      "description": "Explain how a part of the repository works",
+      "agent": "plan",
+      "template": "Explain the requested code path using concrete file paths and symbols. Trace request flow, state changes, persistence, upstream calls, and error handling as applicable. Do not modify files.\n\nTopic: $ARGUMENTS"
+    },
+    "frontend": {
+      "description": "Work on the React frontend only",
+      "agent": "build",
+      "template": "Work only on the web/ frontend for this request. Read web/AGENTS.md, reuse existing components before adding new ones, preserve i18n, and run Bun typecheck/lint/tests relevant to the change.\n\nRequest: $ARGUMENTS"
+    },
+    "backend": {
+      "description": "Work on the Go backend only",
+      "agent": "build",
+      "template": "Work only on the Go backend for this request. Follow AGENTS1.md, use common JSON wrappers, preserve supported database dialects, and run focused Go tests plus formatting.\n\nRequest: $ARGUMENTS"
+    }
+  },
+  "permission": {
+    "external_directory": {
+      "/tmp/*": "allow",
+      "/var/folders/**": "allow"
+    }
+  },
+  "skills": {
+    "paths": [
+      ".opencode/skills"
+    ]
+  }
+}
