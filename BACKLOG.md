@@ -1,6 +1,10 @@
 # Product Backlog
 
-Phạm vi: MVP nền tảng AI Gateway có wallet, provider credit và usage billing.
+Nguồn phạm vi: `new-api-financial-platform-estimate.md`.
+
+Phạm vi: prototype, MVP và production hardening cho nền tảng AI Gateway có
+customer/provider wallet, financial ledger, payment/top-up, billing, usage cost,
+reconciliation, whitelabel và admin console.
 
 Trạng thái: `todo` → `processing` → `done` → `reviewing` → `reviewed`.
 
@@ -181,6 +185,28 @@ Trạng thái: `todo` → `processing` → `done` → `reviewing` → `reviewed`
 - [ ] **FIN-120** Rollback migration và disaster recovery rehearsal.
 - [ ] **FIN-121** Kiểm thử dữ liệu trên SQLite, MySQL và PostgreSQL.
 
+## Traceability — các work package trong phân tích gốc
+
+- [ ] **FIN-122** Discovery, BA, chốt scope và financial rules. *(WP-01)*
+- [ ] **FIN-123** Architecture, data model và migration strategy. *(WP-02)*
+- [ ] **FIN-124** Tenant, organization, membership và whitelabel. *(WP-03)*
+- [ ] **FIN-125** Wallet core: account, balance, reserve và lock. *(WP-04)*
+- [ ] **FIN-126** Double-entry financial ledger hoàn chỉnh. *(WP-05)*
+- [ ] **FIN-127** Payment order, webhook, top-up và refund. *(WP-06)*
+- [ ] **FIN-128** Provider account, wallet và provider credit. *(WP-07)*
+- [ ] **FIN-129** Pricing, customer billing, markup và invoice. *(WP-08)*
+- [ ] **FIN-130** Quota allocation, budget và daily/monthly limit. *(WP-09)*
+- [ ] **FIN-131** AI Gateway financial guard. *(WP-10)*
+- [ ] **FIN-132** Usage ingestion và provider cost calculation. *(WP-11)*
+- [ ] **FIN-133** Reconciliation và exception handling. *(WP-12)*
+- [ ] **FIN-134** Admin web cho wallet, provider và billing. *(WP-13)*
+- [ ] **FIN-135** API integration, RBAC, audit và idempotency. *(WP-14)*
+- [ ] **FIN-136** Security controls cho secrets, payment và financial flows. *(WP-15)*
+- [ ] **FIN-137** Automated tests cho concurrency và failure scenarios. *(WP-16)*
+- [ ] **FIN-138** Operations: monitoring, backup, alerting và runbook. *(WP-17)*
+- [ ] **FIN-139** Data migration và compatibility với quota hiện tại. *(WP-18)*
+- [ ] **FIN-140** Documentation, training và release checklist. *(WP-19)*
+
 ## Phụ thuộc chính
 
 ```text
@@ -194,4 +220,5 @@ FIN-001..005
   → FIN-075..093
   → FIN-094..115
   → FIN-116..121
+  → FIN-122..140
 ```
