@@ -98,9 +98,24 @@ Tạo các GitHub Environment secrets trong environment `production`:
 - `DEPLOY_KNOWN_HOSTS`: output đã xác minh của `ssh-keyscan`, không lấy động
   trong workflow.
 
+Tạo thêm Environment variables:
+
+- `APP_USER`: user chạy `new-api`; nếu bỏ trống sẽ dùng `DEPLOY_USER`.
+- `APP_DIR`: mặc định `/opt/new-api`.
+- `APP_PORT`: mặc định `3000`.
+- `PROD_DOMAIN`: domain live, ví dụ `api.example.com`.
+- `OLD_DOMAIN`: domain cũ cần xóa certificate, có thể bỏ trống.
+- `CERTBOT_EMAIL`: email nhận thông báo Let's Encrypt (Environment secret).
+
 Workflow hiện tự deploy khi có push vào branch `main` có binary mới. Có thể
 chạy thủ công bằng `workflow_dispatch`; production environment nên bật
 required reviewers nếu cần phê duyệt trước deploy.
+
+Mỗi lần deploy workflow sẽ cập nhật `/etc/systemd/system/new-api.service`
+theo binary hiện tại, chạy `daemon-reload`, `enable`, `restart` và kiểm tra
+`/api/status`. Nó cũng ghi lại Nginx server block cho domain mới, cấp hoặc
+renew Let's Encrypt bằng Certbot, bật redirect HTTPS và xóa certificate của
+`OLD_DOMAIN` nếu có.
 
 ## 4. Cấu hình môi trường
 

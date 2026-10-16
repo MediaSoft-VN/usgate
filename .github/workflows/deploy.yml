@@ -70,9 +70,29 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_USER: ${{ vars.APP_USER }}
+          APP_DIR: ${{ vars.APP_DIR }}
+          APP_PORT: ${{ vars.APP_PORT }}
+          DOMAIN: ${{ vars.PROD_DOMAIN }}
+          OLD_DOMAIN: ${{ vars.OLD_DOMAIN }}
+          CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
         run: |
           set -euo pipefail
+          : "${DEPLOY_HOST:?DEPLOY_HOST is required}"
+          : "${DEPLOY_PORT:?DEPLOY_PORT is required}"
+          : "${DEPLOY_USER:?DEPLOY_USER is required}"
+          : "${DOMAIN:?PROD_DOMAIN environment variable is required}"
+          : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
           checksum="$(sha256sum deploy/new-api | cut -d' ' -f1)"
-          ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "RELEASE_ID='${GITHUB_SHA}' EXPECTED_SHA256='${checksum}' bash -s" \
-            < .github/scripts/deploy-native.sh
+          {
+            printf 'APP_USER=%q\n' "${APP_USER:-${DEPLOY_USER}}"
+            printf 'APP_DIR=%q\n' "${APP_DIR:-/opt/new-api}"
+            printf 'APP_PORT=%q\n' "${APP_PORT:-3000}"
+            printf 'DOMAIN=%q\n' "${DOMAIN}"
+            printf 'OLD_DOMAIN=%q\n' "${OLD_DOMAIN:-}"
+            printf 'CERTBOT_EMAIL=%q\n' "${CERTBOT_EMAIL}"
+            printf 'RELEASE_ID=%q\n' "${GITHUB_SHA}"
+            printf 'EXPECTED_SHA256=%q\n' "${checksum}"
+            printf 'SSH_USER=%q\n' "${DEPLOY_USER}"
+            cat .github/scripts/deploy-native.sh
+          } | ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s'
