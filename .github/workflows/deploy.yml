@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - deploy/new-api
+      - deploy/new-api.gz
       - .github/scripts/deploy-native.sh
       - .github/workflows/deploy.yml
   workflow_dispatch:
@@ -33,10 +33,10 @@ jobs:
       - name: Validate prebuilt binary
         run: |
           set -euo pipefail
-          test -f deploy/new-api
-          test -x deploy/new-api || chmod +x deploy/new-api
-          file deploy/new-api
-          sha256sum deploy/new-api
+          test -f deploy/new-api.gz
+          gzip -t deploy/new-api.gz
+          file deploy/new-api.gz
+          sha256sum deploy/new-api.gz
 
       - name: Configure SSH
         env:
@@ -62,8 +62,8 @@ jobs:
           : "${DEPLOY_PORT:?DEPLOY_PORT is required}"
           : "${DEPLOY_USER:?DEPLOY_USER is required}"
           scp -P "${DEPLOY_PORT}" \
-            deploy/new-api \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-${GITHUB_SHA}"
+            deploy/new-api.gz \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-${GITHUB_SHA}.gz"
 
       - name: Activate release and verify health
         env:
@@ -85,7 +85,7 @@ jobs:
           : "${DOMAIN:?PROD_DOMAIN environment variable is required}"
           : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
           : "${NEW_API_ENV:?NEW_API_ENV secret is required}"
-          checksum="$(sha256sum deploy/new-api | cut -d' ' -f1)"
+          checksum="$(sha256sum deploy/new-api.gz | cut -d' ' -f1)"
           {
             printf 'APP_USER=%q\n' "${APP_USER:-${DEPLOY_USER}}"
             printf 'APP_DIR=%q\n' "${APP_DIR:-/opt/new-api}"

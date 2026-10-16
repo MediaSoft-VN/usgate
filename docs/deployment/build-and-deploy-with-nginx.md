@@ -49,11 +49,19 @@ Frontend được embed vào binary Go. Từ repository root, chạy script:
 ./scripts/package-native.sh
 ```
 
-Script dùng Bun để build `web`, sau đó dùng Go để tạo binary tại
-`deploy/new-api`. Có thể đổi output qua biến môi trường:
+Script dùng Docker để build frontend và backend theo target `builder2` trong
+`Dockerfile`, sau đó tạo archive nén tại `deploy/new-api.gz`. Binary thô khoảng
+130 MB, vượt giới hạn file 100 MB của GitHub, còn archive khoảng 42 MB. Có thể
+đổi output qua biến môi trường:
 
 ```bash
-NATIVE_OUTPUT="deploy/new-api-$(cat VERSION)" ./scripts/package-native.sh
+NATIVE_OUTPUT="deploy/new-api-$(cat VERSION).gz" ./scripts/package-native.sh
+```
+
+Mặc định target là `linux/amd64`. Có thể build cho kiến trúc khác:
+
+```bash
+NATIVE_PLATFORM="linux/arm64" ./scripts/package-native.sh
 ```
 
 Nếu muốn gọi qua Make:
@@ -65,8 +73,10 @@ make package-native
 Kiểm tra binary:
 
 ```bash
-deploy/new-api --help
-file deploy/new-api
+gzip -dc deploy/new-api.gz > /tmp/new-api
+chmod 0755 /tmp/new-api
+/tmp/new-api --help
+file deploy/new-api.gz
 ```
 
 Trước khi commit, kiểm tra đúng commit và binary:
@@ -74,16 +84,16 @@ Trước khi commit, kiểm tra đúng commit và binary:
 ```bash
 git rev-parse HEAD
 git status --short
-sha256sum deploy/new-api
+sha256sum deploy/new-api.gz
 ```
 
 ### Chuẩn bị cho GitHub Actions
 
 Workflow `.github/workflows/deploy.yml` không build lại source. Nó yêu cầu
-binary đã build sẵn được commit tại `deploy/new-api`:
+archive binary đã build sẵn được commit tại `deploy/new-api.gz`:
 
 ```bash
-git add deploy/new-api
+git add deploy/new-api.gz
 git commit -m "chore: publish native release $(cat VERSION)"
 git push origin main
 ```

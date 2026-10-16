@@ -13,7 +13,7 @@ set -Eeuo pipefail
 : "${SSH_USER:?SSH_USER is required}"
 : "${OLD_DOMAIN:=}"
 
-uploaded_file="/tmp/new-api-${RELEASE_ID}"
+uploaded_file="/tmp/new-api-${RELEASE_ID}.gz"
 release_file="${APP_DIR}/releases/new-api-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
 nginx_site=/etc/nginx/sites-available/new-api.conf
@@ -49,6 +49,8 @@ if [[ ! -f ${uploaded_file} ]]; then
   echo "Uploaded release was not found" >&2
   exit 1
 fi
+
+gzip -t "${uploaded_file}"
 
 actual_sha256="$(sha256sum "${uploaded_file}" | cut -d' ' -f1)"
 if [[ ${actual_sha256} != "${EXPECTED_SHA256}" ]]; then
@@ -118,8 +120,9 @@ printf '%s\n' "${NEW_API_ENV}" | sudo -n tee "${env_file}" >/dev/null
 sudo -n chown "${APP_USER}:${app_group}" "${env_file}"
 sudo -n chmod 0600 "${env_file}"
 
-sudo -n install -o "${APP_USER}" -g "${app_group}" -m 0755 \
-  "${uploaded_file}" "${release_file}"
+gzip -dc "${uploaded_file}" | sudo -n tee "${release_file}" >/dev/null
+sudo -n chown "${APP_USER}:${app_group}" "${release_file}"
+sudo -n chmod 0755 "${release_file}"
 sudo -n ln -sfn "${release_file}" "${APP_DIR}/new-api"
 
 sudo -n tee "${service_file}" >/dev/null <<SERVICE
