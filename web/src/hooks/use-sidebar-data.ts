@@ -170,6 +170,11 @@ export function useSidebarData(): SidebarData {
             icon: FileText,
           },
           {
+            title: t('Financial transactions'),
+            url: '/financial-transactions',
+            icon: ReceiptText,
+          },
+          {
             title: `${t('Provider')} ${t('Status')}`,
             url: '/provider-status',
             icon: Activity,
