@@ -7274,6 +7274,11 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Provider funding": "Пополнения провайдеров",
+    "Provider funding recorded": "Пополнение провайдера записано",
+    "Record provider funding": "Записать пополнение провайдера",
+    "No provider funding records": "Нет записей о пополнениях провайдеров",
+    "Reference": "Ссылка"
   }
 }

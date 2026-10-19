@@ -7274,6 +7274,11 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Provider funding": "Financement fournisseur",
+    "Provider funding recorded": "Financement fournisseur enregistré",
+    "Record provider funding": "Enregistrer un financement fournisseur",
+    "No provider funding records": "Aucun financement fournisseur",
+    "Reference": "Référence"
   }
 }

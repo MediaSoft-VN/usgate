@@ -7274,6 +7274,11 @@
     "Zhipu": "智譜",
     "Zhipu GLM": "智譜GLM",
     "Zhipu V4": "智譜 V4",
-    "Zoom": "縮放"
+    "Zoom": "縮放",
+    "Provider funding": "供應商充值",
+    "Provider funding recorded": "供應商充值已記錄",
+    "Record provider funding": "記錄供應商充值",
+    "No provider funding records": "暫無供應商充值記錄",
+    "Reference": "參考號"
   }
 }

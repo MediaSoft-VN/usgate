@@ -176,7 +176,7 @@ export function useSidebarData(): SidebarData {
           },
           {
             title: `${t('Provider')} ${t('Top-up')}`,
-            url: '/financial-transactions',
+            url: '/provider-funding',
             icon: Wallet,
           },
           {

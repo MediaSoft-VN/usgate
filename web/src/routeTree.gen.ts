@@ -28,6 +28,7 @@ import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedChat2linkRouteImport } from './routes/_authenticated/chat2link'
 import { Route as AuthenticatedFinancialTransactionsRouteImport } from './routes/_authenticated/financial-transactions'
+import { Route as AuthenticatedProviderFundingRouteImport } from './routes/_authenticated/provider-funding'
 import { Route as AuthenticatedSystemSettingsRouteRouteImport } from './routes/_authenticated/system-settings/route'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as OauthProviderRouteImport } from './routes/oauth/$provider'
@@ -170,6 +171,12 @@ const AuthenticatedFinancialTransactionsRoute =
   AuthenticatedFinancialTransactionsRouteImport.update({
     id: '/financial-transactions',
     path: '/financial-transactions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProviderFundingRoute =
+  AuthenticatedProviderFundingRouteImport.update({
+    id: '/provider-funding',
+    path: '/provider-funding',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSystemSettingsRouteRoute =
@@ -476,6 +483,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/financial-transactions': typeof AuthenticatedFinancialTransactionsRoute
+  '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/pricing/': typeof PricingIndexRoute
@@ -543,6 +551,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/financial-transactions': typeof AuthenticatedFinancialTransactionsRoute
+  '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about': typeof AboutIndexRoute
   '/pricing': typeof PricingIndexRoute
@@ -614,6 +623,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/chat2link': typeof AuthenticatedChat2linkRoute
   '/_authenticated/financial-transactions': typeof AuthenticatedFinancialTransactionsRoute
+  '/_authenticated/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/pricing/': typeof PricingIndexRoute
@@ -684,6 +694,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/chat2link'
     | '/financial-transactions'
+    | '/provider-funding'
     | '/oauth/$provider'
     | '/about/'
     | '/pricing/'
@@ -751,6 +762,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/chat2link'
     | '/financial-transactions'
+    | '/provider-funding'
     | '/oauth/$provider'
     | '/about'
     | '/pricing'
@@ -821,6 +833,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/chat2link'
     | '/_authenticated/financial-transactions'
+    | '/_authenticated/provider-funding'
     | '/oauth/$provider'
     | '/about/'
     | '/pricing/'
@@ -1023,6 +1036,13 @@ declare module '@tanstack/react-router' {
       path: '/financial-transactions'
       fullPath: '/financial-transactions'
       preLoaderRoute: typeof AuthenticatedFinancialTransactionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/provider-funding': {
+      id: '/_authenticated/provider-funding'
+      path: '/provider-funding'
+      fullPath: '/provider-funding'
+      preLoaderRoute: typeof AuthenticatedProviderFundingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/system-settings': {
@@ -1464,6 +1484,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSystemSettingsRouteRoute: typeof AuthenticatedSystemSettingsRouteRouteWithChildren
   AuthenticatedChat2linkRoute: typeof AuthenticatedChat2linkRoute
   AuthenticatedFinancialTransactionsRoute: typeof AuthenticatedFinancialTransactionsRoute
+  AuthenticatedProviderFundingRoute: typeof AuthenticatedProviderFundingRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
   AuthenticatedDashboardSectionRoute: typeof AuthenticatedDashboardSectionRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
@@ -1496,6 +1517,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChat2linkRoute: AuthenticatedChat2linkRoute,
   AuthenticatedFinancialTransactionsRoute:
     AuthenticatedFinancialTransactionsRoute,
+  AuthenticatedProviderFundingRoute: AuthenticatedProviderFundingRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
   AuthenticatedDashboardSectionRoute: AuthenticatedDashboardSectionRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,

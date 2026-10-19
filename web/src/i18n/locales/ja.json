@@ -7274,6 +7274,11 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Provider funding": "プロバイダー入金",
+    "Provider funding recorded": "プロバイダー入金を記録しました",
+    "Record provider funding": "プロバイダー入金を記録",
+    "No provider funding records": "プロバイダー入金履歴はありません",
+    "Reference": "参照番号"
   }
 }

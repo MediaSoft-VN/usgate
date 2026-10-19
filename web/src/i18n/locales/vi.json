@@ -7274,6 +7274,11 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Provider funding": "Nạp tiền nhà cung cấp",
+    "Provider funding recorded": "Đã ghi nhận khoản nạp cho nhà cung cấp",
+    "Record provider funding": "Ghi nhận nạp tiền nhà cung cấp",
+    "No provider funding records": "Chưa có bản ghi nạp tiền nhà cung cấp",
+    "Reference": "Mã tham chiếu"
   }
 }
