@@ -7284,6 +7284,19 @@
     "Select channel": "選擇渠道",
     "Sync provider balances": "同步供應商餘額",
     "Provider balance sync started": "供應商餘額同步已啟動",    "Provider balance sync running": "供應商餘額同步中",
-    "Funding amount": "充值金額"
+    "Funding amount": "充值金額",
+    "Provider partner": "供應商合作夥伴",
+    "Select provider partner": "選擇供應商合作夥伴",
+    "Add provider partner": "新增供應商合作夥伴",
+    "Provider partner guide": "請先建立供應商合作夥伴，再將 AI 渠道分配給它。充值記錄按合作夥伴統計。",
+    "Provider partner code": "合作夥伴代碼",
+    "Provider partner name": "合作夥伴名稱",
+    "Provider partner created": "供應商合作夥伴已建立",
+    "Assign channels to provider partner": "將渠道分配給供應商合作夥伴",
+    "Provider channel assignment guide": "將每個 AI 渠道分配給擁有其供應商帳戶的合作夥伴。",
+    "Assign channel": "分配渠道",
+    "Provider channel assigned": "渠道已分配",
+    "Provider level": "供應商層級",
+    "Add": "新增"
   }
 }

@@ -7284,6 +7284,19 @@
     "Select channel": "Sélectionner un canal",
     "Sync provider balances": "Synchroniser les soldes fournisseurs",
     "Provider balance sync started": "Synchronisation des soldes fournisseurs lancée",    "Provider balance sync running": "Synchronisation des soldes fournisseurs en cours",
-    "Funding amount": "Montant du financement"
+    "Funding amount": "Montant du financement",
+    "Provider partner": "Partenaire fournisseur",
+    "Select provider partner": "Sélectionner un partenaire fournisseur",
+    "Add provider partner": "Ajouter un partenaire fournisseur",
+    "Provider partner guide": "Créez d’abord un partenaire fournisseur, puis affectez-lui ses canaux IA. Les financements sont comptabilisés au niveau du partenaire.",
+    "Provider partner code": "Code du partenaire",
+    "Provider partner name": "Nom du partenaire",
+    "Provider partner created": "Partenaire fournisseur créé",
+    "Assign channels to provider partner": "Affecter des canaux au partenaire fournisseur",
+    "Provider channel assignment guide": "Affectez chaque canal IA au partenaire qui possède son compte fournisseur.",
+    "Assign channel": "Affecter le canal",
+    "Provider channel assigned": "Canal affecté",
+    "Provider level": "Niveau fournisseur",
+    "Add": "Ajouter"
   }
 }

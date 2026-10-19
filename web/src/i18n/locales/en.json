@@ -7284,6 +7284,19 @@
     "Select channel": "Select channel",
     "Sync provider balances": "Sync provider balances",
     "Provider balance sync started": "Provider balance sync started",    "Provider balance sync running": "Provider balance sync running",
-    "Funding amount": "Funding amount"
+    "Funding amount": "Funding amount",
+    "Provider partner": "Provider partner",
+    "Select provider partner": "Select provider partner",
+    "Add provider partner": "Add provider partner",
+    "Provider partner guide": "Create a provider partner first, then assign its AI channels. Funding is recorded at partner level.",
+    "Provider partner code": "Partner code",
+    "Provider partner name": "Partner name",
+    "Provider partner created": "Provider partner created",
+    "Assign channels to provider partner": "Assign channels to provider partner",
+    "Provider channel assignment guide": "Assign each AI channel to the partner that owns its provider account.",
+    "Assign channel": "Assign channel",
+    "Provider channel assigned": "Provider channel assigned",
+    "Provider level": "Provider level",
+    "Add": "Add"
   }
 }

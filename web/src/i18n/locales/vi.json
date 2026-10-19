@@ -7284,6 +7284,19 @@
     "Select channel": "Chọn kênh",
     "Sync provider balances": "Đồng bộ số dư các kênh",
     "Provider balance sync started": "Đã bắt đầu đồng bộ số dư các kênh",    "Provider balance sync running": "Đang đồng bộ số dư các kênh",
-    "Funding amount": "Số tiền nạp"
+    "Funding amount": "Số tiền nạp",
+    "Provider partner": "Đối tác nhà cung cấp",
+    "Select provider partner": "Chọn đối tác nhà cung cấp",
+    "Add provider partner": "Thêm đối tác nhà cung cấp",
+    "Provider partner guide": "Hãy tạo đối tác nhà cung cấp trước, sau đó gán các kênh AI cho đối tác. Khoản nạp được ghi nhận theo đối tác.",
+    "Provider partner code": "Mã đối tác",
+    "Provider partner name": "Tên đối tác",
+    "Provider partner created": "Đã tạo đối tác nhà cung cấp",
+    "Assign channels to provider partner": "Gán kênh cho đối tác nhà cung cấp",
+    "Provider channel assignment guide": "Gán từng kênh AI cho đối tác sở hữu tài khoản nhà cung cấp của kênh đó.",
+    "Assign channel": "Gán kênh",
+    "Provider channel assigned": "Đã gán kênh",
+    "Provider level": "Cấp nhà cung cấp",
+    "Add": "Thêm"
   }
 }

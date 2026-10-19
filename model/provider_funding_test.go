@@ -8,26 +8,29 @@ import (
 )
 
 func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
-	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderFunding{}))
-	channel := &Channel{Name: "provider funding test", Type: 1, Key: "provider-funding-test-key"}
+	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderPartner{}, &ProviderFunding{}))
+	partner := &ProviderPartner{Code: "funding-test", Name: "Funding Test"}
+	require.NoError(t, CreateProviderPartner(partner))
+	channel := &Channel{Name: "provider funding test", Type: 1, Key: "provider-funding-test-key", ProviderPartnerID: &partner.ID}
 	require.NoError(t, DB.Create(channel).Error)
 	t.Cleanup(func() {
 		DB.Exec("DELETE FROM provider_fundings")
 		DB.Exec("DELETE FROM channels WHERE id = ?", channel.Id)
+		DB.Exec("DELETE FROM provider_partners WHERE id = ?", partner.ID)
 	})
 
-	funding := &ProviderFunding{ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "usd", Source: ProviderFundingSourceManual}
+	funding := &ProviderFunding{ProviderPartnerID: partner.ID, ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "usd", Source: ProviderFundingSourceManual}
 	record, replay, err := RecordProviderFunding(funding)
 	require.NoError(t, err)
 	assert.False(t, replay)
 	assert.Equal(t, "USD", record.Currency)
 
-	replayed, replay, err := RecordProviderFunding(&ProviderFunding{ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "USD", Source: ProviderFundingSourceManual})
+	replayed, replay, err := RecordProviderFunding(&ProviderFunding{ProviderPartnerID: partner.ID, ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "USD", Source: ProviderFundingSourceManual})
 	require.NoError(t, err)
 	assert.True(t, replay)
 	assert.Equal(t, record.ID, replayed.ID)
 
-	summary, err := SummarizeProviderFundings()
+	summary, err := SummarizeProviderFundings(ProviderFundingFilter{ProviderPartnerID: partner.ID})
 	require.NoError(t, err)
 	require.Len(t, summary, 1)
 	assert.Equal(t, int64(12500), summary[0].AmountMinor)

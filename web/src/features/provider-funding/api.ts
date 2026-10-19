@@ -3,6 +3,7 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 
 export type ProviderFunding = {
   id: number
+  provider_partner_id: number
   channel_id: number
   reference: string
   amount_minor: number
@@ -26,16 +27,62 @@ export type ProviderFundingPage = {
   summary: ProviderFundingSummary[]
 }
 
-export async function getProviderFundings(page: number, pageSize: number) {
+export type ProviderPartner = {
+  id: number
+  code: string
+  name: string
+  status: number
+}
+
+export async function getProviderPartners() {
+  const response = await api.get<{
+    success: boolean
+    data: ProviderPartner[]
+  }>('/api/financial/provider-partners')
+  return requireServerSuccess(response.data).data
+}
+
+export async function createProviderPartner(input: {
+  code: string
+  name: string
+}) {
+  const response = await api.post<{
+    success: boolean
+    data: ProviderPartner
+  }>('/api/financial/provider-partners', input)
+  return requireServerSuccess(response.data).data
+}
+
+export async function assignChannelProviderPartner(
+  channelID: number,
+  providerPartnerID: number | null
+) {
+  const response = await api.put(`/api/channel/${channelID}/provider-partner`, {
+    provider_partner_id: providerPartnerID,
+  })
+  return requireServerSuccess(response.data).data
+}
+
+export async function getProviderFundings(
+  page: number,
+  pageSize: number,
+  providerPartnerID?: number
+) {
   const response = await api.get<{ success: boolean; data: ProviderFundingPage }>(
     '/api/financial/provider-funding',
-    { params: { page, page_size: pageSize } }
+    {
+      params: {
+        page,
+        page_size: pageSize,
+        ...(providerPartnerID ? { provider_partner_id: providerPartnerID } : {}),
+      },
+    }
   )
   return requireServerSuccess(response.data).data
 }
 
 export async function createProviderFunding(input: {
-  channel_id: number
+  provider_partner_id: number
   reference: string
   amount_minor: number
   currency: string

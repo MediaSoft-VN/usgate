@@ -7284,6 +7284,19 @@
     "Select channel": "チャンネルを選択",
     "Sync provider balances": "プロバイダー残高を同期",
     "Provider balance sync started": "プロバイダー残高の同期を開始しました",    "Provider balance sync running": "プロバイダー残高を同期中",
-    "Funding amount": "入金額"
+    "Funding amount": "入金額",
+    "Provider partner": "プロバイダーパートナー",
+    "Select provider partner": "プロバイダーパートナーを選択",
+    "Add provider partner": "プロバイダーパートナーを追加",
+    "Provider partner guide": "先にプロバイダーパートナーを作成し、そのパートナーに AI チャンネルを割り当てます。入金はパートナー単位で記録されます。",
+    "Provider partner code": "パートナーコード",
+    "Provider partner name": "パートナー名",
+    "Provider partner created": "プロバイダーパートナーを作成しました",
+    "Assign channels to provider partner": "チャンネルをプロバイダーパートナーに割り当て",
+    "Provider channel assignment guide": "各 AI チャンネルを、そのプロバイダーアカウントを所有するパートナーに割り当てます。",
+    "Assign channel": "チャンネルを割り当て",
+    "Provider channel assigned": "チャンネルを割り当てました",
+    "Provider level": "プロバイダーレベル",
+    "Add": "追加"
   }
 }

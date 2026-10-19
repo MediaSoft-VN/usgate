@@ -7284,6 +7284,19 @@
     "Select channel": "Выберите канал",
     "Sync provider balances": "Синхронизировать балансы провайдеров",
     "Provider balance sync started": "Синхронизация балансов провайдеров запущена",    "Provider balance sync running": "Баланс провайдеров синхронизируется",
-    "Funding amount": "Сумма пополнения"
+    "Funding amount": "Сумма пополнения",
+    "Provider partner": "Партнёр провайдера",
+    "Select provider partner": "Выберите партнёра провайдера",
+    "Add provider partner": "Добавить партнёра провайдера",
+    "Provider partner guide": "Сначала создайте партнёра провайдера, затем назначьте ему каналы ИИ. Пополнения учитываются на уровне партнёра.",
+    "Provider partner code": "Код партнёра",
+    "Provider partner name": "Название партнёра",
+    "Provider partner created": "Партнёр провайдера создан",
+    "Assign channels to provider partner": "Назначить каналы партнёру провайдера",
+    "Provider channel assignment guide": "Назначьте каждый канал ИИ партнёру, которому принадлежит его аккаунт провайдера.",
+    "Assign channel": "Назначить канал",
+    "Provider channel assigned": "Канал назначен",
+    "Provider level": "Уровень провайдера",
+    "Add": "Добавить"
   }
 }

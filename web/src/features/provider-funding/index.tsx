@@ -37,7 +37,10 @@ import { createServerError } from '@/lib/server-error-message'
 
 import { getChannels } from '../channels/api'
 import {
+  assignChannelProviderPartner,
   createProviderFunding,
+  createProviderPartner,
+  getProviderPartners,
   getProviderFundingSyncStatus,
   getProviderFundings,
   startProviderFundingSync,
@@ -49,7 +52,10 @@ export function ProviderFunding() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
+  const [providerPartnerID, setProviderPartnerID] = useState('')
   const [channelID, setChannelID] = useState('')
+  const [partnerCode, setPartnerCode] = useState('')
+  const [partnerName, setPartnerName] = useState('')
   const [reference, setReference] = useState('')
   const [amountMinor, setAmountMinor] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -68,6 +74,10 @@ export function ProviderFunding() {
       return response.data?.items ?? []
     },
   })
+  const partnersQuery = useQuery({
+    queryKey: ['provider-partners'],
+    queryFn: getProviderPartners,
+  })
   const syncQuery = useQuery({
     queryKey: ['provider-funding-sync-status'],
     queryFn: getProviderFundingSyncStatus,
@@ -81,13 +91,31 @@ export function ProviderFunding() {
     },
   })
   const fundingsQuery = useQuery({
-    queryKey: ['provider-funding', page],
-    queryFn: () => getProviderFundings(page, PAGE_SIZE),
+    queryKey: ['provider-funding', page, providerPartnerID],
+    queryFn: () => getProviderFundings(page, PAGE_SIZE, Number(providerPartnerID) || undefined),
+  })
+  const createPartnerMutation = useMutation({
+    mutationFn: () => createProviderPartner({ code: partnerCode.trim(), name: partnerName.trim() }),
+    onSuccess: (partner) => {
+      toast.success(t('Provider partner created'))
+      setPartnerCode('')
+      setPartnerName('')
+      setProviderPartnerID(String(partner.id))
+      void queryClient.invalidateQueries({ queryKey: ['provider-partners'] })
+    },
+  })
+  const assignChannelMutation = useMutation({
+    mutationFn: () => assignChannelProviderPartner(Number(channelID), Number(providerPartnerID)),
+    onSuccess: () => {
+      toast.success(t('Provider channel assigned'))
+      setChannelID('')
+      void channelsQuery.refetch()
+    },
   })
   const createMutation = useMutation({
     mutationFn: () =>
       createProviderFunding({
-        channel_id: Number(channelID),
+        provider_partner_id: Number(providerPartnerID),
         reference: reference.trim(),
         amount_minor: Math.round(Number(amountMinor) * 100),
         currency: currency.trim(),
@@ -103,12 +131,9 @@ export function ProviderFunding() {
 
   const data = fundingsQuery.data
   const channels = channelsQuery.data ?? []
-  const channelNames = new Map(
-    channels.map((channel) => [channel.id, channel.name || channel.type])
+  const partnerNames = new Map(
+    (partnersQuery.data ?? []).map((partner) => [partner.id, partner.name])
   )
-  const selectedChannelName = channels.find(
-    (channel) => String(channel.id) === channelID
-  )?.name
   const items = data?.items ?? []
   const summary = data?.summary ?? []
   const total = data?.total ?? 0
@@ -147,12 +172,12 @@ export function ProviderFunding() {
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <form
-          className='bg-card grid gap-3 rounded-lg border p-4 md:grid-cols-5'
+          className='bg-card grid gap-3 rounded-lg border p-4 md:grid-cols-4'
           onSubmit={(event) => {
             event.preventDefault()
             const amount = Number(amountMinor)
             if (
-              !channelID ||
+              !providerPartnerID ||
               !reference.trim() ||
               !Number.isFinite(amount) ||
               amount <= 0 ||
@@ -163,23 +188,18 @@ export function ProviderFunding() {
           }}
         >
           <div className='grid gap-2'>
-            <Label htmlFor='provider-funding-channel' required>{t('Channel')}</Label>
+            <Label htmlFor='provider-funding-partner' required>{t('Provider partner')}</Label>
             <Select
-              value={channelID}
-              itemToStringValue={(value) =>
-                channels.find((channel) => String(channel.id) === value)?.name ?? ''
-              }
-              onValueChange={(value) => setChannelID(value ?? '')}
+              value={providerPartnerID}
+              onValueChange={(value) => setProviderPartnerID(value ?? '')}
             >
-              <SelectTrigger id='provider-funding-channel' className='w-full'>
-                <SelectValue placeholder={t('Select channel')}>
-                  {selectedChannelName}
-                </SelectValue>
+              <SelectTrigger id='provider-funding-partner' className='w-full'>
+                <SelectValue placeholder={t('Select provider partner')} />
               </SelectTrigger>
               <SelectContent>
-                {channels.map((channel) => (
-                  <SelectItem key={channel.id} value={String(channel.id)}>
-                    {channel.name || channel.type}
+                {(partnersQuery.data ?? []).map((partner) => (
+                  <SelectItem key={partner.id} value={String(partner.id)}>
+                    {partner.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -202,6 +222,60 @@ export function ProviderFunding() {
           </div>
         </form>
 
+        <div className='bg-card mt-4 grid gap-3 rounded-lg border p-4 md:grid-cols-4'>
+          <div className='md:col-span-2'>
+            <div className='text-sm font-medium'>{t('Add provider partner')}</div>
+            <div className='text-muted-foreground text-sm'>{t('Provider partner guide')}</div>
+          </div>
+          <Input
+            aria-label={t('Provider partner code')}
+            placeholder={t('Provider partner code')}
+            value={partnerCode}
+            onChange={(event) => setPartnerCode(event.target.value)}
+          />
+          <div className='flex gap-2'>
+            <Input
+              aria-label={t('Provider partner name')}
+              placeholder={t('Provider partner name')}
+              value={partnerName}
+              onChange={(event) => setPartnerName(event.target.value)}
+            />
+            <Button
+              disabled={createPartnerMutation.isPending || !partnerCode.trim() || !partnerName.trim()}
+              onClick={() => createPartnerMutation.mutate()}
+            >
+              {t('Add')}
+            </Button>
+          </div>
+        </div>
+
+        <div className='bg-card mt-4 grid gap-3 rounded-lg border p-4 md:grid-cols-3'>
+          <div>
+            <div className='text-sm font-medium'>{t('Assign channels to provider partner')}</div>
+            <div className='text-muted-foreground text-sm'>{t('Provider channel assignment guide')}</div>
+          </div>
+          <Select value={channelID} onValueChange={(value) => setChannelID(value ?? '')}>
+            <SelectTrigger className='w-full'>
+              <SelectValue placeholder={t('Select channel')} />
+            </SelectTrigger>
+            <SelectContent>
+              {channels.map((channel) => (
+                <SelectItem key={channel.id} value={String(channel.id)}>
+                  {channel.name || channel.type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            disabled={
+              assignChannelMutation.isPending || !channelID || !providerPartnerID
+            }
+            onClick={() => assignChannelMutation.mutate()}
+          >
+            {t('Assign channel')}
+          </Button>
+        </div>
+
         {fundingsQuery.isLoading && <LoadingState />}
         {fundingsQuery.isError && <ErrorState onRetry={() => void fundingsQuery.refetch()} />}
         {data && (
@@ -221,7 +295,7 @@ export function ProviderFunding() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t('Channel')}</TableHead>
+                      <TableHead>{t('Provider partner')}</TableHead>
                       <TableHead>{t('Reference')}</TableHead>
                       <TableHead>{t('Funding amount')}</TableHead>
                       <TableHead>{t('Currency')}</TableHead>
@@ -231,7 +305,7 @@ export function ProviderFunding() {
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>{channelNames.get(item.channel_id) ?? t('Unknown')}</TableCell>
+                        <TableCell>{partnerNames.get(item.provider_partner_id) ?? t('Provider level')}</TableCell>
                         <TableCell className='font-mono text-xs'>{item.reference}</TableCell>
                         <TableCell className='tabular-nums'>{formatNumber(item.amount_minor / 100)}</TableCell>
                         <TableCell>{item.currency}</TableCell>
