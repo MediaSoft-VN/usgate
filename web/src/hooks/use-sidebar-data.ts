@@ -159,7 +159,7 @@ export function useSidebarData(): SidebarData {
             icon: FileText,
           },
           {
-            title: t('Provider funding'),
+            title: t('Cash flow history'),
             url: '/provider-funding',
             icon: Wallet,
           },

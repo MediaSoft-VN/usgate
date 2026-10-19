@@ -116,7 +116,7 @@ export function ProviderFunding() {
     <SectionPageLayout fixedContent>
       <SectionPageLayout.Title>
         <span className='inline-flex items-center gap-2'>
-          {t('Provider funding')}
+          {t('Cash flow history')}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger
