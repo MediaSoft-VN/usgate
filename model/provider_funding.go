@@ -55,6 +55,12 @@ type ProviderFundingWalletSummary struct {
 	AvailableMinor int64 `json:"available_minor"`
 }
 
+type ProviderFundingChannelSummary struct {
+	ChannelID   int    `json:"channel_id"`
+	Currency    string `json:"currency"`
+	AmountMinor int64  `json:"amount_minor"`
+}
+
 // ProviderFundingAllocation is an immutable debit from the aggregate provider
 // pool. It intentionally has no channel ID: provider money is fungible across
 // all channels.
@@ -195,6 +201,16 @@ func SummarizeProviderFundingWallets() ([]ProviderFundingWalletSummary, error) {
 		wallets[i].AvailableMinor = wallets[i].AmountMinor - allocated
 	}
 	return wallets, nil
+}
+
+func SummarizeProviderFundingByChannel() ([]ProviderFundingChannelSummary, error) {
+	var summaries []ProviderFundingChannelSummary
+	err := DB.Model(&ProviderFunding{}).
+		Select("channel_id, currency, SUM(amount_minor) AS amount_minor").
+		Group("channel_id, currency").
+		Order("channel_id ASC, currency ASC").
+		Scan(&summaries).Error
+	return summaries, err
 }
 
 // AllocateProviderFunding atomically debits the aggregate provider pool and

@@ -47,12 +47,17 @@ func ListProviderFunding(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to load provider wallet summary")
 		return
 	}
+	providerWallets, err := model.SummarizeProviderFundingByChannel()
+	if err != nil {
+		common.ApiErrorT(c, "Failed to load provider wallet summary")
+		return
+	}
 	allocations, err := model.ListProviderFundingAllocationHistory()
 	if err != nil {
 		common.ApiErrorT(c, "Failed to load provider allocation history")
 		return
 	}
-	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "wallets": wallets, "allocations": allocations})
+	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "wallets": wallets, "provider_wallets": providerWallets, "allocations": allocations})
 }
 
 type providerFundingAllocationRequest struct {

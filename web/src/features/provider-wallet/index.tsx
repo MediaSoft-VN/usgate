@@ -10,6 +10,12 @@ import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -36,6 +42,7 @@ import {
 } from '@/components/ui/table'
 import { formatNumber } from '@/lib/format'
 
+import { getChannels } from '../channels/api'
 import {
   allocateProviderFunding,
   getProviderFundings,
@@ -53,7 +60,13 @@ export function ProviderWallet() {
   const [currency, setCurrency] = useState('USD')
   const walletQuery = useQuery({
     queryKey: ['provider-wallet'],
-    queryFn: async () => (await getProviderFundings(1, 1)).wallets,
+    queryFn: async () => await getProviderFundings(1, 1),
+  })
+  const channelsQuery = useQuery({
+    queryKey: ['provider-wallet-channels'],
+    queryFn: async () =>
+      (await getChannels({ p: 1, page_size: 100, sort_by: 'id', sort_order: 'desc' })).data
+        ?.items ?? [],
   })
   const usersQuery = useQuery({
     queryKey: ['provider-funding-users'],
@@ -89,7 +102,11 @@ export function ProviderWallet() {
       void queryClient.invalidateQueries({ queryKey: ['provider-funding'] })
     },
   })
-  const wallets = walletQuery.data ?? []
+  const wallets = walletQuery.data?.wallets ?? []
+  const providerWallets = walletQuery.data?.provider_wallets ?? []
+  const channelNames = new Map(
+    (channelsQuery.data ?? []).map((channel) => [channel.id, channel.name || channel.type])
+  )
 
   return (
     <SectionPageLayout fixedContent>
@@ -210,33 +227,57 @@ export function ProviderWallet() {
           />
         )}
         {wallets.length > 0 && (
-          <div className='bg-card overflow-hidden rounded-lg border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('Currency')}</TableHead>
-                  <TableHead>{t('Total funded')}</TableHead>
-                  <TableHead>{t('Credit allocation')}</TableHead>
-                  <TableHead>{t('Available')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {wallets.map((wallet) => (
-                  <TableRow key={wallet.currency}>
-                    <TableCell>{wallet.currency}</TableCell>
-                    <TableCell className='tabular-nums'>
-                      {formatNumber(wallet.amount_minor / 100)}
-                    </TableCell>
-                    <TableCell className='tabular-nums'>
-                      {formatNumber(wallet.allocated_minor / 100)}
-                    </TableCell>
-                    <TableCell className='tabular-nums'>
-                      {formatNumber(wallet.available_minor / 100)}
-                    </TableCell>
-                  </TableRow>
+          <div className='space-y-6'>
+            {providerWallets.length > 0 && (
+              <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+                {providerWallets.map((wallet) => (
+                  <Card key={`${wallet.channel_id}-${wallet.currency}`}>
+                    <CardHeader>
+                      <CardTitle>
+                        {channelNames.get(wallet.channel_id) ?? t('Unknown')}
+                      </CardTitle>
+                      <p className='text-muted-foreground text-sm'>
+                        {t('Currency')}: {wallet.currency}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <p className='text-muted-foreground text-sm'>{t('Total funded')}</p>
+                      <p className='text-2xl font-semibold tabular-nums'>
+                        {formatNumber(wallet.amount_minor / 100)} {wallet.currency}
+                      </p>
+                    </CardContent>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            )}
+            <div className='bg-card overflow-hidden rounded-lg border'>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('Currency')}</TableHead>
+                    <TableHead>{t('Total funded')}</TableHead>
+                    <TableHead>{t('Credit allocation')}</TableHead>
+                    <TableHead>{t('Available')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {wallets.map((wallet) => (
+                    <TableRow key={wallet.currency}>
+                      <TableCell>{wallet.currency}</TableCell>
+                      <TableCell className='tabular-nums'>
+                        {formatNumber(wallet.amount_minor / 100)}
+                      </TableCell>
+                      <TableCell className='tabular-nums'>
+                        {formatNumber(wallet.allocated_minor / 100)}
+                      </TableCell>
+                      <TableCell className='tabular-nums'>
+                        {formatNumber(wallet.available_minor / 100)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </SectionPageLayout.Content>

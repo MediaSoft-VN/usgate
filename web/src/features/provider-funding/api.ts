@@ -22,6 +22,12 @@ export type ProviderFundingWalletSummary = {
   available_minor: number
 }
 
+export type ProviderFundingChannelSummary = {
+  channel_id: number
+  currency: string
+  amount_minor: number
+}
+
 export type ProviderFundingAllocation = {
   id: number
   user_id: number
@@ -44,6 +50,7 @@ export type ProviderFundingPage = {
   page: number
   page_size: number
   wallets: ProviderFundingWalletSummary[]
+  provider_wallets: ProviderFundingChannelSummary[]
   allocations: ProviderFundingAllocation[]
 }
 
