@@ -84,7 +84,7 @@ export function ProviderPartners() {
           <div className='flex flex-wrap gap-2'>
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger render={<Button />}>{t('Add provider partner')}</DialogTrigger>
-              <DialogContent className='sm:max-w-lg'>
+              <DialogContent className='sm:max-w-2xl'>
                 <DialogHeader>
                   <DialogTitle>{t('Add provider partner')}</DialogTitle>
                   <DialogDescription>{t('Provider partner guide')}</DialogDescription>
@@ -105,7 +105,7 @@ export function ProviderPartners() {
             </Dialog>
             <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
               <DialogTrigger render={<Button variant='outline' />}>{t('Assign channels to provider partner')}</DialogTrigger>
-              <DialogContent className='sm:max-w-lg'>
+              <DialogContent className='sm:max-w-2xl'>
                 <DialogHeader>
                   <DialogTitle>{t('Assign channels to provider partner')}</DialogTitle>
                   <DialogDescription>{t('Provider channel assignment guide')}</DialogDescription>
