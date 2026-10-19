@@ -1,0 +1,34 @@
+package model
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
+	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderFunding{}))
+	channel := &Channel{Name: "provider funding test", Type: 1, Key: "provider-funding-test-key"}
+	require.NoError(t, DB.Create(channel).Error)
+	t.Cleanup(func() {
+		DB.Exec("DELETE FROM provider_fundings")
+		DB.Exec("DELETE FROM channels WHERE id = ?", channel.Id)
+	})
+
+	funding := &ProviderFunding{ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "usd", Source: ProviderFundingSourceManual}
+	record, replay, err := RecordProviderFunding(funding)
+	require.NoError(t, err)
+	assert.False(t, replay)
+	assert.Equal(t, "USD", record.Currency)
+
+	replayed, replay, err := RecordProviderFunding(&ProviderFunding{ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "USD", Source: ProviderFundingSourceManual})
+	require.NoError(t, err)
+	assert.True(t, replay)
+	assert.Equal(t, record.ID, replayed.ID)
+
+	summary, err := SummarizeProviderFundings()
+	require.NoError(t, err)
+	require.Len(t, summary, 1)
+	assert.Equal(t, int64(12500), summary[0].AmountMinor)
+}

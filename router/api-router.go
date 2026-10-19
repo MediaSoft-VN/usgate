@@ -278,6 +278,8 @@ func SetApiRouter(router *gin.Engine) {
 		}
 		handlePermissionRoute(apiRouter.Group("", middleware.AdminAuth()), http.MethodGet, "/task_plugin_options", authz.TaskPluginBind, controller.GetTaskPluginOptions)
 		apiRouter.GET("/financial/transactions", middleware.AdminAuth(), controller.ListFinancialTransactions)
+		apiRouter.GET("/financial/provider-funding", middleware.AdminAuth(), controller.ListProviderFunding)
+		apiRouter.POST("/financial/provider-funding", middleware.AdminAuth(), controller.CreateProviderFunding)
 		registerChannelRoutes(apiRouter)
 		registerAuthzRoutes(apiRouter)
 		tokenRoute := apiRouter.Group("/token")
