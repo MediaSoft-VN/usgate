@@ -14,13 +14,10 @@ export type ProviderFunding = {
   created_by: string
 }
 
-export type ProviderFundingSummary = {
+export type ProviderFundingWalletSummary = {
+  channel_id: number
   currency: string
   amount_minor: number
-}
-
-export type ProviderFundingWalletSummary = ProviderFundingSummary & {
-  channel_id: number
 }
 
 export type ProviderFundingPage = {
@@ -28,7 +25,6 @@ export type ProviderFundingPage = {
   total: number
   page: number
   page_size: number
-  summary: ProviderFundingSummary[]
   wallets: ProviderFundingWalletSummary[]
 }
 

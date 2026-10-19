@@ -110,8 +110,6 @@ export function ProviderFunding() {
     (channelsQuery.data ?? []).map((channel) => [channel.id, channel.name || channel.type])
   )
   const items = data?.items ?? []
-  const summary = data?.summary ?? []
-  const wallets = data?.wallets ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -210,44 +208,10 @@ export function ProviderFunding() {
         {fundingsQuery.isLoading && <LoadingState />}
         {fundingsQuery.isError && <ErrorState onRetry={() => void fundingsQuery.refetch()} />}
         {data && (
-          <>
-            <div className='mt-4 grid gap-3 md:grid-cols-3'>
-              {summary.map((item) => (
-                <div className='bg-card rounded-lg border p-4' key={item.currency}>
-                  <div className='text-muted-foreground text-sm'>{item.currency}</div>
-                  <div className='text-2xl font-semibold tabular-nums'>{formatNumber(item.amount_minor / 100)}</div>
-                </div>
-              ))}
-            </div>
-            {wallets.length > 0 && (
-              <div className='mt-4'>
-                <h2 className='mb-2 text-lg font-semibold'>{t('Provider total wallet')}</h2>
-                <div className='bg-card overflow-hidden rounded-lg border'>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('Channel')}</TableHead>
-                        <TableHead>{t('Currency')}</TableHead>
-                        <TableHead>{t('Total funded')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {wallets.map((wallet) => (
-                        <TableRow key={`${wallet.channel_id}-${wallet.currency}`}>
-                          <TableCell>{channelNames.get(wallet.channel_id) ?? t('Unknown')}</TableCell>
-                          <TableCell>{wallet.currency}</TableCell>
-                          <TableCell className='tabular-nums'>{formatNumber(wallet.amount_minor / 100)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-            {items.length === 0 ? (
-              <EmptyState icon={WalletCards} title={t('No provider funding records')} />
-            ) : (
-              <div className='bg-card mt-4 overflow-hidden rounded-lg border'>
+          items.length === 0 ? (
+            <EmptyState icon={WalletCards} title={t('No provider funding records')} />
+          ) : (
+            <div className='bg-card mt-4 overflow-hidden rounded-lg border'>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -282,9 +246,8 @@ export function ProviderFunding() {
                     <Button variant='outline' size='sm' disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>{t('Next')}</Button>
                   </div>
                 </div>
-              </div>
-            )}
-          </>
+            </div>
+          )
         )}
       </SectionPageLayout.Content>
     </SectionPageLayout>
