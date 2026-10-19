@@ -7306,6 +7306,18 @@
     "Partner image": "Изображение провайдера (необязательно)",
     "Provider partner guide": "Укажите название партнёра, при необходимости загрузите изображение PNG/JPEG и введите данные API для потребления токенов. Код партнёра создаётся автоматически.",
     "Partner website": "Сайт партнёра",
-    "Provider image is too large": "Изображение провайдера слишком большое"
+    "Provider image is too large": "Изображение провайдера слишком большое",
+    "Partner image": "Изображение провайдера (необязательно)",
+    "Provider partner guide": "Укажите название партнёра, при необходимости загрузите изображение PNG/JPEG и введите данные API для потребления токенов. Код партнёра создаётся автоматически.",
+    "Partner website": "Сайт партнёра",
+    "Provider image is too large": "Изображение провайдера слишком большое",
+    "Provider partner already exists": "Партнёр провайдера уже существует",
+    "Edit provider partner": "Изменить партнёра провайдера",
+    "Provider partner edit guide": "Обновите данные партнёра. Оставьте API-ключ пустым, чтобы сохранить текущий ключ.",
+    "Delete provider partner": "Удалить партнёра провайдера",
+    "Provider partner delete confirmation": "Удалить этого партнёра провайдера? Партнёров с назначенными каналами или записями о пополнениях удалить нельзя.",
+    "Provider partner updated": "Партнёр провайдера обновлён",
+    "Provider partner deleted": "Партнёр провайдера удалён",
+    "Provider partner cannot be deleted while it has channels or funding records": "Партнёра провайдера нельзя удалить: у него есть каналы или записи о пополнениях."
   }
 }

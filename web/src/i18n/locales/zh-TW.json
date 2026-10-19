@@ -7306,6 +7306,18 @@
     "Partner image": "供應商圖片（選填）",
     "Provider partner guide": "填寫合作夥伴名稱，可上傳 PNG/JPEG 圖片，並提供 Token 消耗 API 憑證。合作夥伴代碼會自動產生。",
     "Partner website": "合作夥伴官網",
-    "Provider image is too large": "供應商圖片過大"
+    "Provider image is too large": "供應商圖片過大",
+    "Partner image": "供應商圖片（選填）",
+    "Provider partner guide": "填寫合作夥伴名稱，可上傳 PNG/JPEG 圖片，並提供 Token 消耗 API 憑證。合作夥伴代碼會自動產生。",
+    "Partner website": "合作夥伴官網",
+    "Provider image is too large": "供應商圖片過大",
+    "Provider partner already exists": "供應商合作夥伴已存在",
+    "Edit provider partner": "編輯供應商合作夥伴",
+    "Provider partner edit guide": "更新合作夥伴資料。API 金鑰留空則保留目前的金鑰。",
+    "Delete provider partner": "刪除供應商合作夥伴",
+    "Provider partner delete confirmation": "確定要刪除此供應商合作夥伴嗎？已分配渠道或存在充值記錄的合作夥伴無法刪除。",
+    "Provider partner updated": "供應商合作夥伴已更新",
+    "Provider partner deleted": "供應商合作夥伴已刪除",
+    "Provider partner cannot be deleted while it has channels or funding records": "此供應商合作夥伴有已分配渠道或充值記錄，無法刪除。"
   }
 }

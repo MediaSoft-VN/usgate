@@ -12,6 +12,8 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderPartner{}, &ProviderFunding{}))
 	partner := &ProviderPartner{Code: "funding-test", Name: "Funding Test", APIKey: "test-api-key", APIEndpoint: "https://provider.example.test/usage"}
 	require.NoError(t, CreateProviderPartner(partner))
+	duplicate := &ProviderPartner{Code: "funding-test-duplicate", Name: "Funding Test", APIKey: "test-api-key", APIEndpoint: "https://provider.example.test/usage"}
+	require.ErrorIs(t, CreateProviderPartner(duplicate), ErrProviderPartnerExists)
 	channel := &Channel{Name: "provider funding test", Type: 1, Key: "provider-funding-test-key", ProviderPartnerID: &partner.ID}
 	require.NoError(t, DB.Create(channel).Error)
 	t.Cleanup(func() {

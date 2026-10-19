@@ -115,6 +115,8 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"POST /api/financial/provider-funding/sync":       accessTokenScopeRule("billing:write"),
 	"GET /api/financial/provider-partners":            accessTokenScopeRule("billing:read"),
 	"POST /api/financial/provider-partners":           accessTokenScopeRule("billing:write"),
+	"PUT /api/financial/provider-partners/:id":        accessTokenScopeRule("billing:write"),
+	"DELETE /api/financial/provider-partners/:id":     accessTokenScopeRule("billing:write"),
 	"GET /api/user/search":                             accessTokenScopeRule("user:read"),
 	"GET /api/user/:id/oauth/bindings":                 accessTokenScopeRule("user:read"),
 	"DELETE /api/user/:id/oauth/bindings/:provider_id": accessTokenScopeRule("user:write"),

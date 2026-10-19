@@ -60,6 +60,22 @@ export async function createProviderPartner(input: {
   return requireServerSuccess(response.data).data
 }
 
+export async function updateProviderPartner(
+  id: number,
+  input: Omit<Parameters<typeof createProviderPartner>[0], 'api_key'> & { api_key?: string }
+) {
+  const response = await api.put<{ success: boolean; data: ProviderPartner }>(
+    `/api/financial/provider-partners/${id}`,
+    input
+  )
+  return requireServerSuccess(response.data).data
+}
+
+export async function deleteProviderPartner(id: number) {
+  const response = await api.delete(`/api/financial/provider-partners/${id}`)
+  return requireServerSuccess(response.data).data
+}
+
 export async function assignChannelProviderPartner(
   channelID: number,
   providerPartnerID: number | null

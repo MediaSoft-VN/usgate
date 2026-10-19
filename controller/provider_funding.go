@@ -85,7 +85,7 @@ type providerPartnerRequest struct {
 	Name        string `json:"name" binding:"required,max=255"`
 	ImageURL    string `json:"image_url" binding:"max=524288"`
 	WebsiteURL  string `json:"website_url" binding:"max=1024"`
-	APIKey      string `json:"api_key" binding:"required,max=512"`
+	APIKey      string `json:"api_key" binding:"max=512"`
 	APIEndpoint string `json:"api_endpoint" binding:"required,max=1024"`
 	Status      int    `json:"status"`
 }
@@ -107,7 +107,11 @@ func CreateProviderPartner(c *gin.Context) {
 	}
 	partner := &model.ProviderPartner{Code: req.Code, Name: req.Name, ImageURL: req.ImageURL, WebsiteURL: req.WebsiteURL, APIKey: req.APIKey, APIEndpoint: req.APIEndpoint, Status: req.Status}
 	if err := model.CreateProviderPartner(partner); err != nil {
-		if errors.Is(err, model.ErrInvalidProviderPartner) || errors.Is(err, model.ErrProviderPartnerExists) {
+		if errors.Is(err, model.ErrProviderPartnerExists) {
+			common.ApiErrorT(c, "Provider partner already exists")
+			return
+		}
+		if errors.Is(err, model.ErrInvalidProviderPartner) {
 			common.ApiErrorT(c, "Invalid provider partner")
 			return
 		}
@@ -115,6 +119,56 @@ func CreateProviderPartner(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, partner)
+}
+
+func UpdateProviderPartner(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		common.ApiErrorT(c, "Invalid provider partner")
+		return
+	}
+	var req providerPartnerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorT(c, "Invalid provider partner")
+		return
+	}
+	partner := &model.ProviderPartner{ID: id, Name: req.Name, ImageURL: req.ImageURL, WebsiteURL: req.WebsiteURL, APIKey: req.APIKey, APIEndpoint: req.APIEndpoint, Status: req.Status}
+	if err := model.UpdateProviderPartner(partner); err != nil {
+		if errors.Is(err, model.ErrProviderPartnerExists) {
+			common.ApiErrorT(c, "Provider partner already exists")
+			return
+		}
+		if errors.Is(err, model.ErrInvalidProviderPartner) {
+			common.ApiErrorT(c, "Invalid provider partner")
+			return
+		}
+		common.ApiErrorT(c, "Failed to update provider partner")
+		return
+	}
+	updated, err := model.GetProviderPartner(id)
+	if err != nil {
+		common.ApiErrorT(c, "Failed to load provider partner")
+		return
+	}
+	updated.APIKeyConfigured = updated.APIKey != ""
+	common.ApiSuccess(c, updated)
+}
+
+func DeleteProviderPartner(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		common.ApiErrorT(c, "Invalid provider partner")
+		return
+	}
+	if err := model.DeleteProviderPartner(id); err != nil {
+		if errors.Is(err, model.ErrProviderPartnerInUse) {
+			common.ApiErrorT(c, "Provider partner cannot be deleted while it has channels or funding records")
+			return
+		}
+		common.ApiErrorT(c, "Failed to delete provider partner")
+		return
+	}
+	common.ApiSuccess(c, gin.H{"id": id})
 }
 
 type channelProviderPartnerRequest struct {

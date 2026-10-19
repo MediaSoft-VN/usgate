@@ -7306,6 +7306,18 @@
     "Partner image": "供应商图片（可选）",
     "Provider partner guide": "填写合作伙伴名称，可上传 PNG/JPEG 图片，并提供 Token 消耗 API 凭据。合作伙伴代码会自动生成。",
     "Partner website": "合作伙伴官网",
-    "Provider image is too large": "供应商图片过大"
+    "Provider image is too large": "供应商图片过大",
+    "Partner image": "供应商图片（可选）",
+    "Provider partner guide": "填写合作伙伴名称，可上传 PNG/JPEG 图片，并提供 Token 消耗 API 凭据。合作伙伴代码会自动生成。",
+    "Partner website": "合作伙伴官网",
+    "Provider image is too large": "供应商图片过大",
+    "Provider partner already exists": "供应商合作伙伴已存在",
+    "Edit provider partner": "编辑供应商合作伙伴",
+    "Provider partner edit guide": "更新合作伙伴信息。API 密钥留空则保留当前密钥。",
+    "Delete provider partner": "删除供应商合作伙伴",
+    "Provider partner delete confirmation": "确定要删除此供应商合作伙伴吗？已分配渠道或存在充值记录的合作伙伴无法删除。",
+    "Provider partner updated": "供应商合作伙伴已更新",
+    "Provider partner deleted": "供应商合作伙伴已删除",
+    "Provider partner cannot be deleted while it has channels or funding records": "该供应商合作伙伴存在已分配渠道或充值记录，无法删除。"
   }
 }

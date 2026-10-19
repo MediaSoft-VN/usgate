@@ -7306,6 +7306,18 @@
     "Partner image": "プロバイダー画像（任意）",
     "Provider partner guide": "パートナー名を入力し、任意で PNG/JPEG 画像をアップロードして、トークン消費 API の認証情報を入力します。パートナーコードは自動生成されます。",
     "Partner website": "パートナー公式サイト",
-    "Provider image is too large": "プロバイダー画像が大きすぎます"
+    "Provider image is too large": "プロバイダー画像が大きすぎます",
+    "Partner image": "プロバイダー画像（任意）",
+    "Provider partner guide": "パートナー名を入力し、任意で PNG/JPEG 画像をアップロードして、トークン消費 API の認証情報を入力します。パートナーコードは自動生成されます。",
+    "Partner website": "パートナー公式サイト",
+    "Provider image is too large": "プロバイダー画像が大きすぎます",
+    "Provider partner already exists": "プロバイダーパートナーは既に存在します",
+    "Edit provider partner": "プロバイダーパートナーを編集",
+    "Provider partner edit guide": "パートナー情報を更新します。API キーを空欄にすると現在のキーを保持します。",
+    "Delete provider partner": "プロバイダーパートナーを削除",
+    "Provider partner delete confirmation": "このプロバイダーパートナーを削除しますか？チャンネルまたは入金記録があるパートナーは削除できません。",
+    "Provider partner updated": "プロバイダーパートナーを更新しました",
+    "Provider partner deleted": "プロバイダーパートナーを削除しました",
+    "Provider partner cannot be deleted while it has channels or funding records": "チャンネルまたは入金記録があるため、このプロバイダーパートナーは削除できません。"
   }
 }

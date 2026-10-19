@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { SectionPageLayout } from '@/components/layout'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,7 +24,10 @@ import { getChannels } from '../channels/api'
 import {
   assignChannelProviderPartner,
   createProviderPartner,
+  deleteProviderPartner,
   getProviderPartners,
+  updateProviderPartner,
+  type ProviderPartner,
 } from '../provider-funding/api'
 
 export function ProviderPartners() {
@@ -37,6 +42,9 @@ export function ProviderPartners() {
   const [channelID, setChannelID] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editingPartnerID, setEditingPartnerID] = useState<number | null>(null)
+  const [deletePartnerID, setDeletePartnerID] = useState<number | null>(null)
   const partnersQuery = useQuery({ queryKey: ['provider-partners'], queryFn: getProviderPartners })
   const channelsQuery = useQuery({
     queryKey: ['provider-partner-channels'],
@@ -75,6 +83,33 @@ export function ProviderPartners() {
       void channelsQuery.refetch()
     },
   })
+  const updateMutation = useMutation({
+    mutationFn: () => updateProviderPartner(editingPartnerID as number, {
+      name: partnerName.trim(), image_url: imageURL.trim(), website_url: websiteURL.trim(), api_endpoint: apiEndpoint.trim(), ...(apiKey ? { api_key: apiKey } : {}),
+    }),
+    onSuccess: () => {
+      toast.success(t('Provider partner updated'))
+      setEditOpen(false)
+      void queryClient.invalidateQueries({ queryKey: ['provider-partners'] })
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteProviderPartner(deletePartnerID as number),
+    onSuccess: () => {
+      toast.success(t('Provider partner deleted'))
+      setDeletePartnerID(null)
+      void queryClient.invalidateQueries({ queryKey: ['provider-partners'] })
+    },
+  })
+  const openEdit = (partner: ProviderPartner) => {
+    setEditingPartnerID(partner.id)
+    setPartnerName(partner.name)
+    setImageURL(partner.image_url)
+    setWebsiteURL(partner.website_url)
+    setApiEndpoint(partner.api_endpoint)
+    setApiKey('')
+    setEditOpen(true)
+  }
 
   return (
     <SectionPageLayout>
@@ -138,21 +173,64 @@ export function ProviderPartners() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogContent className='sm:max-w-2xl'>
+                <DialogHeader>
+                  <DialogTitle>{t('Edit provider partner')}</DialogTitle>
+                  <DialogDescription>{t('Provider partner edit guide')}</DialogDescription>
+                </DialogHeader>
+                <div className='grid gap-3'>
+                  <Input aria-label={t('Provider partner name')} placeholder={t('Provider partner name')} value={partnerName} onChange={(event) => setPartnerName(event.target.value)} />
+                  <Input aria-label={t('Partner website')} placeholder={t('Partner website')} type='url' value={websiteURL} onChange={(event) => setWebsiteURL(event.target.value)} />
+                  <Input aria-label={t('Partner image')} accept='image/png,image/jpeg' type='file' onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) return
+                    if (file.size > 384 * 1024) {
+                      toast.error(t('Provider image is too large'))
+                      event.target.value = ''
+                      return
+                    }
+                    const reader = new FileReader()
+                    reader.addEventListener('load', () => setImageURL(typeof reader.result === 'string' ? reader.result : ''))
+                    reader.readAsDataURL(file)
+                  }} />
+                  <Input aria-label={t('API endpoint')} placeholder={t('API endpoint')} type='url' value={apiEndpoint} onChange={(event) => setApiEndpoint(event.target.value)} />
+                  <Input aria-label={t('API key')} placeholder={t('Leave blank to keep the existing key')} type='password' value={apiKey} onChange={(event) => setApiKey(event.target.value)} />
+                </div>
+                <DialogFooter>
+                  <Button disabled={updateMutation.isPending || !partnerName.trim() || !apiEndpoint.trim()} onClick={() => updateMutation.mutate()}>
+                    {t('Save changes')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <section className='bg-card rounded-lg border p-4'>
             <h2 className='mb-3 text-sm font-medium'>{t('Provider partners')}</h2>
             <div className='grid gap-2'>
               {(partnersQuery.data ?? []).map((partner) => (
-                <div className='flex items-center justify-between border-b py-2 last:border-0' key={partner.id}>
-                  <span>{partner.name}</span>
-                  <span className='text-muted-foreground text-sm'>
-                    {partner.code} · {partner.api_key_configured ? t('API key configured') : t('API key not configured')}
-                  </span>
-                </div>
+                  <div className='flex items-center justify-between border-b py-2 last:border-0' key={partner.id}>
+                    <span>{partner.name}</span>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-muted-foreground text-sm'>{partner.code} · {partner.api_key_configured ? t('API key configured') : t('API key not configured')}</span>
+                      <Button aria-label={t('Edit')} size='icon-sm' variant='ghost' onClick={() => openEdit(partner)}><Pencil className='size-4' /></Button>
+                      <Button aria-label={t('Delete')} size='icon-sm' variant='ghost' onClick={() => setDeletePartnerID(partner.id)}><Trash2 className='size-4' /></Button>
+                    </div>
+                  </div>
               ))}
             </div>
           </section>
+          <ConfirmDialog
+            open={deletePartnerID !== null}
+            onOpenChange={(open) => { if (!open) setDeletePartnerID(null) }}
+            title={t('Delete provider partner')}
+            desc={t('Provider partner delete confirmation')}
+            confirmText={t('Delete')}
+            destructive
+            isLoading={deleteMutation.isPending}
+            handleConfirm={() => deleteMutation.mutate()}
+          />
         </div>
       </SectionPageLayout.Content>
     </SectionPageLayout>

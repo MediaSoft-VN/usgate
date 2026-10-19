@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,8 @@ const (
 var (
 	ErrInvalidProviderPartner = errors.New("invalid provider partner")
 	ErrProviderPartnerExists  = errors.New("provider partner already exists")
+	ErrProviderPartnerInUse   = errors.New("provider partner is in use")
+	providerPartnerCreateMu   sync.Mutex
 )
 
 // ProviderPartner is the business partner that owns provider channels. A
@@ -103,8 +106,17 @@ func validProviderPartnerImage(imageData string) bool {
 }
 
 func CreateProviderPartner(partner *ProviderPartner) error {
+	providerPartnerCreateMu.Lock()
+	defer providerPartnerCreateMu.Unlock()
 	if err := normalizeProviderPartner(partner); err != nil {
 		return err
+	}
+	var count int64
+	if err := DB.Model(&ProviderPartner{}).Where("name = ?", partner.Name).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrProviderPartnerExists
 	}
 	partner.CreatedAt = time.Now().Unix()
 	partner.UpdatedAt = partner.CreatedAt
@@ -144,6 +156,69 @@ func GetProviderPartner(id int64) (*ProviderPartner, error) {
 		return nil, err
 	}
 	return partner, nil
+}
+
+func UpdateProviderPartner(partner *ProviderPartner) error {
+	providerPartnerCreateMu.Lock()
+	defer providerPartnerCreateMu.Unlock()
+	if partner == nil || partner.ID <= 0 {
+		return ErrInvalidProviderPartner
+	}
+	existing, err := GetProviderPartner(partner.ID)
+	if err != nil {
+		return err
+	}
+	if partner.APIKey == "" {
+		partner.APIKey = existing.APIKey
+	}
+	if partner.Code == "" {
+		partner.Code = existing.Code
+	}
+	if err = normalizeProviderPartner(partner); err != nil {
+		return err
+	}
+	var count int64
+	if err = DB.Model(&ProviderPartner{}).Where("name = ? AND id <> ?", partner.Name, partner.ID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrProviderPartnerExists
+	}
+	partner.UpdatedAt = time.Now().Unix()
+	partner.APIKeyConfigured = partner.APIKey != ""
+	return DB.Model(existing).Updates(map[string]any{
+		"name":         partner.Name,
+		"image_url":    partner.ImageURL,
+		"website_url":  partner.WebsiteURL,
+		"api_key":      partner.APIKey,
+		"api_endpoint": partner.APIEndpoint,
+		"status":       partner.Status,
+		"updated_at":   partner.UpdatedAt,
+	}).Error
+}
+
+func DeleteProviderPartner(id int64) error {
+	if id <= 0 {
+		return ErrInvalidProviderPartner
+	}
+	var channelCount, fundingCount int64
+	if err := DB.Model(&Channel{}).Where("provider_partner_id = ?", id).Count(&channelCount).Error; err != nil {
+		return err
+	}
+	if err := DB.Model(&ProviderFunding{}).Where("provider_partner_id = ?", id).Count(&fundingCount).Error; err != nil {
+		return err
+	}
+	if channelCount > 0 || fundingCount > 0 {
+		return ErrProviderPartnerInUse
+	}
+	result := DB.Delete(&ProviderPartner{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrInvalidProviderPartner
+	}
+	return nil
 }
 
 func SetChannelProviderPartner(channelID int, partnerID *int64) error {

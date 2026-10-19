@@ -7306,6 +7306,18 @@
     "Partner image": "Image du fournisseur (facultatif)",
     "Provider partner guide": "Saisissez le nom du partenaire, importez une image PNG/JPEG facultative et fournissez les identifiants API de consommation des tokens. Le code est généré automatiquement.",
     "Partner website": "Site web du partenaire",
-    "Provider image is too large": "L’image du fournisseur est trop volumineuse"
+    "Provider image is too large": "L’image du fournisseur est trop volumineuse",
+    "Partner image": "Image du fournisseur (facultatif)",
+    "Provider partner guide": "Saisissez le nom du partenaire, importez une image PNG/JPEG facultative et fournissez les identifiants API de consommation des tokens. Le code est généré automatiquement.",
+    "Partner website": "Site web du partenaire",
+    "Provider image is too large": "L’image du fournisseur est trop volumineuse",
+    "Provider partner already exists": "Le partenaire fournisseur existe déjà",
+    "Edit provider partner": "Modifier le partenaire fournisseur",
+    "Provider partner edit guide": "Mettez à jour les informations du partenaire. Laissez la clé API vide pour conserver la clé actuelle.",
+    "Delete provider partner": "Supprimer le partenaire fournisseur",
+    "Provider partner delete confirmation": "Voulez-vous vraiment supprimer ce partenaire fournisseur ? Les partenaires ayant des canaux ou des financements ne peuvent pas être supprimés.",
+    "Provider partner updated": "Partenaire fournisseur mis à jour",
+    "Provider partner deleted": "Partenaire fournisseur supprimé",
+    "Provider partner cannot be deleted while it has channels or funding records": "Ce partenaire fournisseur ne peut pas être supprimé car il possède des canaux ou des financements."
   }
 }
