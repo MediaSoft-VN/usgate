@@ -7283,7 +7283,7 @@
     "Reference": "参考号",
     "Select channel": "选择渠道",
     "Sync provider balances": "同步供应商余额",
-    "Provider balance sync started": "供应商余额同步已启动",
-    "Provider balance sync running": "供应商余额正在同步"
+    "Provider balance sync started": "供应商余额同步已启动",    "Provider balance sync running": "供应商余额正在同步",
+    "Funding amount": "充值金额"
   }
 }

@@ -103,6 +103,9 @@ export function ProviderFunding() {
 
   const data = fundingsQuery.data
   const channels = channelsQuery.data ?? []
+  const channelNames = new Map(
+    channels.map((channel) => [channel.id, channel.name || channel.type])
+  )
   const selectedChannelName = channels.find(
     (channel) => String(channel.id) === channelID
   )?.name
@@ -220,7 +223,7 @@ export function ProviderFunding() {
                     <TableRow>
                       <TableHead>{t('Channel')}</TableHead>
                       <TableHead>{t('Reference')}</TableHead>
-                      <TableHead>{t('Amount')}</TableHead>
+                      <TableHead>{t('Funding amount')}</TableHead>
                       <TableHead>{t('Currency')}</TableHead>
                       <TableHead>{t('Source')}</TableHead>
                     </TableRow>
@@ -228,7 +231,7 @@ export function ProviderFunding() {
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>{item.channel_id}</TableCell>
+                        <TableCell>{channelNames.get(item.channel_id) ?? t('Unknown')}</TableCell>
                         <TableCell className='font-mono text-xs'>{item.reference}</TableCell>
                         <TableCell className='tabular-nums'>{formatNumber(item.amount_minor / 100)}</TableCell>
                         <TableCell>{item.currency}</TableCell>

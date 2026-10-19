@@ -7283,7 +7283,7 @@
     "Reference": "Référence",
     "Select channel": "Sélectionner un canal",
     "Sync provider balances": "Synchroniser les soldes fournisseurs",
-    "Provider balance sync started": "Synchronisation des soldes fournisseurs lancée",
-    "Provider balance sync running": "Synchronisation des soldes fournisseurs en cours"
+    "Provider balance sync started": "Synchronisation des soldes fournisseurs lancée",    "Provider balance sync running": "Synchronisation des soldes fournisseurs en cours",
+    "Funding amount": "Montant du financement"
   }
 }

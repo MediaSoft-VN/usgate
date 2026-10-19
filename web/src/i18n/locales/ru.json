@@ -7283,7 +7283,7 @@
     "Reference": "Ссылка",
     "Select channel": "Выберите канал",
     "Sync provider balances": "Синхронизировать балансы провайдеров",
-    "Provider balance sync started": "Синхронизация балансов провайдеров запущена",
-    "Provider balance sync running": "Баланс провайдеров синхронизируется"
+    "Provider balance sync started": "Синхронизация балансов провайдеров запущена",    "Provider balance sync running": "Баланс провайдеров синхронизируется",
+    "Funding amount": "Сумма пополнения"
   }
 }

@@ -7283,7 +7283,7 @@
     "Reference": "Mã tham chiếu",
     "Select channel": "Chọn kênh",
     "Sync provider balances": "Đồng bộ số dư các kênh",
-    "Provider balance sync started": "Đã bắt đầu đồng bộ số dư các kênh",
-    "Provider balance sync running": "Đang đồng bộ số dư các kênh"
+    "Provider balance sync started": "Đã bắt đầu đồng bộ số dư các kênh",    "Provider balance sync running": "Đang đồng bộ số dư các kênh",
+    "Funding amount": "Số tiền nạp"
   }
 }

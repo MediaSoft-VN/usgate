@@ -7283,7 +7283,7 @@
     "Reference": "Reference",
     "Select channel": "Select channel",
     "Sync provider balances": "Sync provider balances",
-    "Provider balance sync started": "Provider balance sync started",
-    "Provider balance sync running": "Provider balance sync running"
+    "Provider balance sync started": "Provider balance sync started",    "Provider balance sync running": "Provider balance sync running",
+    "Funding amount": "Funding amount"
   }
 }

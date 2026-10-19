@@ -7283,7 +7283,7 @@
     "Reference": "参照番号",
     "Select channel": "チャンネルを選択",
     "Sync provider balances": "プロバイダー残高を同期",
-    "Provider balance sync started": "プロバイダー残高の同期を開始しました",
-    "Provider balance sync running": "プロバイダー残高を同期中"
+    "Provider balance sync started": "プロバイダー残高の同期を開始しました",    "Provider balance sync running": "プロバイダー残高を同期中",
+    "Funding amount": "入金額"
   }
 }
