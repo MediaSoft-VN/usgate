@@ -46,7 +46,6 @@ import { createServerError } from '@/lib/server-error-message'
 import { getChannels } from '../channels/api'
 import {
   createProviderFunding,
-  getProviderPartners,
   getProviderFundingSyncStatus,
   getProviderFundings,
   startProviderFundingSync,
@@ -63,10 +62,6 @@ export function ProviderFunding() {
   const [amountMinor, setAmountMinor] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [fundingOpen, setFundingOpen] = useState(false)
-  const partnersQuery = useQuery({
-    queryKey: ['provider-partners'],
-    queryFn: getProviderPartners,
-  })
   const channelsQuery = useQuery({
     queryKey: ['provider-funding-channels'],
     queryFn: async () => {
@@ -95,7 +90,6 @@ export function ProviderFunding() {
   const createMutation = useMutation({
     mutationFn: () =>
       createProviderFunding({
-        provider_partner_id: selectedChannel?.provider_partner_id ?? 0,
         channel_id: Number(channelID),
         reference: reference.trim(),
         amount_minor: Math.round(Number(amountMinor) * 100),
@@ -112,8 +106,8 @@ export function ProviderFunding() {
   })
 
   const data = fundingsQuery.data
-  const partnerNames = new Map(
-    (partnersQuery.data ?? []).map((partner) => [partner.id, partner.name])
+  const channelNames = new Map(
+    (channelsQuery.data ?? []).map((channel) => [channel.id, channel.name || channel.type])
   )
   const items = data?.items ?? []
   const summary = data?.summary ?? []
@@ -153,7 +147,7 @@ export function ProviderFunding() {
                 event.preventDefault()
                 const amount = Number(amountMinor)
                 if (
-                  !selectedChannel?.provider_partner_id ||
+                  !selectedChannel ||
                   !reference.trim() ||
                   !Number.isFinite(amount) ||
                   amount <= 0 ||
@@ -164,14 +158,14 @@ export function ProviderFunding() {
               }}
             >
               <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-partner' required>{t('Provider partner')}</Label>
+                <Label htmlFor='provider-funding-channel' required>{t('Channel')}</Label>
                 <Select
                   value={channelID}
                   itemToStringValue={(value) => channelsQuery.data?.find((channel) => String(channel.id) === value)?.name ?? ''}
                   onValueChange={(value) => setChannelID(value ?? '')}
                 >
-                  <SelectTrigger id='provider-funding-partner' className='w-full'>
-                    <SelectValue placeholder={t('Select provider partner')}>
+                  <SelectTrigger id='provider-funding-channel' className='w-full'>
+                    <SelectValue placeholder={t('Select channel')}>
                       {selectedChannel?.name || selectedChannel?.type}
                     </SelectValue>
                   </SelectTrigger>
@@ -231,7 +225,7 @@ export function ProviderFunding() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t('Provider partner')}</TableHead>
+                      <TableHead>{t('Channel')}</TableHead>
                       <TableHead>{t('Reference')}</TableHead>
                       <TableHead>{t('Funding amount')}</TableHead>
                       <TableHead>{t('Currency')}</TableHead>
@@ -241,7 +235,7 @@ export function ProviderFunding() {
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>{partnerNames.get(item.provider_partner_id) ?? t('Provider level')}</TableCell>
+                        <TableCell>{channelNames.get(item.channel_id) ?? t('Unknown')}</TableCell>
                         <TableCell className='font-mono text-xs'>{item.reference}</TableCell>
                         <TableCell className='tabular-nums'>{formatNumber(item.amount_minor / 100)}</TableCell>
                         <TableCell>{item.currency}</TableCell>

@@ -3,7 +3,6 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 
 export type ProviderFunding = {
   id: number
-  provider_partner_id: number
   channel_id: number
   reference: string
   amount_minor: number
@@ -27,69 +26,9 @@ export type ProviderFundingPage = {
   summary: ProviderFundingSummary[]
 }
 
-export type ProviderPartner = {
-  id: number
-  code: string
-  name: string
-  image_url: string
-  website_url: string
-  api_endpoint: string
-  api_key_configured: boolean
-  status: number
-}
-
-export async function getProviderPartners() {
-  const response = await api.get<{
-    success: boolean
-    data: ProviderPartner[]
-  }>('/api/financial/provider-partners')
-  return requireServerSuccess(response.data).data
-}
-
-export async function createProviderPartner(input: {
-  name: string
-  image_url: string
-  website_url: string
-  api_key: string
-  api_endpoint: string
-}) {
-  const response = await api.post<{
-    success: boolean
-    data: ProviderPartner
-  }>('/api/financial/provider-partners', input)
-  return requireServerSuccess(response.data).data
-}
-
-export async function updateProviderPartner(
-  id: number,
-  input: Omit<Parameters<typeof createProviderPartner>[0], 'api_key'> & { api_key?: string }
-) {
-  const response = await api.put<{ success: boolean; data: ProviderPartner }>(
-    `/api/financial/provider-partners/${id}`,
-    input
-  )
-  return requireServerSuccess(response.data).data
-}
-
-export async function deleteProviderPartner(id: number) {
-  const response = await api.delete(`/api/financial/provider-partners/${id}`)
-  return requireServerSuccess(response.data).data
-}
-
-export async function assignChannelProviderPartner(
-  channelID: number,
-  providerPartnerID: number | null
-) {
-  const response = await api.put(`/api/channel/${channelID}/provider-partner`, {
-    provider_partner_id: providerPartnerID,
-  })
-  return requireServerSuccess(response.data).data
-}
-
 export async function getProviderFundings(
   page: number,
   pageSize: number,
-  providerPartnerID?: number
 ) {
   const response = await api.get<{ success: boolean; data: ProviderFundingPage }>(
     '/api/financial/provider-funding',
@@ -97,7 +36,6 @@ export async function getProviderFundings(
       params: {
         page,
         page_size: pageSize,
-        ...(providerPartnerID ? { provider_partner_id: providerPartnerID } : {}),
       },
     }
   )
@@ -105,7 +43,6 @@ export async function getProviderFundings(
 }
 
 export async function createProviderFunding(input: {
-  provider_partner_id: number
   channel_id: number
   reference: string
   amount_minor: number
