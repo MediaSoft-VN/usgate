@@ -49,9 +49,68 @@ import {
   getProviderFundingSyncStatus,
   getProviderFundings,
   startProviderFundingSync,
+  type ProviderFunding,
+  type ProviderFundingAllocation,
 } from './api'
 
 const PAGE_SIZE = 20
+
+type CashFlowRow = {
+  id: string
+  direction: 'incoming' | 'outgoing'
+  type: 'funding' | 'allocation'
+  counterparty: string
+  amountMinor: number
+  currency: string
+  reference: string
+  createdBy: string
+  createdAt: number
+  status: string
+  effectMinor: number
+}
+
+function createCashFlowRows(
+  fundings: ProviderFunding[],
+  allocations: ProviderFundingAllocation[],
+  channelNames: Map<number, string>,
+  unknownLabel: string
+): CashFlowRow[] {
+  const fundingRows: CashFlowRow[] = fundings.map((funding) => ({
+    id: `funding-${funding.id}`,
+    direction: 'incoming',
+    type: 'funding',
+    counterparty: channelNames.get(funding.channel_id) ?? unknownLabel,
+    amountMinor: funding.amount_minor,
+    currency: funding.currency,
+    reference: funding.reference,
+    createdBy: funding.created_by,
+    createdAt: funding.created_at,
+    status: 'completed',
+    effectMinor: funding.amount_minor,
+  }))
+  const allocationRows: CashFlowRow[] = allocations.map((allocation) => ({
+    id: `allocation-${allocation.id}`,
+    direction: 'outgoing',
+    type: 'allocation',
+    counterparty:
+      allocation.user_display_name &&
+      allocation.user_display_name !== allocation.user_name
+        ? `${allocation.user_display_name} (${allocation.user_name})`
+        : allocation.user_name || allocation.user_id.toString(),
+    amountMinor: allocation.amount_minor,
+    currency: allocation.currency,
+    reference: allocation.reference,
+    createdBy: allocation.created_by,
+    createdAt: allocation.created_at,
+    status: allocation.status,
+    effectMinor: allocation.balance_effect_minor,
+  }))
+
+  return [...fundingRows, ...allocationRows].sort(
+    (left, right) =>
+      right.createdAt - left.createdAt || right.id.localeCompare(left.id)
+  )
+}
 
 export function ProviderFunding() {
   const { t } = useTranslation()
@@ -65,8 +124,14 @@ export function ProviderFunding() {
   const channelsQuery = useQuery({
     queryKey: ['provider-funding-channels'],
     queryFn: async () => {
-      const response = await getChannels({ p: 1, page_size: 100, sort_by: 'id', sort_order: 'desc' })
-      if (!response.success) throw createServerError(response, t('Failed to load'))
+      const response = await getChannels({
+        p: 1,
+        page_size: 100,
+        sort_by: 'id',
+        sort_order: 'desc',
+      })
+      if (!response.success)
+        throw createServerError(response, t('Failed to load'))
       return response.data?.items ?? []
     },
   })
@@ -86,7 +151,9 @@ export function ProviderFunding() {
     queryKey: ['provider-funding', page],
     queryFn: () => getProviderFundings(page, PAGE_SIZE),
   })
-  const selectedChannel = channelsQuery.data?.find((channel) => String(channel.id) === channelID)
+  const selectedChannel = channelsQuery.data?.find(
+    (channel) => String(channel.id) === channelID
+  )
   const createMutation = useMutation({
     mutationFn: () =>
       createProviderFunding({
@@ -106,11 +173,20 @@ export function ProviderFunding() {
   })
   const data = fundingsQuery.data
   const channelNames = new Map(
-    (channelsQuery.data ?? []).map((channel) => [channel.id, channel.name || channel.type])
+    (channelsQuery.data ?? []).map((channel) => [
+      channel.id,
+      String(channel.name || channel.type),
+    ])
   )
   const items = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const cashFlowRows = createCashFlowRows(
+    items,
+    data?.allocations ?? [],
+    channelNames,
+    t('Unknown')
+  )
 
   return (
     <SectionPageLayout fixedContent>
@@ -134,7 +210,9 @@ export function ProviderFunding() {
       </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
         <Dialog open={fundingOpen} onOpenChange={setFundingOpen}>
-          <DialogTrigger render={<Button />}>{t('Record provider funding')}</DialogTrigger>
+          <DialogTrigger render={<Button />}>
+            {t('Record provider funding')}
+          </DialogTrigger>
           <DialogContent className='sm:max-w-2xl'>
             <DialogHeader>
               <DialogTitle>{t('Record provider funding')}</DialogTitle>
@@ -151,44 +229,82 @@ export function ProviderFunding() {
                   amount <= 0 ||
                   !Number.isSafeInteger(Math.round(amount * 100)) ||
                   !currency.trim()
-                ) return
+                )
+                  return
                 createMutation.mutate()
               }}
             >
               <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-channel' required>{t('Channel')}</Label>
+                <Label htmlFor='provider-funding-channel' required>
+                  {t('Channel')}
+                </Label>
                 <Select
                   value={channelID}
-                  itemToStringValue={(value) => channelsQuery.data?.find((channel) => String(channel.id) === value)?.name ?? ''}
+                  itemToStringValue={(value) =>
+                    channelsQuery.data?.find(
+                      (channel) => String(channel.id) === value
+                    )?.name ?? ''
+                  }
                   onValueChange={(value) => setChannelID(value ?? '')}
                 >
-                  <SelectTrigger id='provider-funding-channel' className='w-full'>
+                  <SelectTrigger
+                    id='provider-funding-channel'
+                    className='w-full'
+                  >
                     <SelectValue placeholder={t('Select channel')}>
                       {selectedChannel?.name || selectedChannel?.type}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {(channelsQuery.data ?? []).map((channel) => (
-                      <SelectItem key={channel.id} value={String(channel.id)}>{channel.name || channel.type}</SelectItem>
+                      <SelectItem key={channel.id} value={String(channel.id)}>
+                        {channel.name || channel.type}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-reference' required>{t('Reference')}</Label>
-                <Input id='provider-funding-reference' value={reference} onChange={(event) => setReference(event.target.value)} />
+                <Label htmlFor='provider-funding-reference' required>
+                  {t('Reference')}
+                </Label>
+                <Input
+                  id='provider-funding-reference'
+                  value={reference}
+                  onChange={(event) => setReference(event.target.value)}
+                />
               </div>
               <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-amount' required>{t('Amount')}</Label>
-                <Input id='provider-funding-amount' type='number' min={1} value={amountMinor} onChange={(event) => setAmountMinor(event.target.value)} />
+                <Label htmlFor='provider-funding-amount' required>
+                  {t('Amount')}
+                </Label>
+                <Input
+                  id='provider-funding-amount'
+                  type='number'
+                  min={1}
+                  value={amountMinor}
+                  onChange={(event) => setAmountMinor(event.target.value)}
+                />
               </div>
               <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-currency' required>{t('Currency')}</Label>
-                <Input id='provider-funding-currency' value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} />
+                <Label htmlFor='provider-funding-currency' required>
+                  {t('Currency')}
+                </Label>
+                <Input
+                  id='provider-funding-currency'
+                  value={currency}
+                  onChange={(event) =>
+                    setCurrency(event.target.value.toUpperCase())
+                  }
+                />
               </div>
-              <p className='text-muted-foreground text-sm italic md:col-span-2'>{t('Provider funding guide')}</p>
+              <p className='text-muted-foreground text-sm italic md:col-span-2'>
+                {t('Provider funding guide')}
+              </p>
               <DialogFooter className='md:col-span-2'>
-                <Button type='submit' disabled={createMutation.isPending}>{t('Record provider funding')}</Button>
+                <Button type='submit' disabled={createMutation.isPending}>
+                  {t('Record provider funding')}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -205,101 +321,97 @@ export function ProviderFunding() {
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         {fundingsQuery.isLoading && <LoadingState />}
-        {fundingsQuery.isError && <ErrorState onRetry={() => void fundingsQuery.refetch()} />}
-        {data && (
-          <>
-            {items.length === 0 ? (
-              <EmptyState icon={WalletCards} title={t('No provider funding records')} />
-            ) : (
+        {fundingsQuery.isError && (
+          <ErrorState onRetry={() => void fundingsQuery.refetch()} />
+        )}
+        {data &&
+          (cashFlowRows.length === 0 ? (
+            <EmptyState
+              icon={WalletCards}
+              title={t('No provider funding records')}
+            />
+          ) : (
             <div className='bg-card mt-4 overflow-hidden rounded-lg border'>
+              <div className='overflow-x-auto'>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t('Channel')}</TableHead>
-                      <TableHead>{t('Reference')}</TableHead>
-                      <TableHead>{t('Funding amount')}</TableHead>
+                      <TableHead>{t('Direction')}</TableHead>
+                      <TableHead>{t('Type')}</TableHead>
+                      <TableHead>{t('Counterparty')}</TableHead>
+                      <TableHead>{t('Amount')}</TableHead>
                       <TableHead>{t('Currency')}</TableHead>
-                      <TableHead>{t('Source')}</TableHead>
+                      <TableHead>{t('Reference')}</TableHead>
                       <TableHead>{t('Time')}</TableHead>
                       <TableHead>{t('Created by')}</TableHead>
+                      <TableHead>{t('Status')}</TableHead>
+                      <TableHead>{t('Balance effect')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{channelNames.get(item.channel_id) ?? t('Unknown')}</TableCell>
-                        <TableCell className='font-mono text-xs'>{item.reference}</TableCell>
-                        <TableCell className='tabular-nums'>{formatNumber(item.amount_minor / 100)}</TableCell>
-                        <TableCell>{item.currency}</TableCell>
-                        <TableCell>{item.source}</TableCell>
-                        <TableCell>{formatTimestampToDate(item.created_at)}</TableCell>
-                        <TableCell>{item.created_by || t('Unknown')}</TableCell>
+                    {cashFlowRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          {row.direction === 'incoming'
+                            ? t('Incoming')
+                            : t('Outgoing')}
+                        </TableCell>
+                        <TableCell>
+                          {row.type === 'funding'
+                            ? t('Provider funding')
+                            : t('Credit allocation')}
+                        </TableCell>
+                        <TableCell>{row.counterparty}</TableCell>
+                        <TableCell className='tabular-nums'>
+                          {formatNumber(row.amountMinor / 100)}
+                        </TableCell>
+                        <TableCell>{row.currency}</TableCell>
+                        <TableCell className='font-mono text-xs'>
+                          {row.reference}
+                        </TableCell>
+                        <TableCell>
+                          {formatTimestampToDate(row.createdAt)}
+                        </TableCell>
+                        <TableCell>{row.createdBy || t('Unknown')}</TableCell>
+                        <TableCell>
+                          {row.status === 'completed'
+                            ? t('Completed')
+                            : row.status}
+                        </TableCell>
+                        <TableCell className='tabular-nums'>
+                          {formatNumber(row.effectMinor / 100)} {row.currency}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-                <div className='flex items-center justify-between border-t px-4 py-3'>
-                  <span className='text-muted-foreground text-sm'>{total}</span>
-                  <div className='flex items-center gap-2'>
-                    <Button variant='outline' size='sm' disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>{t('Previous')}</Button>
-                    <span className='text-muted-foreground text-sm'>{page} / {totalPages}</span>
-                    <Button variant='outline' size='sm' disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>{t('Next')}</Button>
-                  </div>
-                </div>
-            </div>
-            )}
-            {data.allocations.length > 0 && (
-              <div className='bg-card mt-6 overflow-hidden rounded-lg border'>
-                <div className='border-b px-4 py-3 text-sm font-medium'>
-                  {t('Allocation history')}
-                </div>
-                <div className='overflow-x-auto'>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('User')}</TableHead>
-                        <TableHead>{t('Credit allocation')}</TableHead>
-                        <TableHead>{t('Currency')}</TableHead>
-                        <TableHead>{t('Reference')}</TableHead>
-                        <TableHead>{t('Created by')}</TableHead>
-                        <TableHead>{t('Timestamp')}</TableHead>
-                        <TableHead>{t('Status')}</TableHead>
-                        <TableHead>{t('Balance effect')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.allocations.map((allocation) => (
-                        <TableRow key={allocation.id}>
-                          <TableCell>
-                            {allocation.user_display_name &&
-                            allocation.user_display_name !== allocation.user_name
-                              ? `${allocation.user_display_name} (${allocation.user_name})`
-                              : allocation.user_name || allocation.user_id}
-                          </TableCell>
-                          <TableCell className='tabular-nums'>
-                            {formatNumber(allocation.amount_minor / 100)}
-                          </TableCell>
-                          <TableCell>{allocation.currency}</TableCell>
-                          <TableCell className='max-w-48 truncate'>
-                            {allocation.reference}
-                          </TableCell>
-                          <TableCell>{allocation.created_by || t('Unknown')}</TableCell>
-                          <TableCell>{formatTimestampToDate(allocation.created_at)}</TableCell>
-                          <TableCell>
-                            {allocation.status === 'completed' ? t('Completed') : allocation.status}
-                          </TableCell>
-                          <TableCell className='tabular-nums'>
-                            {formatNumber(allocation.balance_effect_minor / 100)} {allocation.currency}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+              </div>
+              <div className='flex items-center justify-between border-t px-4 py-3'>
+                <span className='text-muted-foreground text-sm'>{total}</span>
+                <div className='flex items-center gap-2'>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    disabled={page <= 1}
+                    onClick={() => setPage((value) => value - 1)}
+                  >
+                    {t('Previous')}
+                  </Button>
+                  <span className='text-muted-foreground text-sm'>
+                    {page} / {totalPages}
+                  </span>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((value) => value + 1)}
+                  >
+                    {t('Next')}
+                  </Button>
                 </div>
               </div>
-            )}
-          </>
-        )}
+            </div>
+          ))}
       </SectionPageLayout.Content>
     </SectionPageLayout>
   )
