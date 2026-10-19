@@ -7321,6 +7321,7 @@
     "Provider partner delete confirmation": "このプロバイダーパートナーを削除しますか？チャンネルまたは入金記録があるパートナーは削除できません。",
     "Provider partner updated": "プロバイダーパートナーを更新しました",
     "Provider partner deleted": "プロバイダーパートナーを削除しました",
-    "Provider partner cannot be deleted while it has channels or funding records": "チャンネルまたは入金記録があるため、このプロバイダーパートナーは削除できません。"
+    "Provider partner cannot be deleted while it has channels or funding records": "チャンネルまたは入金記録があるため、このプロバイダーパートナーは削除できません。",
+    "Credit allocation": "クレジット割り当て"
   }
 }

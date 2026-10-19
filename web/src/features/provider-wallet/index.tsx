@@ -26,17 +26,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { formatNumber } from '@/lib/format'
 
+import {
+  allocateProviderFunding,
+  getProviderFundings,
+} from '../provider-funding/api'
 import { getUsers } from '../users/api'
-import { allocateProviderFunding, getProviderFundings } from '../provider-funding/api'
+import type { User } from '../users/types'
 
 export function ProviderWallet() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [allocationOpen, setAllocationOpen] = useState(false)
-  const [userID, setUserID] = useState('')
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [allocationReference, setAllocationReference] = useState('')
   const [allocationAmount, setAllocationAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
@@ -46,20 +57,33 @@ export function ProviderWallet() {
   })
   const usersQuery = useQuery({
     queryKey: ['provider-funding-users'],
-    queryFn: async () => (await getUsers({ p: 1, page_size: 100, sort_by: 'username', sort_order: 'asc' })).data?.items ?? [],
+    queryFn: async () =>
+      (
+        await getUsers({
+          p: 1,
+          page_size: 100,
+          sort_by: 'username',
+          sort_order: 'asc',
+        })
+      ).data?.items ?? [],
   })
+  const userLabel = (user: { display_name: string; username: string }) =>
+    user.display_name && user.display_name !== user.username
+      ? `${user.display_name} (${user.username})`
+      : user.username
   const allocationMutation = useMutation({
-    mutationFn: () => allocateProviderFunding({
-      user_id: Number(userID),
-      reference: allocationReference.trim(),
-      amount_minor: Math.round(Number(allocationAmount) * 100),
-      currency: currency.trim(),
-    }),
+    mutationFn: () =>
+      allocateProviderFunding({
+        user_id: selectedUser?.id ?? 0,
+        reference: allocationReference.trim(),
+        amount_minor: Math.round(Number(allocationAmount) * 100),
+        currency: currency.trim(),
+      }),
     onSuccess: () => {
       toast.success(t('Success'))
       setAllocationReference('')
       setAllocationAmount('')
-      setUserID('')
+      setSelectedUser(null)
       setAllocationOpen(false)
       void queryClient.invalidateQueries({ queryKey: ['provider-wallet'] })
       void queryClient.invalidateQueries({ queryKey: ['provider-funding'] })
@@ -69,29 +93,102 @@ export function ProviderWallet() {
 
   return (
     <SectionPageLayout fixedContent>
-      <SectionPageLayout.Title>{t('Provider total wallet')}</SectionPageLayout.Title>
+      <SectionPageLayout.Title>
+        {t('Provider total wallet')}
+      </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
         <Dialog open={allocationOpen} onOpenChange={setAllocationOpen}>
-          <DialogTrigger render={<Button variant='outline' />}>{t('Quota')}</DialogTrigger>
+          <DialogTrigger render={<Button variant='outline' />}>
+            {t('Credit allocation')}
+          </DialogTrigger>
           <DialogContent className='sm:max-w-2xl'>
-            <DialogHeader><DialogTitle>{t('Quota')}</DialogTitle></DialogHeader>
-            <form className='grid gap-3 md:grid-cols-2' onSubmit={(event) => {
-              event.preventDefault()
-              const amount = Number(allocationAmount)
-              if (!userID || !allocationReference.trim() || !Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(Math.round(amount * 100)) || !currency.trim()) return
-              allocationMutation.mutate()
-            }}>
+            <DialogHeader>
+              <DialogTitle>{t('Credit allocation')}</DialogTitle>
+            </DialogHeader>
+            <form
+              className='grid gap-3 md:grid-cols-2'
+              onSubmit={(event) => {
+                event.preventDefault()
+                const amount = Number(allocationAmount)
+                if (
+                  !selectedUser ||
+                  !allocationReference.trim() ||
+                  !Number.isFinite(amount) ||
+                  amount <= 0 ||
+                  !Number.isSafeInteger(Math.round(amount * 100)) ||
+                  !currency.trim()
+                ) {
+                  return
+                }
+                allocationMutation.mutate()
+              }}
+            >
               <div className='grid gap-2 md:col-span-2'>
-                <Label htmlFor='provider-allocation-user' required>{t('Username')}</Label>
-                <Select value={userID} itemToStringValue={(value) => usersQuery.data?.find((user) => String(user.id) === value)?.username ?? ''} onValueChange={(value) => setUserID(value ?? '')}>
-                  <SelectTrigger id='provider-allocation-user' className='w-full'><SelectValue placeholder={t('Username')} /></SelectTrigger>
-                  <SelectContent>{(usersQuery.data ?? []).map((user) => <SelectItem key={user.id} value={String(user.id)}>{user.username}</SelectItem>)}</SelectContent>
+                <Label htmlFor='provider-allocation-user' required>
+                  {t('Username')}
+                </Label>
+                <Select
+                  value={selectedUser}
+                  itemToStringLabel={(user) => userLabel(user)}
+                  itemToStringValue={(user) => String(user.id)}
+                  onValueChange={(value) => setSelectedUser(value ?? null)}
+                >
+                  <SelectTrigger
+                    id='provider-allocation-user'
+                    className='w-full'
+                  >
+                    <SelectValue placeholder={t('Username')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(usersQuery.data ?? []).map((user) => (
+                      <SelectItem key={user.id} value={user}>
+                        {userLabel(user)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
-              <div className='grid gap-2'><Label htmlFor='provider-allocation-reference' required>{t('Reference')}</Label><Input id='provider-allocation-reference' value={allocationReference} onChange={(event) => setAllocationReference(event.target.value)} /></div>
-              <div className='grid gap-2'><Label htmlFor='provider-allocation-amount' required>{t('Amount')}</Label><Input id='provider-allocation-amount' type='number' min={0.01} value={allocationAmount} onChange={(event) => setAllocationAmount(event.target.value)} /></div>
-              <div className='grid gap-2'><Label htmlFor='provider-allocation-currency' required>{t('Currency')}</Label><Input id='provider-allocation-currency' value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} /></div>
-              <DialogFooter className='md:col-span-2'><Button type='submit' disabled={allocationMutation.isPending}>{t('Quota')}</Button></DialogFooter>
+              <div className='grid gap-2'>
+                <Label htmlFor='provider-allocation-reference' required>
+                  {t('Reference')}
+                </Label>
+                <Input
+                  id='provider-allocation-reference'
+                  value={allocationReference}
+                  onChange={(event) =>
+                    setAllocationReference(event.target.value)
+                  }
+                />
+              </div>
+              <div className='grid gap-2'>
+                <Label htmlFor='provider-allocation-amount' required>
+                  {t('Amount')}
+                </Label>
+                <Input
+                  id='provider-allocation-amount'
+                  type='number'
+                  min={0.01}
+                  value={allocationAmount}
+                  onChange={(event) => setAllocationAmount(event.target.value)}
+                />
+              </div>
+              <div className='grid gap-2'>
+                <Label htmlFor='provider-allocation-currency' required>
+                  {t('Currency')}
+                </Label>
+                <Input
+                  id='provider-allocation-currency'
+                  value={currency}
+                  onChange={(event) =>
+                    setCurrency(event.target.value.toUpperCase())
+                  }
+                />
+              </div>
+              <DialogFooter className='md:col-span-2'>
+                <Button type='submit' disabled={allocationMutation.isPending}>
+                  {t('Credit allocation')}
+                </Button>
+              </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
@@ -99,10 +196,17 @@ export function ProviderWallet() {
       <SectionPageLayout.Content>
         {walletQuery.isLoading && <LoadingState />}
         {walletQuery.isError && (
-          <ErrorState onRetry={() => { void walletQuery.refetch() }} />
+          <ErrorState
+            onRetry={() => {
+              void walletQuery.refetch()
+            }}
+          />
         )}
         {!walletQuery.isLoading && wallets.length === 0 && (
-          <EmptyState icon={WalletCards} title={t('No provider funding records')} />
+          <EmptyState
+            icon={WalletCards}
+            title={t('No provider funding records')}
+          />
         )}
         {wallets.length > 0 && (
           <div className='bg-card overflow-hidden rounded-lg border'>
@@ -111,7 +215,7 @@ export function ProviderWallet() {
                 <TableRow>
                   <TableHead>{t('Currency')}</TableHead>
                   <TableHead>{t('Total funded')}</TableHead>
-                  <TableHead>{t('Quota')}</TableHead>
+                  <TableHead>{t('Credit allocation')}</TableHead>
                   <TableHead>{t('Available')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -119,9 +223,15 @@ export function ProviderWallet() {
                 {wallets.map((wallet) => (
                   <TableRow key={wallet.currency}>
                     <TableCell>{wallet.currency}</TableCell>
-                    <TableCell className='tabular-nums'>{formatNumber(wallet.amount_minor / 100)}</TableCell>
-                    <TableCell className='tabular-nums'>{formatNumber(wallet.allocated_minor / 100)}</TableCell>
-                    <TableCell className='tabular-nums'>{formatNumber(wallet.available_minor / 100)}</TableCell>
+                    <TableCell className='tabular-nums'>
+                      {formatNumber(wallet.amount_minor / 100)}
+                    </TableCell>
+                    <TableCell className='tabular-nums'>
+                      {formatNumber(wallet.allocated_minor / 100)}
+                    </TableCell>
+                    <TableCell className='tabular-nums'>
+                      {formatNumber(wallet.available_minor / 100)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

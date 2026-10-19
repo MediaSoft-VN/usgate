@@ -7321,6 +7321,7 @@
     "Provider partner delete confirmation": "Are you sure you want to delete this provider partner? Partners with assigned channels or funding records cannot be deleted.",
     "Provider partner updated": "Provider partner updated",
     "Provider partner deleted": "Provider partner deleted",
-    "Provider partner cannot be deleted while it has channels or funding records": "This provider partner cannot be deleted while it has channels or funding records."
+    "Provider partner cannot be deleted while it has channels or funding records": "This provider partner cannot be deleted while it has channels or funding records.",
+    "Credit allocation": "Credit allocation"
   }
 }

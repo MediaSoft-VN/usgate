@@ -7321,6 +7321,7 @@
     "Provider partner delete confirmation": "Voulez-vous vraiment supprimer ce partenaire fournisseur ? Les partenaires ayant des canaux ou des financements ne peuvent pas être supprimés.",
     "Provider partner updated": "Partenaire fournisseur mis à jour",
     "Provider partner deleted": "Partenaire fournisseur supprimé",
-    "Provider partner cannot be deleted while it has channels or funding records": "Ce partenaire fournisseur ne peut pas être supprimé car il possède des canaux ou des financements."
+    "Provider partner cannot be deleted while it has channels or funding records": "Ce partenaire fournisseur ne peut pas être supprimé car il possède des canaux ou des financements.",
+    "Credit allocation": "Allocation de crédit"
   }
 }

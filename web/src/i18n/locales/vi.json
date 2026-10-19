@@ -7321,6 +7321,7 @@
     "Provider partner delete confirmation": "Bạn có chắc muốn xóa đối tác cung cấp này không? Không thể xóa đối tác đang có kênh hoặc lịch sử nạp tiền.",
     "Provider partner updated": "Đã cập nhật đối tác cung cấp",
     "Provider partner deleted": "Đã xóa đối tác cung cấp",
-    "Provider partner cannot be deleted while it has channels or funding records": "Không thể xóa đối tác cung cấp đang có kênh hoặc lịch sử nạp tiền."
+    "Provider partner cannot be deleted while it has channels or funding records": "Không thể xóa đối tác cung cấp đang có kênh hoặc lịch sử nạp tiền.",
+    "Credit allocation": "Cấp tín dụng"
   }
 }
