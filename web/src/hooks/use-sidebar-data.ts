@@ -175,11 +175,6 @@ export function useSidebarData(): SidebarData {
             icon: ReceiptText,
           },
           {
-            title: t('Provider partners'),
-            url: '/provider-partners',
-            icon: Users,
-          },
-          {
             title: t('Provider funding'),
             url: '/provider-funding',
             icon: Wallet,
