@@ -78,8 +78,8 @@ export function ProviderFunding() {
     },
   })
   const fundingsQuery = useQuery({
-    queryKey: ['provider-funding', page, providerPartnerID],
-    queryFn: () => getProviderFundings(page, PAGE_SIZE, Number(providerPartnerID) || undefined),
+    queryKey: ['provider-funding', page],
+    queryFn: () => getProviderFundings(page, PAGE_SIZE),
   })
   const createMutation = useMutation({
     mutationFn: () =>
