@@ -65,8 +65,17 @@ type CashFlowRow = {
   reference: string
   createdBy: string
   createdAt: number
-  status: string
-  effectMinor: number
+}
+
+function formatSignedCashFlowAmount(
+  amountMinor: number,
+  direction: CashFlowRow['direction'],
+  currency: string
+) {
+  const signedAmount =
+    direction === 'incoming' ? Math.abs(amountMinor) : -Math.abs(amountMinor)
+  const sign = signedAmount >= 0 ? '+' : '-'
+  return `${sign}${formatNumber(Math.abs(signedAmount) / 100)} ${currency}`
 }
 
 function createCashFlowRows(
@@ -85,25 +94,17 @@ function createCashFlowRows(
     reference: funding.reference,
     createdBy: funding.created_by,
     createdAt: funding.created_at,
-    status: 'completed',
-    effectMinor: funding.amount_minor,
   }))
   const allocationRows: CashFlowRow[] = allocations.map((allocation) => ({
     id: `allocation-${allocation.id}`,
     direction: 'outgoing',
     type: 'allocation',
-    counterparty:
-      allocation.user_display_name &&
-      allocation.user_display_name !== allocation.user_name
-        ? `${allocation.user_display_name} (${allocation.user_name})`
-        : allocation.user_name || allocation.user_id.toString(),
+    counterparty: allocation.counterparty_name || unknownLabel,
     amountMinor: allocation.amount_minor,
     currency: allocation.currency,
     reference: allocation.reference,
     createdBy: allocation.created_by,
     createdAt: allocation.created_at,
-    status: allocation.status,
-    effectMinor: allocation.balance_effect_minor,
   }))
 
   return [...fundingRows, ...allocationRows].sort(
@@ -130,8 +131,9 @@ export function ProviderFunding() {
         sort_by: 'id',
         sort_order: 'desc',
       })
-      if (!response.success)
+      if (!response.success) {
         throw createServerError(response, t('Failed to load'))
+      }
       return response.data?.items ?? []
     },
   })
@@ -229,8 +231,9 @@ export function ProviderFunding() {
                   amount <= 0 ||
                   !Number.isSafeInteger(Math.round(amount * 100)) ||
                   !currency.trim()
-                )
+                ) {
                   return
+                }
                 createMutation.mutate()
               }}
             >
@@ -344,14 +347,18 @@ export function ProviderFunding() {
                       <TableHead>{t('Reference')}</TableHead>
                       <TableHead>{t('Time')}</TableHead>
                       <TableHead>{t('Created by')}</TableHead>
-                      <TableHead>{t('Status')}</TableHead>
-                      <TableHead>{t('Balance effect')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cashFlowRows.map((row) => (
                       <TableRow key={row.id}>
-                        <TableCell>
+                        <TableCell
+                          className={
+                            row.direction === 'incoming'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }
+                        >
                           {row.direction === 'incoming'
                             ? t('Incoming')
                             : t('Outgoing')}
@@ -362,8 +369,18 @@ export function ProviderFunding() {
                             : t('Credit allocation')}
                         </TableCell>
                         <TableCell>{row.counterparty}</TableCell>
-                        <TableCell className='tabular-nums'>
-                          {formatNumber(row.amountMinor / 100)}
+                        <TableCell
+                          className={
+                            row.direction === 'incoming'
+                              ? 'font-medium text-emerald-600 tabular-nums dark:text-emerald-400'
+                              : 'font-medium text-red-600 tabular-nums dark:text-red-400'
+                          }
+                        >
+                          {formatSignedCashFlowAmount(
+                            row.amountMinor,
+                            row.direction,
+                            row.currency
+                          )}
                         </TableCell>
                         <TableCell>{row.currency}</TableCell>
                         <TableCell className='font-mono text-xs'>
@@ -373,14 +390,6 @@ export function ProviderFunding() {
                           {formatTimestampToDate(row.createdAt)}
                         </TableCell>
                         <TableCell>{row.createdBy || t('Unknown')}</TableCell>
-                        <TableCell>
-                          {row.status === 'completed'
-                            ? t('Completed')
-                            : row.status}
-                        </TableCell>
-                        <TableCell className='tabular-nums'>
-                          {formatNumber(row.effectMinor / 100)} {row.currency}
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

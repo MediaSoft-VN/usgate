@@ -24,6 +24,7 @@ export type ProviderFundingWalletSummary = {
 
 export type ProviderFundingChannelSummary = {
   channel_id: number
+  channel_name: string
   currency: string
   amount_minor: number
 }
@@ -33,6 +34,7 @@ export type ProviderFundingAllocation = {
   user_id: number
   user_name: string
   user_display_name: string
+  counterparty_name: string
   reference: string
   amount_minor: number
   currency: string
@@ -40,8 +42,6 @@ export type ProviderFundingAllocation = {
   exchange_rate: string
   created_at: number
   created_by: string
-  status: string
-  balance_effect_minor: number
 }
 
 export type ProviderFundingPage = {
@@ -54,19 +54,16 @@ export type ProviderFundingPage = {
   allocations: ProviderFundingAllocation[]
 }
 
-export async function getProviderFundings(
-  page: number,
-  pageSize: number,
-) {
-  const response = await api.get<{ success: boolean; data: ProviderFundingPage }>(
-    '/api/financial/provider-funding',
-    {
-      params: {
-        page,
-        page_size: pageSize,
-      },
-    }
-  )
+export async function getProviderFundings(page: number, pageSize: number) {
+  const response = await api.get<{
+    success: boolean
+    data: ProviderFundingPage
+  }>('/api/financial/provider-funding', {
+    params: {
+      page,
+      page_size: pageSize,
+    },
+  })
   return requireServerSuccess(response.data).data
 }
 
@@ -87,7 +84,10 @@ export async function allocateProviderFunding(input: {
   amount_minor: number
   currency: string
 }) {
-  const response = await api.post('/api/financial/provider-funding/allocate', input)
+  const response = await api.post(
+    '/api/financial/provider-funding/allocate',
+    input
+  )
   return requireServerSuccess(response.data).data
 }
 

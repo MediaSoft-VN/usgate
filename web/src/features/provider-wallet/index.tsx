@@ -9,12 +9,7 @@ import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -65,8 +60,14 @@ export function ProviderWallet() {
   const channelsQuery = useQuery({
     queryKey: ['provider-wallet-channels'],
     queryFn: async () =>
-      (await getChannels({ p: 1, page_size: 100, sort_by: 'id', sort_order: 'desc' })).data
-        ?.items ?? [],
+      (
+        await getChannels({
+          p: 1,
+          page_size: 100,
+          sort_by: 'id',
+          sort_order: 'desc',
+        })
+      ).data?.items ?? [],
   })
   const usersQuery = useQuery({
     queryKey: ['provider-funding-users'],
@@ -105,8 +106,15 @@ export function ProviderWallet() {
   const wallets = walletQuery.data?.wallets ?? []
   const providerWallets = walletQuery.data?.provider_wallets ?? []
   const channelNames = new Map(
-    (channelsQuery.data ?? []).map((channel) => [channel.id, channel.name || channel.type])
+    (channelsQuery.data ?? []).map((channel) => [
+      channel.id,
+      channel.name || channel.type,
+    ])
   )
+  const availableByCurrency = new Map(
+    wallets.map((wallet) => [wallet.currency, wallet.available_minor])
+  )
+  const hasWalletData = wallets.length > 0 || providerWallets.length > 0
 
   return (
     <SectionPageLayout fixedContent>
@@ -220,13 +228,13 @@ export function ProviderWallet() {
             }}
           />
         )}
-        {!walletQuery.isLoading && wallets.length === 0 && (
+        {!walletQuery.isLoading && !hasWalletData && (
           <EmptyState
             icon={WalletCards}
             title={t('No provider funding records')}
           />
         )}
-        {wallets.length > 0 && (
+        {hasWalletData && (
           <div className='space-y-6'>
             {providerWallets.length > 0 && (
               <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
@@ -234,16 +242,30 @@ export function ProviderWallet() {
                   <Card key={`${wallet.channel_id}-${wallet.currency}`}>
                     <CardHeader>
                       <CardTitle>
-                        {channelNames.get(wallet.channel_id) ?? t('Unknown')}
+                        {wallet.channel_name ||
+                          channelNames.get(wallet.channel_id) ||
+                          t('Unknown')}
                       </CardTitle>
                       <p className='text-muted-foreground text-sm'>
                         {t('Currency')}: {wallet.currency}
                       </p>
                     </CardHeader>
                     <CardContent>
-                      <p className='text-muted-foreground text-sm'>{t('Total funded')}</p>
+                      <p className='text-muted-foreground text-sm'>
+                        {t('Total funded')}
+                      </p>
                       <p className='text-2xl font-semibold tabular-nums'>
-                        {formatNumber(wallet.amount_minor / 100)} {wallet.currency}
+                        {formatNumber(wallet.amount_minor / 100)}{' '}
+                        {wallet.currency}
+                      </p>
+                      <p className='text-muted-foreground mt-3 text-sm'>
+                        {t('Available')}
+                      </p>
+                      <p className='font-semibold tabular-nums'>
+                        {formatNumber(
+                          (availableByCurrency.get(wallet.currency) ?? 0) / 100
+                        )}{' '}
+                        {wallet.currency}
                       </p>
                     </CardContent>
                   </Card>

@@ -44,3 +44,31 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	assert.Equal(t, channel.Id, channelWallets[0].ChannelID)
 	assert.Equal(t, int64(12500), channelWallets[0].AmountMinor)
 }
+
+func TestListProviderFundingAllocationHistoryIncludesCounterpartyName(t *testing.T) {
+	require.NoError(t, DB.AutoMigrate(&ProviderFundingAllocation{}, &User{}))
+	user := &User{Username: "cashflow-counterparty", DisplayName: "Cash Flow Recipient", Password: "test-password"}
+	require.NoError(t, DB.Create(user).Error)
+	allocation := &ProviderFundingAllocation{
+		UserID: user.Id, Reference: "cashflow-counterparty-reference", AmountMinor: 1250,
+		Currency: "USD", Quota: 100, ExchangeRate: "1",
+		CreatedAt: 1, CreatedBy: "admin",
+	}
+	require.NoError(t, DB.Create(allocation).Error)
+	t.Cleanup(func() {
+		DB.Delete(&ProviderFundingAllocation{}, allocation.ID)
+		DB.Delete(&User{}, user.Id)
+	})
+
+	history, err := ListProviderFundingAllocationHistory()
+	require.NoError(t, err)
+	var found *ProviderFundingAllocationHistory
+	for i := range history {
+		if history[i].ID == allocation.ID {
+			found = &history[i]
+			break
+		}
+	}
+	require.NotNil(t, found)
+	assert.Equal(t, "Cash Flow Recipient (cashflow-counterparty)", found.CounterpartyName)
+}

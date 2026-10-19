@@ -57,6 +57,7 @@ type ProviderFundingWalletSummary struct {
 
 type ProviderFundingChannelSummary struct {
 	ChannelID   int    `json:"channel_id"`
+	ChannelName string `json:"channel_name"`
 	Currency    string `json:"currency"`
 	AmountMinor int64  `json:"amount_minor"`
 }
@@ -84,6 +85,7 @@ type ProviderFundingAllocationHistory struct {
 	UserID            int    `json:"user_id"`
 	UserName          string `json:"user_name"`
 	UserDisplayName   string `json:"user_display_name"`
+	CounterpartyName  string `json:"counterparty_name"`
 	Reference         string `json:"reference"`
 	AmountMinor       int64  `json:"amount_minor"`
 	Currency          string `json:"currency"`
@@ -91,8 +93,6 @@ type ProviderFundingAllocationHistory struct {
 	ExchangeRate      string `json:"exchange_rate"`
 	CreatedAt         int64  `json:"created_at"`
 	CreatedBy         string `json:"created_by"`
-	Status            string `json:"status"`
-	BalanceEffectMinor int64 `json:"balance_effect_minor"`
 }
 
 func normalizeProviderFundingCurrency(currency string) string {
@@ -206,8 +206,9 @@ func SummarizeProviderFundingWallets() ([]ProviderFundingWalletSummary, error) {
 func SummarizeProviderFundingByChannel() ([]ProviderFundingChannelSummary, error) {
 	var summaries []ProviderFundingChannelSummary
 	err := DB.Model(&ProviderFunding{}).
-		Select("channel_id, currency, SUM(amount_minor) AS amount_minor").
-		Group("channel_id, currency").
+		Select("provider_fundings.channel_id, channels.name AS channel_name, provider_fundings.currency, SUM(provider_fundings.amount_minor) AS amount_minor").
+		Joins("LEFT JOIN channels ON channels.id = provider_fundings.channel_id").
+		Group("provider_fundings.channel_id, channels.name, provider_fundings.currency").
 		Order("channel_id ASC, currency ASC").
 		Scan(&summaries).Error
 	return summaries, err
@@ -292,8 +293,18 @@ func ListProviderFundingAllocationHistory() ([]ProviderFundingAllocationHistory,
 		Joins("LEFT JOIN users ON users.id = provider_funding_allocations.user_id").
 		Order("provider_funding_allocations.created_at DESC, provider_funding_allocations.id DESC").Find(&allocations).Error
 	for i := range allocations {
-		allocations[i].Status = FinancialTransactionCompleted
-		allocations[i].BalanceEffectMinor = -allocations[i].AmountMinor
+		displayName := strings.TrimSpace(allocations[i].UserDisplayName)
+		username := strings.TrimSpace(allocations[i].UserName)
+		switch {
+		case displayName != "" && username != "" && displayName != username:
+			allocations[i].CounterpartyName = displayName + " (" + username + ")"
+		case displayName != "":
+			allocations[i].CounterpartyName = displayName
+		case username != "":
+			allocations[i].CounterpartyName = username
+		default:
+			allocations[i].CounterpartyName = ""
+		}
 	}
 	return allocations, err
 }

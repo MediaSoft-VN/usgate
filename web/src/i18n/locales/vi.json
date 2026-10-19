@@ -7320,7 +7320,6 @@
     "Provider partner cannot be deleted while it has channels or funding records": "Không thể xóa đối tác cung cấp đang có kênh hoặc lịch sử nạp tiền.",
     "Credit allocation": "Cấp tín dụng",
     "Allocation history": "Allocation history",
-    "Balance effect": "Balance effect",
     "Timestamp": "Timestamp",
     "Bank Rate Type": "Loại tỷ giá ngân hàng",
     "Cash": "Tiền mặt",
