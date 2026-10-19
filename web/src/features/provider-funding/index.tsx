@@ -100,7 +100,6 @@ export function ProviderFunding() {
             <Tooltip>
               <TooltipTrigger
                 aria-label={t('Provider funding guide')}
-                title={t('Provider funding guide')}
                 className='text-primary hover:text-primary/80 inline-flex rounded-full focus-visible:ring-2 focus-visible:outline-none'
               >
                 <Info className='size-5' strokeWidth={2.5} aria-hidden='true' />
