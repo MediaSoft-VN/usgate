@@ -29,7 +29,6 @@ import {
   MessageSquare,
   PlugZap,
   Radio,
-  ReceiptText,
   ServerCog,
   Settings,
   ShieldCheck,
@@ -154,35 +153,15 @@ export function useSidebarData(): SidebarData {
             icon: Wallet,
           },
           {
-            title: `${t('Provider')} ${t('Wallet')}`,
-            url: '/provider-wallet',
-            icon: Wallet,
-          },
-          {
-            title: t('Top-up'),
-            url: '/topup-records',
-            icon: ReceiptText,
-          },
-          {
             title: t('Billing'),
             url: '/usage-logs/common',
             activeUrls: ['/usage-logs'],
             icon: FileText,
           },
           {
-            title: t('Financial transactions'),
-            url: '/financial-transactions',
-            icon: ReceiptText,
-          },
-          {
             title: t('Provider funding'),
             url: '/provider-funding',
             icon: Wallet,
-          },
-          {
-            title: `${t('Provider')} ${t('Status')}`,
-            url: '/provider-status',
-            icon: Activity,
           },
           {
             title: t('Pricing'),

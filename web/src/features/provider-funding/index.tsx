@@ -9,6 +9,14 @@ import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -52,6 +60,7 @@ export function ProviderFunding() {
   const [reference, setReference] = useState('')
   const [amountMinor, setAmountMinor] = useState('')
   const [currency, setCurrency] = useState('USD')
+  const [fundingOpen, setFundingOpen] = useState(false)
   const partnersQuery = useQuery({
     queryKey: ['provider-partners'],
     queryFn: getProviderPartners,
@@ -85,6 +94,7 @@ export function ProviderFunding() {
       toast.success(t('Provider funding recorded'))
       setReference('')
       setAmountMinor('')
+      setFundingOpen(false)
       void queryClient.invalidateQueries({ queryKey: ['provider-funding'] })
     },
   })
@@ -119,6 +129,66 @@ export function ProviderFunding() {
         </span>
       </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
+        <Dialog open={fundingOpen} onOpenChange={setFundingOpen}>
+          <DialogTrigger render={<Button />}>{t('Record provider funding')}</DialogTrigger>
+          <DialogContent className='sm:max-w-2xl'>
+            <DialogHeader>
+              <DialogTitle>{t('Record provider funding')}</DialogTitle>
+            </DialogHeader>
+            <form
+              className='grid gap-3 md:grid-cols-2'
+              onSubmit={(event) => {
+                event.preventDefault()
+                const amount = Number(amountMinor)
+                if (
+                  !providerPartnerID ||
+                  !reference.trim() ||
+                  !Number.isFinite(amount) ||
+                  amount <= 0 ||
+                  !Number.isSafeInteger(Math.round(amount * 100)) ||
+                  !currency.trim()
+                ) return
+                createMutation.mutate()
+              }}
+            >
+              <div className='grid gap-2'>
+                <Label htmlFor='provider-funding-partner' required>{t('Provider partner')}</Label>
+                <Select
+                  value={providerPartnerID}
+                  itemToStringValue={(value) => partnersQuery.data?.find((partner) => String(partner.id) === value)?.name ?? ''}
+                  onValueChange={(value) => setProviderPartnerID(value ?? '')}
+                >
+                  <SelectTrigger id='provider-funding-partner' className='w-full'>
+                    <SelectValue placeholder={t('Select provider partner')}>
+                      {partnersQuery.data?.find((partner) => String(partner.id) === providerPartnerID)?.name}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(partnersQuery.data ?? []).map((partner) => (
+                      <SelectItem key={partner.id} value={String(partner.id)}>{partner.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className='grid gap-2'>
+                <Label htmlFor='provider-funding-reference' required>{t('Reference')}</Label>
+                <Input id='provider-funding-reference' value={reference} onChange={(event) => setReference(event.target.value)} />
+              </div>
+              <div className='grid gap-2'>
+                <Label htmlFor='provider-funding-amount' required>{t('Amount')}</Label>
+                <Input id='provider-funding-amount' type='number' min={1} value={amountMinor} onChange={(event) => setAmountMinor(event.target.value)} />
+              </div>
+              <div className='grid gap-2'>
+                <Label htmlFor='provider-funding-currency' required>{t('Currency')}</Label>
+                <Input id='provider-funding-currency' value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} />
+              </div>
+              <p className='text-muted-foreground text-sm italic md:col-span-2'>{t('Provider funding guide')}</p>
+              <DialogFooter className='md:col-span-2'>
+                <Button type='submit' disabled={createMutation.isPending}>{t('Record provider funding')}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
         <Button
           disabled={syncMutation.isPending || syncQuery.data?.running === true}
           onClick={() => syncMutation.mutate()}
@@ -130,57 +200,6 @@ export function ProviderFunding() {
         </Button>
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
-        <form
-          className='bg-card grid gap-3 rounded-lg border p-4 md:grid-cols-4'
-          onSubmit={(event) => {
-            event.preventDefault()
-            const amount = Number(amountMinor)
-            if (
-              !providerPartnerID ||
-              !reference.trim() ||
-              !Number.isFinite(amount) ||
-              amount <= 0 ||
-              !Number.isSafeInteger(Math.round(amount * 100)) ||
-              !currency.trim()
-            ) return
-            createMutation.mutate()
-          }}
-        >
-          <div className='grid gap-2'>
-            <Label htmlFor='provider-funding-partner' required>{t('Provider partner')}</Label>
-            <Select
-              value={providerPartnerID}
-              onValueChange={(value) => setProviderPartnerID(value ?? '')}
-            >
-              <SelectTrigger id='provider-funding-partner' className='w-full'>
-                <SelectValue placeholder={t('Select provider partner')} />
-              </SelectTrigger>
-              <SelectContent>
-                {(partnersQuery.data ?? []).map((partner) => (
-                  <SelectItem key={partner.id} value={String(partner.id)}>
-                    {partner.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className='grid gap-2'>
-            <Label htmlFor='provider-funding-reference' required>{t('Reference')}</Label>
-            <Input id='provider-funding-reference' value={reference} onChange={(event) => setReference(event.target.value)} />
-          </div>
-          <div className='grid gap-2'>
-            <Label htmlFor='provider-funding-amount' required>{t('Amount')}</Label>
-            <Input id='provider-funding-amount' type='number' min={1} value={amountMinor} onChange={(event) => setAmountMinor(event.target.value)} />
-          </div>
-          <div className='grid gap-2'>
-            <Label htmlFor='provider-funding-currency' required>{t('Currency')}</Label>
-            <Input id='provider-funding-currency' value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} />
-          </div>
-          <div className='flex items-end'>
-            <Button type='submit' disabled={createMutation.isPending}>{t('Record provider funding')}</Button>
-          </div>
-        </form>
-
         {fundingsQuery.isLoading && <LoadingState />}
         {fundingsQuery.isError && <ErrorState onRetry={() => void fundingsQuery.refetch()} />}
         {data && (

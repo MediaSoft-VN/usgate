@@ -27,7 +27,6 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedChat2linkRouteImport } from './routes/_authenticated/chat2link'
-import { Route as AuthenticatedFinancialTransactionsRouteImport } from './routes/_authenticated/financial-transactions'
 import { Route as AuthenticatedProviderFundingRouteImport } from './routes/_authenticated/provider-funding'
 import { Route as AuthenticatedSystemSettingsRouteRouteImport } from './routes/_authenticated/system-settings/route'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
@@ -47,15 +46,12 @@ import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
 import { Route as AuthenticatedPlaygroundIndexRouteImport } from './routes/_authenticated/playground/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
-import { Route as AuthenticatedProviderStatusIndexRouteImport } from './routes/_authenticated/provider-status/index'
-import { Route as AuthenticatedProviderWalletIndexRouteImport } from './routes/_authenticated/provider-wallet/index'
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
 import { Route as AuthenticatedSecurityIndexRouteImport } from './routes/_authenticated/security/index'
 import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_authenticated/subscriptions/index'
 import { Route as AuthenticatedSystemInfoIndexRouteImport } from './routes/_authenticated/system-info/index'
 import { Route as AuthenticatedSystemSettingsIndexRouteImport } from './routes/_authenticated/system-settings/index'
 import { Route as AuthenticatedTaskPluginsIndexRouteImport } from './routes/_authenticated/task-plugins/index'
-import { Route as AuthenticatedTopupRecordsIndexRouteImport } from './routes/_authenticated/topup-records/index'
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedUsageLogsAuditRouteImport } from './routes/_authenticated/usage-logs/audit'
@@ -167,12 +163,6 @@ const AuthenticatedChat2linkRoute = AuthenticatedChat2linkRouteImport.update({
   path: '/chat2link',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedFinancialTransactionsRoute =
-  AuthenticatedFinancialTransactionsRouteImport.update({
-    id: '/financial-transactions',
-    path: '/financial-transactions',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedProviderFundingRoute =
   AuthenticatedProviderFundingRouteImport.update({
     id: '/provider-funding',
@@ -279,18 +269,6 @@ const AuthenticatedProfileIndexRoute =
     path: '/profile/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedProviderStatusIndexRoute =
-  AuthenticatedProviderStatusIndexRouteImport.update({
-    id: '/provider-status/',
-    path: '/provider-status/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedProviderWalletIndexRoute =
-  AuthenticatedProviderWalletIndexRouteImport.update({
-    id: '/provider-wallet/',
-    path: '/provider-wallet/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedRedemptionCodesIndexRoute =
   AuthenticatedRedemptionCodesIndexRouteImport.update({
     id: '/redemption-codes/',
@@ -325,12 +303,6 @@ const AuthenticatedTaskPluginsIndexRoute =
   AuthenticatedTaskPluginsIndexRouteImport.update({
     id: '/task-plugins/',
     path: '/task-plugins/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTopupRecordsIndexRoute =
-  AuthenticatedTopupRecordsIndexRouteImport.update({
-    id: '/topup-records/',
-    path: '/topup-records/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedUsageLogsIndexRoute =
@@ -482,7 +454,6 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
-  '/financial-transactions': typeof AuthenticatedFinancialTransactionsRoute
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
@@ -503,15 +474,12 @@ export interface FileRoutesByFullPath {
   '/models/': typeof AuthenticatedModelsIndexRoute
   '/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
-  '/provider-status/': typeof AuthenticatedProviderStatusIndexRoute
-  '/provider-wallet/': typeof AuthenticatedProviderWalletIndexRoute
   '/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
   '/security/': typeof AuthenticatedSecurityIndexRoute
   '/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
   '/system-info/': typeof AuthenticatedSystemInfoIndexRoute
   '/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
   '/task-plugins/': typeof AuthenticatedTaskPluginsIndexRoute
-  '/topup-records/': typeof AuthenticatedTopupRecordsIndexRoute
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
@@ -550,7 +518,6 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
-  '/financial-transactions': typeof AuthenticatedFinancialTransactionsRoute
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about': typeof AboutIndexRoute
@@ -571,15 +538,12 @@ export interface FileRoutesByTo {
   '/models': typeof AuthenticatedModelsIndexRoute
   '/playground': typeof AuthenticatedPlaygroundIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
-  '/provider-status': typeof AuthenticatedProviderStatusIndexRoute
-  '/provider-wallet': typeof AuthenticatedProviderWalletIndexRoute
   '/redemption-codes': typeof AuthenticatedRedemptionCodesIndexRoute
   '/security': typeof AuthenticatedSecurityIndexRoute
   '/subscriptions': typeof AuthenticatedSubscriptionsIndexRoute
   '/system-info': typeof AuthenticatedSystemInfoIndexRoute
   '/system-settings': typeof AuthenticatedSystemSettingsIndexRoute
   '/task-plugins': typeof AuthenticatedTaskPluginsIndexRoute
-  '/topup-records': typeof AuthenticatedTopupRecordsIndexRoute
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
@@ -622,7 +586,6 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/chat2link': typeof AuthenticatedChat2linkRoute
-  '/_authenticated/financial-transactions': typeof AuthenticatedFinancialTransactionsRoute
   '/_authenticated/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
@@ -643,15 +606,12 @@ export interface FileRoutesById {
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
   '/_authenticated/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
-  '/_authenticated/provider-status/': typeof AuthenticatedProviderStatusIndexRoute
-  '/_authenticated/provider-wallet/': typeof AuthenticatedProviderWalletIndexRoute
   '/_authenticated/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
   '/_authenticated/security/': typeof AuthenticatedSecurityIndexRoute
   '/_authenticated/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
   '/_authenticated/system-info/': typeof AuthenticatedSystemInfoIndexRoute
   '/_authenticated/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
   '/_authenticated/task-plugins/': typeof AuthenticatedTaskPluginsIndexRoute
-  '/_authenticated/topup-records/': typeof AuthenticatedTopupRecordsIndexRoute
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
@@ -693,7 +653,6 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/chat2link'
-    | '/financial-transactions'
     | '/provider-funding'
     | '/oauth/$provider'
     | '/about/'
@@ -714,15 +673,12 @@ export interface FileRouteTypes {
     | '/models/'
     | '/playground/'
     | '/profile/'
-    | '/provider-status/'
-    | '/provider-wallet/'
     | '/redemption-codes/'
     | '/security/'
     | '/subscriptions/'
     | '/system-info/'
     | '/system-settings/'
     | '/task-plugins/'
-    | '/topup-records/'
     | '/usage-logs/'
     | '/users/'
     | '/wallet/'
@@ -761,7 +717,6 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/chat2link'
-    | '/financial-transactions'
     | '/provider-funding'
     | '/oauth/$provider'
     | '/about'
@@ -782,15 +737,12 @@ export interface FileRouteTypes {
     | '/models'
     | '/playground'
     | '/profile'
-    | '/provider-status'
-    | '/provider-wallet'
     | '/redemption-codes'
     | '/security'
     | '/subscriptions'
     | '/system-info'
     | '/system-settings'
     | '/task-plugins'
-    | '/topup-records'
     | '/usage-logs'
     | '/users'
     | '/wallet'
@@ -832,7 +784,6 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/chat2link'
-    | '/_authenticated/financial-transactions'
     | '/_authenticated/provider-funding'
     | '/oauth/$provider'
     | '/about/'
@@ -853,15 +804,12 @@ export interface FileRouteTypes {
     | '/_authenticated/models/'
     | '/_authenticated/playground/'
     | '/_authenticated/profile/'
-    | '/_authenticated/provider-status/'
-    | '/_authenticated/provider-wallet/'
     | '/_authenticated/redemption-codes/'
     | '/_authenticated/security/'
     | '/_authenticated/subscriptions/'
     | '/_authenticated/system-info/'
     | '/_authenticated/system-settings/'
     | '/_authenticated/task-plugins/'
-    | '/_authenticated/topup-records/'
     | '/_authenticated/usage-logs/'
     | '/_authenticated/users/'
     | '/_authenticated/wallet/'
@@ -1031,13 +979,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChat2linkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/financial-transactions': {
-      id: '/_authenticated/financial-transactions'
-      path: '/financial-transactions'
-      fullPath: '/financial-transactions'
-      preLoaderRoute: typeof AuthenticatedFinancialTransactionsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/provider-funding': {
       id: '/_authenticated/provider-funding'
       path: '/provider-funding'
@@ -1171,20 +1112,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/provider-status/': {
-      id: '/_authenticated/provider-status/'
-      path: '/provider-status'
-      fullPath: '/provider-status/'
-      preLoaderRoute: typeof AuthenticatedProviderStatusIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/provider-wallet/': {
-      id: '/_authenticated/provider-wallet/'
-      path: '/provider-wallet'
-      fullPath: '/provider-wallet/'
-      preLoaderRoute: typeof AuthenticatedProviderWalletIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/redemption-codes/': {
       id: '/_authenticated/redemption-codes/'
       path: '/redemption-codes'
@@ -1225,13 +1152,6 @@ declare module '@tanstack/react-router' {
       path: '/task-plugins'
       fullPath: '/task-plugins/'
       preLoaderRoute: typeof AuthenticatedTaskPluginsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/topup-records/': {
-      id: '/_authenticated/topup-records/'
-      path: '/topup-records'
-      fullPath: '/topup-records/'
-      preLoaderRoute: typeof AuthenticatedTopupRecordsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/usage-logs/': {
@@ -1483,7 +1403,6 @@ const AuthenticatedSystemSettingsRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedSystemSettingsRouteRoute: typeof AuthenticatedSystemSettingsRouteRouteWithChildren
   AuthenticatedChat2linkRoute: typeof AuthenticatedChat2linkRoute
-  AuthenticatedFinancialTransactionsRoute: typeof AuthenticatedFinancialTransactionsRoute
   AuthenticatedProviderFundingRoute: typeof AuthenticatedProviderFundingRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
   AuthenticatedDashboardSectionRoute: typeof AuthenticatedDashboardSectionRoute
@@ -1498,14 +1417,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
   AuthenticatedPlaygroundIndexRoute: typeof AuthenticatedPlaygroundIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
-  AuthenticatedProviderStatusIndexRoute: typeof AuthenticatedProviderStatusIndexRoute
-  AuthenticatedProviderWalletIndexRoute: typeof AuthenticatedProviderWalletIndexRoute
   AuthenticatedRedemptionCodesIndexRoute: typeof AuthenticatedRedemptionCodesIndexRoute
   AuthenticatedSecurityIndexRoute: typeof AuthenticatedSecurityIndexRoute
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
   AuthenticatedSystemInfoIndexRoute: typeof AuthenticatedSystemInfoIndexRoute
   AuthenticatedTaskPluginsIndexRoute: typeof AuthenticatedTaskPluginsIndexRoute
-  AuthenticatedTopupRecordsIndexRoute: typeof AuthenticatedTopupRecordsIndexRoute
   AuthenticatedUsageLogsIndexRoute: typeof AuthenticatedUsageLogsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
@@ -1515,8 +1431,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSystemSettingsRouteRoute:
     AuthenticatedSystemSettingsRouteRouteWithChildren,
   AuthenticatedChat2linkRoute: AuthenticatedChat2linkRoute,
-  AuthenticatedFinancialTransactionsRoute:
-    AuthenticatedFinancialTransactionsRoute,
   AuthenticatedProviderFundingRoute: AuthenticatedProviderFundingRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
   AuthenticatedDashboardSectionRoute: AuthenticatedDashboardSectionRoute,
@@ -1531,15 +1445,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
   AuthenticatedPlaygroundIndexRoute: AuthenticatedPlaygroundIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
-  AuthenticatedProviderStatusIndexRoute: AuthenticatedProviderStatusIndexRoute,
-  AuthenticatedProviderWalletIndexRoute: AuthenticatedProviderWalletIndexRoute,
   AuthenticatedRedemptionCodesIndexRoute:
     AuthenticatedRedemptionCodesIndexRoute,
   AuthenticatedSecurityIndexRoute: AuthenticatedSecurityIndexRoute,
   AuthenticatedSubscriptionsIndexRoute: AuthenticatedSubscriptionsIndexRoute,
   AuthenticatedSystemInfoIndexRoute: AuthenticatedSystemInfoIndexRoute,
   AuthenticatedTaskPluginsIndexRoute: AuthenticatedTaskPluginsIndexRoute,
-  AuthenticatedTopupRecordsIndexRoute: AuthenticatedTopupRecordsIndexRoute,
   AuthenticatedUsageLogsIndexRoute: AuthenticatedUsageLogsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,

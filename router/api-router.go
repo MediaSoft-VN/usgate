@@ -277,7 +277,6 @@ func SetApiRouter(router *gin.Engine) {
 			taskPluginRoute.DELETE("/:key/versions/:version", controller.DeleteTaskPluginVersion)
 		}
 		handlePermissionRoute(apiRouter.Group("", middleware.AdminAuth()), http.MethodGet, "/task_plugin_options", authz.TaskPluginBind, controller.GetTaskPluginOptions)
-		apiRouter.GET("/financial/transactions", middleware.AdminAuth(), controller.ListFinancialTransactions)
 		apiRouter.GET("/financial/provider-funding", middleware.AdminAuth(), controller.ListProviderFunding)
 		apiRouter.POST("/financial/provider-funding", middleware.AdminAuth(), controller.CreateProviderFunding)
 		apiRouter.GET("/financial/provider-funding/sync", middleware.AdminAuth(), controller.GetProviderFundingSyncStatus)
