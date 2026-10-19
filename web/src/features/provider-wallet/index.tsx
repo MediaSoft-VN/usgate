@@ -254,7 +254,7 @@ export function ProviderWallet() {
                       <p className='text-muted-foreground text-sm'>
                         {t('Available')}
                       </p>
-                      <p className='font-semibold tabular-nums'>
+                      <p className='text-2xl font-semibold tabular-nums'>
                         {formatNumber(
                           (availableByCurrency.get(wallet.currency) ?? 0) / 100
                         )}{' '}
@@ -263,7 +263,7 @@ export function ProviderWallet() {
                       <p className='text-muted-foreground mt-3 text-sm'>
                         {t('Total funded')}
                       </p>
-                      <p className='text-2xl font-semibold tabular-nums'>
+                      <p className='font-semibold tabular-nums'>
                         {formatNumber(wallet.amount_minor / 100)}{' '}
                         {wallet.currency}
                       </p>
