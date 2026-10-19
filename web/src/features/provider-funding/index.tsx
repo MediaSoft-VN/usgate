@@ -206,7 +206,7 @@ export function ProviderFunding() {
         {fundingsQuery.isError && <ErrorState onRetry={() => void fundingsQuery.refetch()} />}
         {data && (
           <>
-            <div className='grid gap-3 md:grid-cols-3'>
+            <div className='mt-4 grid gap-3 md:grid-cols-3'>
               {summary.map((item) => (
                 <div className='bg-card rounded-lg border p-4' key={item.currency}>
                   <div className='text-muted-foreground text-sm'>{item.currency}</div>
@@ -217,7 +217,7 @@ export function ProviderFunding() {
             {items.length === 0 ? (
               <EmptyState icon={WalletCards} title={t('No provider funding records')} />
             ) : (
-              <div className='bg-card overflow-hidden rounded-lg border'>
+              <div className='bg-card mt-4 overflow-hidden rounded-lg border'>
                 <Table>
                   <TableHeader>
                     <TableRow>
