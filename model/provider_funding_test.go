@@ -32,4 +32,9 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, summary, 1)
 	assert.Equal(t, int64(12500), summary[0].AmountMinor)
+	wallets, err := SummarizeProviderFundingWallets()
+	require.NoError(t, err)
+	require.Len(t, wallets, 1)
+	assert.Equal(t, channel.Id, wallets[0].ChannelID)
+	assert.Equal(t, int64(12500), wallets[0].AmountMinor)
 }

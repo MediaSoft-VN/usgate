@@ -46,7 +46,12 @@ func ListProviderFunding(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to load provider funding summary")
 		return
 	}
-	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "summary": summary})
+	wallets, err := model.SummarizeProviderFundingWallets()
+	if err != nil {
+		common.ApiErrorT(c, "Failed to load provider wallet summary")
+		return
+	}
+	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "summary": summary, "wallets": wallets})
 }
 
 func CreateProviderFunding(c *gin.Context) {

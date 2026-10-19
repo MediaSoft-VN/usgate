@@ -19,12 +19,17 @@ export type ProviderFundingSummary = {
   amount_minor: number
 }
 
+export type ProviderFundingWalletSummary = ProviderFundingSummary & {
+  channel_id: number
+}
+
 export type ProviderFundingPage = {
   items: ProviderFunding[]
   total: number
   page: number
   page_size: number
   summary: ProviderFundingSummary[]
+  wallets: ProviderFundingWalletSummary[]
 }
 
 export async function getProviderFundings(

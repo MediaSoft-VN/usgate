@@ -111,6 +111,7 @@ export function ProviderFunding() {
   )
   const items = data?.items ?? []
   const summary = data?.summary ?? []
+  const wallets = data?.wallets ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -218,6 +219,31 @@ export function ProviderFunding() {
                 </div>
               ))}
             </div>
+            {wallets.length > 0 && (
+              <div className='mt-4'>
+                <h2 className='mb-2 text-lg font-semibold'>{t('Provider total wallet')}</h2>
+                <div className='bg-card overflow-hidden rounded-lg border'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('Channel')}</TableHead>
+                        <TableHead>{t('Currency')}</TableHead>
+                        <TableHead>{t('Total funded')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {wallets.map((wallet) => (
+                        <TableRow key={`${wallet.channel_id}-${wallet.currency}`}>
+                          <TableCell>{channelNames.get(wallet.channel_id) ?? t('Unknown')}</TableCell>
+                          <TableCell>{wallet.currency}</TableCell>
+                          <TableCell className='tabular-nums'>{formatNumber(wallet.amount_minor / 100)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
             {items.length === 0 ? (
               <EmptyState icon={WalletCards} title={t('No provider funding records')} />
             ) : (

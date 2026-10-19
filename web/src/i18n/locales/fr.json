@@ -7277,6 +7277,8 @@
     "Zhipu V4": "Zhipu V4",
     "Zoom": "Zoom",
     "Provider funding": "Financement fournisseur",
+    "Provider total wallet": "Portefeuille total fournisseur",
+    "Total funded": "Total financé",
     "Provider funding guide": "Canal : choisissez le compte fournisseur.\nRéférence : saisissez une référence de dépôt unique.\nMontant : saisissez le montant normal ; le système le convertit en unités mineures.\nDevise : saisissez le code ISO. Les saisies manuelles augmentent le total cumulé des financements fournisseur.",
     "Provider funding recorded": "Financement fournisseur enregistré",
     "Record provider funding": "Enregistrer un financement fournisseur",

@@ -45,6 +45,12 @@ type ProviderFundingSummary struct {
 	AmountMinor int64  `json:"amount_minor"`
 }
 
+type ProviderFundingWalletSummary struct {
+	ChannelID   int    `json:"channel_id"`
+	Currency    string `json:"currency"`
+	AmountMinor int64  `json:"amount_minor"`
+}
+
 func normalizeProviderFundingCurrency(currency string) string {
 	return strings.ToUpper(strings.TrimSpace(currency))
 }
@@ -129,4 +135,14 @@ func SummarizeProviderFundings(filter ProviderFundingFilter) ([]ProviderFundingS
 		Select("currency, SUM(amount_minor) AS amount_minor").
 		Group("currency").Order("currency ASC").Scan(&summary).Error
 	return summary, err
+}
+
+func SummarizeProviderFundingWallets() ([]ProviderFundingWalletSummary, error) {
+	var wallets []ProviderFundingWalletSummary
+	err := DB.Model(&ProviderFunding{}).
+		Select("channel_id, currency, SUM(amount_minor) AS amount_minor").
+		Group("channel_id, currency").
+		Order("channel_id ASC, currency ASC").
+		Scan(&wallets).Error
+	return wallets, err
 }

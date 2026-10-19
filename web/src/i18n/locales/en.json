@@ -7277,6 +7277,8 @@
     "Zhipu V4": "Zhipu V4",
     "Zoom": "Zoom",
     "Provider funding": "Provider funding",
+    "Provider total wallet": "Provider total wallet",
+    "Total funded": "Total funded",
     "Provider funding guide": "Channel: choose the provider account.\nReference: enter a unique deposit reference.\nAmount: enter the normal currency amount; the system converts it to minor units.\nCurrency: enter the ISO currency code. Manual records increase the cumulative provider funding total.",
     "Provider funding recorded": "Provider funding recorded",
     "Record provider funding": "Record provider funding",
