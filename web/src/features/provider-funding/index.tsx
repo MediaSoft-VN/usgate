@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { WalletCards } from 'lucide-react'
+import { Info, WalletCards } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -12,6 +12,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -19,8 +26,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatNumber } from '@/lib/format'
+import { createServerError } from '@/lib/server-error-message'
 
+import { getChannels } from '../channels/api'
 import { createProviderFunding, getProviderFundings } from './api'
 
 const PAGE_SIZE = 20
@@ -33,6 +47,21 @@ export function ProviderFunding() {
   const [reference, setReference] = useState('')
   const [amountMinor, setAmountMinor] = useState('')
   const [currency, setCurrency] = useState('USD')
+  const channelsQuery = useQuery({
+    queryKey: ['provider-funding-channels'],
+    queryFn: async () => {
+      const response = await getChannels({
+        p: 1,
+        page_size: 100,
+        sort_by: 'id',
+        sort_order: 'desc',
+      })
+      if (!response.success) {
+        throw createServerError(response, t('Failed to load'))
+      }
+      return response.data?.items ?? []
+    },
+  })
   const fundingsQuery = useQuery({
     queryKey: ['provider-funding', page],
     queryFn: () => getProviderFundings(page, PAGE_SIZE),
@@ -55,6 +84,7 @@ export function ProviderFunding() {
   })
 
   const data = fundingsQuery.data
+  const channels = channelsQuery.data ?? []
   const items = data?.items ?? []
   const summary = data?.summary ?? []
   const total = data?.total ?? 0
@@ -62,7 +92,22 @@ export function ProviderFunding() {
 
   return (
     <SectionPageLayout fixedContent>
-      <SectionPageLayout.Title>{t('Provider funding')}</SectionPageLayout.Title>
+      <SectionPageLayout.Title>
+        <span className='inline-flex items-center gap-2'>
+          {t('Provider funding')}
+          <Tooltip>
+            <TooltipTrigger
+              aria-label={t('Provider funding guide')}
+              className='text-muted-foreground hover:text-foreground inline-flex rounded-full focus-visible:ring-2 focus-visible:outline-none'
+            >
+              <Info className='size-4' aria-hidden='true' />
+            </TooltipTrigger>
+            <TooltipContent className='max-w-sm whitespace-pre-line'>
+              {t('Provider funding guide')}
+            </TooltipContent>
+          </Tooltip>
+        </span>
+      </SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <form
           className='bg-card grid gap-3 rounded-lg border p-4 md:grid-cols-5'
@@ -74,7 +119,18 @@ export function ProviderFunding() {
         >
           <div className='grid gap-2'>
             <Label htmlFor='provider-funding-channel' required>{t('Channel')}</Label>
-            <Input id='provider-funding-channel' type='number' min={1} value={channelID} onChange={(event) => setChannelID(event.target.value)} />
+            <Select value={channelID} onValueChange={(value) => setChannelID(value ?? '')}>
+              <SelectTrigger id='provider-funding-channel' className='w-full'>
+                <SelectValue placeholder={t('Select channel')} />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.map((channel) => (
+                  <SelectItem key={channel.id} value={String(channel.id)}>
+                    {channel.name || `#${channel.id}`} ({channel.type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className='grid gap-2'>
             <Label htmlFor='provider-funding-reference' required>{t('Reference')}</Label>

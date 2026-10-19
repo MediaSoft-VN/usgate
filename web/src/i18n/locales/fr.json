@@ -7274,7 +7274,8 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom",
+    "Zoom": "Zoom",,
+    "Provider funding guide": "Canal : choisissez le compte fournisseur.\nRéférence : saisissez une référence de dépôt unique.\nMontant : utilisez la plus petite unité monétaire (USD 10000 = 100,00 $).\nDevise : saisissez le code ISO. Les saisies manuelles augmentent le total cumulé des financements fournisseur."
     "Provider funding": "Financement fournisseur",
     "Provider funding recorded": "Financement fournisseur enregistré",
     "Record provider funding": "Enregistrer un financement fournisseur",

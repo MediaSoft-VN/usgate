@@ -7274,7 +7274,8 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム",
+    "Zoom": "ズーム",,
+    "Provider funding guide": "チャンネル：プロバイダーアカウントを選択します。\n参照番号：一意の入金参照番号を入力します。\n金額：通貨の最小単位を使用します（USD 10000 = $100.00）。\n通貨：ISO通貨コードを入力します。手動記録はプロバイダー入金累計を増やします。"
     "Provider funding": "プロバイダー入金",
     "Provider funding recorded": "プロバイダー入金を記録しました",
     "Record provider funding": "プロバイダー入金を記録",
