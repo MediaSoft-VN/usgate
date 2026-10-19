@@ -110,6 +110,12 @@ export function ProviderPartners() {
     setApiKey('')
     setEditOpen(true)
   }
+  const selectedPartnerName = partnersQuery.data?.find(
+    (partner) => String(partner.id) === providerPartnerID
+  )?.name
+  const selectedChannel = channelsQuery.data?.find(
+    (channel) => String(channel.id) === channelID
+  )
 
   return (
     <SectionPageLayout>
@@ -157,12 +163,31 @@ export function ProviderPartners() {
                   <DialogDescription>{t('Provider channel assignment guide')}</DialogDescription>
                 </DialogHeader>
                 <div className='grid gap-3'>
-                  <Select value={providerPartnerID} onValueChange={(value) => setProviderPartnerID(value ?? '')}>
-                    <SelectTrigger className='w-full'><SelectValue placeholder={t('Select provider partner')} /></SelectTrigger>
+                  <Select
+                    value={providerPartnerID}
+                    itemToStringValue={(value) => partnersQuery.data?.find((partner) => String(partner.id) === value)?.name ?? ''}
+                    onValueChange={(value) => setProviderPartnerID(value ?? '')}
+                  >
+                    <SelectTrigger className='w-full'>
+                      <SelectValue placeholder={t('Select provider partner')}>
+                        {selectedPartnerName}
+                      </SelectValue>
+                    </SelectTrigger>
                     <SelectContent>{(partnersQuery.data ?? []).map((partner) => <SelectItem key={partner.id} value={String(partner.id)}>{partner.name}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Select value={channelID} onValueChange={(value) => setChannelID(value ?? '')}>
-                    <SelectTrigger className='w-full'><SelectValue placeholder={t('Select channel')} /></SelectTrigger>
+                  <Select
+                    value={channelID}
+                    itemToStringValue={(value) => {
+                      const channel = channelsQuery.data?.find((item) => String(item.id) === value)
+                      return channel?.name || String(channel?.type ?? '')
+                    }}
+                    onValueChange={(value) => setChannelID(value ?? '')}
+                  >
+                    <SelectTrigger className='w-full'>
+                      <SelectValue placeholder={t('Select channel')}>
+                        {selectedChannel?.name || selectedChannel?.type}
+                      </SelectValue>
+                    </SelectTrigger>
                     <SelectContent>{(channelsQuery.data ?? []).map((channel) => <SelectItem key={channel.id} value={String(channel.id)}>{channel.name || channel.type}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
