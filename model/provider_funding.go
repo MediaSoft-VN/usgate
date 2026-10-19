@@ -29,6 +29,7 @@ type ProviderFunding struct {
 	ProviderReference string `json:"provider_reference" gorm:"type:varchar(255)"`
 	Note              string `json:"note" gorm:"type:text"`
 	CreatedAt         int64  `json:"created_at" gorm:"not null;index"`
+	CreatedBy         string `json:"created_by" gorm:"type:varchar(255);index"`
 }
 
 type ProviderFundingFilter struct {

@@ -1588,6 +1588,7 @@
     "CPU": "CPU",
     "CPU Threshold (%)": "CPU 閾値 (%)",
     "Create": "新規作成",
+    "Created by": "作成者",
     "Create a copy of:": "コピーを作成:",
     "Create a key for your app or service": "アプリまたはサービス用のキーを作成",
     "Create a new user group to configure ratio overrides for.": "レートの上書きを設定するための新しいユーザーグループを作成します。",

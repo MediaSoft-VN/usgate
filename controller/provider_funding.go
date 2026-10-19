@@ -55,9 +55,13 @@ func CreateProviderFunding(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid provider funding")
 		return
 	}
+	createdBy := c.GetString("username")
+	if createdBy == "" {
+		createdBy = strconv.Itoa(c.GetInt("id"))
+	}
 	record, replay, err := model.RecordProviderFunding(&model.ProviderFunding{
 		ChannelID: req.ChannelID, Reference: strings.TrimSpace(req.Reference), AmountMinor: req.AmountMinor,
-		Currency: req.Currency, Source: req.Source, ProviderReference: strings.TrimSpace(req.ProviderReference), Note: strings.TrimSpace(req.Note),
+		Currency: req.Currency, Source: req.Source, ProviderReference: strings.TrimSpace(req.ProviderReference), Note: strings.TrimSpace(req.Note), CreatedBy: createdBy,
 	})
 	if err != nil {
 		if errors.Is(err, model.ErrProviderFundingConflict) {

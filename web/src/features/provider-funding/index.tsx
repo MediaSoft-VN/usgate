@@ -40,7 +40,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { formatNumber } from '@/lib/format'
+import { formatNumber, formatTimestampToDate } from '@/lib/format'
 import { createServerError } from '@/lib/server-error-message'
 
 import { getChannels } from '../channels/api'
@@ -230,6 +230,8 @@ export function ProviderFunding() {
                       <TableHead>{t('Funding amount')}</TableHead>
                       <TableHead>{t('Currency')}</TableHead>
                       <TableHead>{t('Source')}</TableHead>
+                      <TableHead>{t('Time')}</TableHead>
+                      <TableHead>{t('Created by')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -240,6 +242,8 @@ export function ProviderFunding() {
                         <TableCell className='tabular-nums'>{formatNumber(item.amount_minor / 100)}</TableCell>
                         <TableCell>{item.currency}</TableCell>
                         <TableCell>{item.source}</TableCell>
+                        <TableCell>{formatTimestampToDate(item.created_at)}</TableCell>
+                        <TableCell>{item.created_by || t('Unknown')}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

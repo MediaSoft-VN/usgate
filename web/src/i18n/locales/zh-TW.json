@@ -1588,6 +1588,7 @@
     "CPU": "CPU",
     "CPU Threshold (%)": "CPU 閾值 (%)",
     "Create": "建立",
+    "Created by": "建立者",
     "Create a copy of:": "建立副本：",
     "Create a key for your app or service": "為你的套用或服務建立金鑰",
     "Create a new user group to configure ratio overrides for.": "建立一個新的用戶分組來設定比例覆蓋。",

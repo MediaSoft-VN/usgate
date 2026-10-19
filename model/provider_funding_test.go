@@ -16,11 +16,12 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 		DB.Exec("DELETE FROM channels WHERE id = ?", channel.Id)
 	})
 
-	funding := &ProviderFunding{ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "usd", Source: ProviderFundingSourceManual}
+	funding := &ProviderFunding{ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "usd", Source: ProviderFundingSourceManual, CreatedBy: "admin"}
 	record, replay, err := RecordProviderFunding(funding)
 	require.NoError(t, err)
 	assert.False(t, replay)
 	assert.Equal(t, "USD", record.Currency)
+	assert.Equal(t, "admin", record.CreatedBy)
 
 	replayed, replay, err := RecordProviderFunding(&ProviderFunding{ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "USD", Source: ProviderFundingSourceManual})
 	require.NoError(t, err)

@@ -11,6 +11,7 @@ export type ProviderFunding = {
   provider_reference: string
   note: string
   created_at: number
+  created_by: string
 }
 
 export type ProviderFundingSummary = {
