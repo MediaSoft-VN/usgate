@@ -37,7 +37,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         className='relative hidden overflow-hidden border-e border-border/60 bg-[linear-gradient(145deg,oklch(0.22_0.08_260),oklch(0.34_0.14_250)_48%,oklch(0.26_0.1_190))] lg:block'
       >
         <img
-          src='https://www.usgate.ai/assets/hero-banner-v4.png'
+          src='/hero-banner-v4.png'
           alt=''
           aria-hidden='true'
           className='absolute inset-0 size-full object-cover opacity-90'
