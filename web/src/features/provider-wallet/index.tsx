@@ -27,14 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { formatNumber } from '@/lib/format'
 
 import { getChannels } from '../channels/api'
@@ -110,9 +102,6 @@ export function ProviderWallet() {
       channel.id,
       channel.name || channel.type,
     ])
-  )
-  const availableByCurrency = new Map(
-    wallets.map((wallet) => [wallet.currency, wallet.available_minor])
   )
   const hasWalletData = wallets.length > 0 || providerWallets.length > 0
 
@@ -236,6 +225,44 @@ export function ProviderWallet() {
         )}
         {hasWalletData && (
           <div className='space-y-6'>
+            {wallets.length > 0 && (
+              <Card className='border-primary bg-primary/5 shadow-md'>
+                <CardHeader>
+                  <CardTitle className='text-primary text-xl'>
+                    {t('Provider total wallet')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='grid gap-6 sm:grid-cols-2'>
+                  {wallets.map((wallet) => (
+                    <div key={wallet.currency}>
+                      <p className='text-muted-foreground text-sm'>
+                        {t('Currency')}: {wallet.currency}
+                      </p>
+                      <div className='mt-2 grid gap-4 sm:grid-cols-2'>
+                        <div>
+                          <p className='text-muted-foreground text-sm'>
+                            {t('Total funded')}
+                          </p>
+                          <p className='text-3xl font-bold tabular-nums'>
+                            {formatNumber(wallet.amount_minor / 100)}{' '}
+                            {wallet.currency}
+                          </p>
+                        </div>
+                        <div>
+                          <p className='text-muted-foreground text-sm'>
+                            {t('Available')}
+                          </p>
+                          <p className='text-3xl font-bold tabular-nums'>
+                            {formatNumber(wallet.available_minor / 100)}{' '}
+                            {wallet.currency}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
             {providerWallets.length > 0 && (
               <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
                 {providerWallets.map((wallet) => (
@@ -252,18 +279,9 @@ export function ProviderWallet() {
                     </CardHeader>
                     <CardContent>
                       <p className='text-muted-foreground text-sm'>
-                        {t('Available')}
-                      </p>
-                      <p className='text-2xl font-semibold tabular-nums'>
-                        {formatNumber(
-                          (availableByCurrency.get(wallet.currency) ?? 0) / 100
-                        )}{' '}
-                        {wallet.currency}
-                      </p>
-                      <p className='text-muted-foreground mt-3 text-sm'>
                         {t('Total funded')}
                       </p>
-                      <p className='font-semibold tabular-nums'>
+                      <p className='text-2xl font-semibold tabular-nums'>
                         {formatNumber(wallet.amount_minor / 100)}{' '}
                         {wallet.currency}
                       </p>
@@ -272,34 +290,6 @@ export function ProviderWallet() {
                 ))}
               </div>
             )}
-            <div className='bg-card overflow-hidden rounded-lg border'>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('Currency')}</TableHead>
-                    <TableHead>{t('Total funded')}</TableHead>
-                    <TableHead>{t('Credit allocation')}</TableHead>
-                    <TableHead>{t('Available')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {wallets.map((wallet) => (
-                    <TableRow key={wallet.currency}>
-                      <TableCell>{wallet.currency}</TableCell>
-                      <TableCell className='tabular-nums'>
-                        {formatNumber(wallet.amount_minor / 100)}
-                      </TableCell>
-                      <TableCell className='tabular-nums'>
-                        {formatNumber(wallet.allocated_minor / 100)}
-                      </TableCell>
-                      <TableCell className='tabular-nums'>
-                        {formatNumber(wallet.available_minor / 100)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
           </div>
         )}
       </SectionPageLayout.Content>
