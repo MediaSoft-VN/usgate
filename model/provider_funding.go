@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"gorm.io/gorm"
 )
 
 const (
@@ -15,6 +16,7 @@ const (
 var (
 	ErrInvalidProviderFunding  = errors.New("invalid provider funding")
 	ErrProviderFundingConflict = errors.New("provider funding reference conflict")
+	ErrProviderFundingInsufficient = errors.New("insufficient provider funding")
 )
 
 // ProviderFunding is an immutable record of money deposited into a provider
@@ -49,6 +51,23 @@ type ProviderFundingWalletSummary struct {
 	ChannelID   int    `json:"channel_id"`
 	Currency    string `json:"currency"`
 	AmountMinor int64  `json:"amount_minor"`
+	AllocatedMinor int64 `json:"allocated_minor"`
+	AvailableMinor int64 `json:"available_minor"`
+}
+
+// ProviderFundingAllocation is an immutable debit from the aggregate provider
+// pool. It intentionally has no channel ID: provider money is fungible across
+// all channels.
+type ProviderFundingAllocation struct {
+	ID          int64  `json:"id" gorm:"primaryKey"`
+	UserID      int    `json:"user_id" gorm:"not null;index"`
+	Reference   string `json:"reference" gorm:"type:varchar(255);not null;uniqueIndex"`
+	AmountMinor int64  `json:"amount_minor" gorm:"not null"`
+	Currency    string `json:"currency" gorm:"type:varchar(16);not null;index"`
+	Quota       int    `json:"quota" gorm:"not null"`
+	ExchangeRate string `json:"exchange_rate" gorm:"type:varchar(64);not null"`
+	CreatedAt   int64  `json:"created_at" gorm:"not null;index"`
+	CreatedBy   string `json:"created_by" gorm:"type:varchar(255);index"`
 }
 
 func normalizeProviderFundingCurrency(currency string) string {
@@ -58,6 +77,9 @@ func normalizeProviderFundingCurrency(currency string) string {
 func validateProviderFunding(funding *ProviderFunding) error {
 	if funding == nil || funding.ChannelID <= 0 || funding.AmountMinor <= 0 || strings.TrimSpace(funding.Reference) == "" {
 		return ErrInvalidProviderFunding
+	}
+	if err := ValidateFinancialMinorAmount(funding.AmountMinor); err != nil {
+		return err
 	}
 	funding.Currency = normalizeProviderFundingCurrency(funding.Currency)
 	if len(funding.Currency) < 2 || len(funding.Currency) > 16 {
@@ -140,9 +162,96 @@ func SummarizeProviderFundings(filter ProviderFundingFilter) ([]ProviderFundingS
 func SummarizeProviderFundingWallets() ([]ProviderFundingWalletSummary, error) {
 	var wallets []ProviderFundingWalletSummary
 	err := DB.Model(&ProviderFunding{}).
-		Select("channel_id, currency, SUM(amount_minor) AS amount_minor").
-		Group("channel_id, currency").
-		Order("channel_id ASC, currency ASC").
-		Scan(&wallets).Error
-	return wallets, err
+		Select("0 AS channel_id, currency, SUM(amount_minor) AS amount_minor").
+		Group("currency").Order("currency ASC").Scan(&wallets).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range wallets {
+		var allocated int64
+		if err := DB.Model(&ProviderFundingAllocation{}).Where("currency = ?", wallets[i].Currency).Select("COALESCE(SUM(amount_minor), 0)").Scan(&allocated).Error; err != nil {
+			return nil, err
+		}
+		wallets[i].AllocatedMinor = allocated
+		wallets[i].AvailableMinor = wallets[i].AmountMinor - allocated
+	}
+	return wallets, nil
+}
+
+// AllocateProviderFunding atomically debits the aggregate provider pool and
+// credits the selected user's legacy quota. Reusing reference is idempotent.
+func AllocateProviderFunding(allocation *ProviderFundingAllocation) (*ProviderFundingAllocation, bool, error) {
+	if allocation == nil || allocation.UserID <= 0 || allocation.AmountMinor <= 0 || allocation.Quota <= 0 || strings.TrimSpace(allocation.Reference) == "" {
+		return nil, false, ErrInvalidProviderFunding
+	}
+	if err := ValidateFinancialMinorAmount(allocation.AmountMinor); err != nil {
+		return nil, false, err
+	}
+	allocation.Currency = normalizeProviderFundingCurrency(allocation.Currency)
+	if len(allocation.Currency) < 2 || len(allocation.Currency) > 16 {
+		return nil, false, ErrInvalidProviderFunding
+	}
+	var existing ProviderFundingAllocation
+	if err := DB.Where("reference = ?", allocation.Reference).First(&existing).Error; err == nil {
+		if existing.UserID != allocation.UserID || existing.AmountMinor != allocation.AmountMinor || existing.Currency != allocation.Currency || existing.Quota != allocation.Quota {
+			return nil, false, ErrProviderFundingConflict
+		}
+		return &existing, true, nil
+	}
+	var committed ProviderFundingAllocation
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var user User
+		if err := lockForUpdate(tx).First(&user, allocation.UserID).Error; err != nil {
+			return err
+		}
+		var deposits []ProviderFunding
+		if err := lockForUpdate(tx).Where("currency = ?", allocation.Currency).Find(&deposits).Error; err != nil {
+			return err
+		}
+		var funded int64
+		for i := range deposits {
+			if deposits[i].AmountMinor > FinancialMaxMinorUnits-funded {
+				return ErrFinancialAmountOverflow
+			}
+			funded += deposits[i].AmountMinor
+		}
+		var allocated int64
+		if err := tx.Model(&ProviderFundingAllocation{}).Where("currency = ?", allocation.Currency).Select("COALESCE(SUM(amount_minor), 0)").Scan(&allocated).Error; err != nil {
+			return err
+		}
+		if allocation.AmountMinor > funded-allocated {
+			return ErrProviderFundingInsufficient
+		}
+		if user.Quota > common.MaxWalletQuota || int64(user.Quota)+int64(allocation.Quota) > int64(common.MaxWalletQuota) {
+			return ErrWalletQuotaLimitExceeded
+		}
+		allocation.CreatedAt = common.GetTimestamp()
+		if err := tx.Create(allocation).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&User{}).Where("id = ?", user.Id).Update("quota", gorm.Expr("quota + ?", allocation.Quota)).Error; err != nil {
+			return err
+		}
+		committed = *allocation
+		return nil
+	})
+	if err != nil {
+		if lookupErr := DB.Where("reference = ?", allocation.Reference).First(&existing).Error; lookupErr == nil {
+			if existing.UserID == allocation.UserID && existing.AmountMinor == allocation.AmountMinor && existing.Currency == allocation.Currency && existing.Quota == allocation.Quota {
+				return &existing, true, nil
+			}
+			return nil, false, ErrProviderFundingConflict
+		}
+		return nil, false, err
+	}
+	if deltaErr := cacheIncrUserQuota(committed.UserID, int64(committed.Quota)); deltaErr != nil {
+		common.SysError(common.LogText("failed to sync provider allocation quota for user %d: %s", committed.UserID, deltaErr))
+	}
+	return &committed, false, nil
+}
+
+func ListProviderFundingAllocations() ([]ProviderFundingAllocation, error) {
+	var allocations []ProviderFundingAllocation
+	err := DB.Order("created_at DESC, id DESC").Find(&allocations).Error
+	return allocations, err
 }

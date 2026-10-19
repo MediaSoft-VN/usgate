@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,7 +47,51 @@ func ListProviderFunding(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to load provider wallet summary")
 		return
 	}
-	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "wallets": wallets})
+	allocations, err := model.ListProviderFundingAllocations()
+	if err != nil {
+		common.ApiErrorT(c, "Failed to load provider allocation history")
+		return
+	}
+	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "wallets": wallets, "allocations": allocations})
+}
+
+type providerFundingAllocationRequest struct {
+	UserID      int    `json:"user_id" binding:"required,gt=0"`
+	Reference   string `json:"reference" binding:"required,max=255"`
+	AmountMinor int64  `json:"amount_minor" binding:"required,gt=0"`
+	Currency    string `json:"currency" binding:"required,max=16"`
+}
+
+func AllocateProviderFunding(c *gin.Context) {
+	var req providerFundingAllocationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorT(c, "Invalid provider funding allocation")
+		return
+	}
+	quota, rate, err := service.ProviderFundingQuota(req.AmountMinor, req.Currency)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	allocation, replay, err := model.AllocateProviderFunding(&model.ProviderFundingAllocation{
+		UserID: req.UserID, Reference: strings.TrimSpace(req.Reference), AmountMinor: req.AmountMinor,
+		Currency: req.Currency, Quota: quota, ExchangeRate: rate, CreatedBy: c.GetString("username"),
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, model.ErrProviderFundingInsufficient):
+			common.ApiErrorT(c, "Insufficient provider funding")
+		case errors.Is(err, model.ErrProviderFundingConflict):
+			common.ApiErrorT(c, "Provider allocation reference already exists with different details")
+		case errors.Is(err, model.ErrWalletQuotaLimitExceeded):
+			common.ApiErrorT(c, "User quota exceeds the supported range")
+		default: common.ApiError(c, err)
+		}
+		return
+	}
+	params := model.AuditFields{"target_user_id": req.UserID, "reference": allocation.Reference, "amount_minor": allocation.AmountMinor, "currency": allocation.Currency, "quota": allocation.Quota, "replay": replay}
+	recordManageAuditFor(c, req.UserID, "provider.funding_allocate", params)
+	common.ApiSuccess(c, gin.H{"allocation": allocation, "replay": replay})
 }
 
 func CreateProviderFunding(c *gin.Context) {

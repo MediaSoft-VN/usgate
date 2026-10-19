@@ -18,6 +18,20 @@ export type ProviderFundingWalletSummary = {
   channel_id: number
   currency: string
   amount_minor: number
+  allocated_minor: number
+  available_minor: number
+}
+
+export type ProviderFundingAllocation = {
+  id: number
+  user_id: number
+  reference: string
+  amount_minor: number
+  currency: string
+  quota: number
+  exchange_rate: string
+  created_at: number
+  created_by: string
 }
 
 export type ProviderFundingPage = {
@@ -26,6 +40,7 @@ export type ProviderFundingPage = {
   page: number
   page_size: number
   wallets: ProviderFundingWalletSummary[]
+  allocations: ProviderFundingAllocation[]
 }
 
 export async function getProviderFundings(
@@ -52,6 +67,16 @@ export async function createProviderFunding(input: {
   source: 'manual'
 }) {
   const response = await api.post('/api/financial/provider-funding', input)
+  return requireServerSuccess(response.data).data
+}
+
+export async function allocateProviderFunding(input: {
+  user_id: number
+  reference: string
+  amount_minor: number
+  currency: string
+}) {
+  const response = await api.post('/api/financial/provider-funding/allocate', input)
   return requireServerSuccess(response.data).data
 }
 

@@ -49,7 +49,9 @@ import {
   getProviderFundingSyncStatus,
   getProviderFundings,
   startProviderFundingSync,
+  allocateProviderFunding,
 } from './api'
+import { getUsers } from '../users/api'
 
 const PAGE_SIZE = 20
 
@@ -62,6 +64,10 @@ export function ProviderFunding() {
   const [amountMinor, setAmountMinor] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [fundingOpen, setFundingOpen] = useState(false)
+  const [allocationOpen, setAllocationOpen] = useState(false)
+  const [userID, setUserID] = useState('')
+  const [allocationReference, setAllocationReference] = useState('')
+  const [allocationAmount, setAllocationAmount] = useState('')
   const channelsQuery = useQuery({
     queryKey: ['provider-funding-channels'],
     queryFn: async () => {
@@ -86,6 +92,10 @@ export function ProviderFunding() {
     queryKey: ['provider-funding', page],
     queryFn: () => getProviderFundings(page, PAGE_SIZE),
   })
+  const usersQuery = useQuery({
+    queryKey: ['provider-funding-users'],
+    queryFn: async () => (await getUsers({ p: 1, page_size: 100, sort_by: 'username', sort_order: 'asc' })).data?.items ?? [],
+  })
   const selectedChannel = channelsQuery.data?.find((channel) => String(channel.id) === channelID)
   const createMutation = useMutation({
     mutationFn: () =>
@@ -101,6 +111,17 @@ export function ProviderFunding() {
       setReference('')
       setAmountMinor('')
       setFundingOpen(false)
+      void queryClient.invalidateQueries({ queryKey: ['provider-funding'] })
+    },
+  })
+  const allocationMutation = useMutation({
+    mutationFn: () => allocateProviderFunding({
+      user_id: Number(userID), reference: allocationReference.trim(),
+      amount_minor: Math.round(Number(allocationAmount) * 100), currency: currency.trim(),
+    }),
+    onSuccess: () => {
+      toast.success(t('Success'))
+      setAllocationReference(''); setAllocationAmount(''); setUserID(''); setAllocationOpen(false)
       void queryClient.invalidateQueries({ queryKey: ['provider-funding'] })
     },
   })
@@ -191,6 +212,30 @@ export function ProviderFunding() {
               <DialogFooter className='md:col-span-2'>
                 <Button type='submit' disabled={createMutation.isPending}>{t('Record provider funding')}</Button>
               </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={allocationOpen} onOpenChange={setAllocationOpen}>
+          <DialogTrigger render={<Button variant='outline' />}>{t('Quota')}</DialogTrigger>
+          <DialogContent className='sm:max-w-2xl'>
+            <DialogHeader><DialogTitle>{t('Quota')}</DialogTitle></DialogHeader>
+            <form className='grid gap-3 md:grid-cols-2' onSubmit={(event) => {
+              event.preventDefault()
+              const amount = Number(allocationAmount)
+              if (!userID || !allocationReference.trim() || !Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(Math.round(amount * 100))) return
+              allocationMutation.mutate()
+            }}>
+              <div className='grid gap-2 md:col-span-2'>
+                <Label htmlFor='provider-allocation-user' required>{t('Username')}</Label>
+                <Select value={userID} itemToStringValue={(value) => usersQuery.data?.find((user) => String(user.id) === value)?.username ?? ''} onValueChange={(value) => setUserID(value ?? '')}>
+                  <SelectTrigger id='provider-allocation-user' className='w-full'><SelectValue placeholder={t('Username')} /></SelectTrigger>
+                  <SelectContent>{(usersQuery.data ?? []).map((user) => <SelectItem key={user.id} value={String(user.id)}>{user.username}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className='grid gap-2'><Label htmlFor='provider-allocation-reference' required>{t('Reference')}</Label><Input id='provider-allocation-reference' value={allocationReference} onChange={(event) => setAllocationReference(event.target.value)} /></div>
+              <div className='grid gap-2'><Label htmlFor='provider-allocation-amount' required>{t('Amount')}</Label><Input id='provider-allocation-amount' type='number' min={0.01} value={allocationAmount} onChange={(event) => setAllocationAmount(event.target.value)} /></div>
+              <div className='grid gap-2'><Label htmlFor='provider-allocation-currency' required>{t('Currency')}</Label><Input id='provider-allocation-currency' value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} /></div>
+              <DialogFooter className='md:col-span-2'><Button type='submit' disabled={allocationMutation.isPending}>{t('Quota')}</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>

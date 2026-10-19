@@ -8,11 +8,12 @@ import (
 )
 
 func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
-	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderFunding{}))
+	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderFunding{}, &ProviderFundingAllocation{}, &User{}))
 	channel := &Channel{Name: "provider funding test", Type: 1, Key: "provider-funding-test-key"}
 	require.NoError(t, DB.Create(channel).Error)
 	t.Cleanup(func() {
 		DB.Exec("DELETE FROM provider_fundings")
+		DB.Exec("DELETE FROM provider_funding_allocations")
 		DB.Exec("DELETE FROM channels WHERE id = ?", channel.Id)
 	})
 
@@ -35,6 +36,6 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	wallets, err := SummarizeProviderFundingWallets()
 	require.NoError(t, err)
 	require.Len(t, wallets, 1)
-	assert.Equal(t, channel.Id, wallets[0].ChannelID)
+	assert.Zero(t, wallets[0].ChannelID)
 	assert.Equal(t, int64(12500), wallets[0].AmountMinor)
 }
