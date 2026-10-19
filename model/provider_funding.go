@@ -28,8 +28,7 @@ const (
 
 // ProviderCashFlow is the canonical immutable cash-flow log for provider
 // funding. AmountMinor is always positive; Direction determines its effect on
-// the aggregate available balance. The legacy tables remain readable while
-// existing installations are migrated into this table.
+// the aggregate available balance.
 type ProviderCashFlow struct {
 	ID                int64  `json:"id" gorm:"primaryKey"`
 	ChannelID         int    `json:"channel_id" gorm:"not null;index"`
@@ -137,23 +136,37 @@ func normalizeProviderFundingCurrency(currency string) string {
 
 func migrateProviderCashFlows() error {
 	return DB.Transaction(func(tx *gorm.DB) error {
-		var fundings []ProviderFunding
-		if err := tx.Find(&fundings).Error; err != nil {
-			return err
+		if tx.Migrator().HasTable(&ProviderFunding{}) {
+			var fundings []ProviderFunding
+			if err := tx.Find(&fundings).Error; err != nil {
+				return err
+			}
+			for i := range fundings {
+				flow := ProviderCashFlow{ChannelID: fundings[i].ChannelID, Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: fundings[i].Reference, AmountMinor: fundings[i].AmountMinor, Currency: fundings[i].Currency, Source: fundings[i].Source, ProviderReference: fundings[i].ProviderReference, Note: fundings[i].Note, CreatedAt: fundings[i].CreatedAt, CreatedBy: fundings[i].CreatedBy}
+				if err := tx.Where("reference = ? AND direction = ?", flow.Reference, flow.Direction).FirstOrCreate(&flow).Error; err != nil {
+					return err
+				}
+			}
 		}
-		for i := range fundings {
-			flow := ProviderCashFlow{ChannelID: fundings[i].ChannelID, Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: fundings[i].Reference, AmountMinor: fundings[i].AmountMinor, Currency: fundings[i].Currency, Source: fundings[i].Source, ProviderReference: fundings[i].ProviderReference, Note: fundings[i].Note, CreatedAt: fundings[i].CreatedAt, CreatedBy: fundings[i].CreatedBy}
-			if err := tx.Where("reference = ? AND direction = ?", flow.Reference, flow.Direction).FirstOrCreate(&flow).Error; err != nil {
+		if tx.Migrator().HasTable(&ProviderFundingAllocation{}) {
+			var allocations []ProviderFundingAllocation
+			if err := tx.Find(&allocations).Error; err != nil {
+				return err
+			}
+			for i := range allocations {
+				flow := ProviderCashFlow{UserID: allocations[i].UserID, Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation, Reference: allocations[i].Reference, AmountMinor: allocations[i].AmountMinor, Currency: allocations[i].Currency, Source: "allocation", Quota: allocations[i].Quota, ExchangeRate: allocations[i].ExchangeRate, CreatedAt: allocations[i].CreatedAt, CreatedBy: allocations[i].CreatedBy}
+				if err := tx.Where("reference = ? AND direction = ?", flow.Reference, flow.Direction).FirstOrCreate(&flow).Error; err != nil {
+					return err
+				}
+			}
+		}
+		if tx.Migrator().HasTable(&ProviderFunding{}) {
+			if err := tx.Migrator().DropTable(&ProviderFunding{}); err != nil {
 				return err
 			}
 		}
-		var allocations []ProviderFundingAllocation
-		if err := tx.Find(&allocations).Error; err != nil {
-			return err
-		}
-		for i := range allocations {
-			flow := ProviderCashFlow{UserID: allocations[i].UserID, Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation, Reference: allocations[i].Reference, AmountMinor: allocations[i].AmountMinor, Currency: allocations[i].Currency, Source: "allocation", Quota: allocations[i].Quota, ExchangeRate: allocations[i].ExchangeRate, CreatedAt: allocations[i].CreatedAt, CreatedBy: allocations[i].CreatedBy}
-			if err := tx.Where("reference = ? AND direction = ?", flow.Reference, flow.Direction).FirstOrCreate(&flow).Error; err != nil {
+		if tx.Migrator().HasTable(&ProviderFundingAllocation{}) {
+			if err := tx.Migrator().DropTable(&ProviderFundingAllocation{}); err != nil {
 				return err
 			}
 		}
@@ -260,7 +273,10 @@ func RecordProviderFunding(funding *ProviderFunding) (record *ProviderFunding, r
 }
 
 func ListProviderFundings(filter ProviderFundingFilter) ([]ProviderFunding, int64, error) {
-	query := DB.Model(&ProviderFunding{})
+	if err := migrateProviderCashFlows(); err != nil {
+		return nil, 0, err
+	}
+	query := DB.Model(&ProviderCashFlow{}).Where("direction = ?", ProviderCashFlowDirectionIncoming)
 	if filter.ChannelID > 0 {
 		query = query.Where("channel_id = ?", filter.ChannelID)
 	}
@@ -276,13 +292,20 @@ func ListProviderFundings(filter ProviderFundingFilter) ([]ProviderFunding, int6
 	}
 	page := max(filter.Page, 1)
 	pageSize := min(max(filter.PageSize, 1), 100)
-	var items []ProviderFunding
-	err := query.Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error
+	var flows []ProviderCashFlow
+	err := query.Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&flows).Error
+	items := make([]ProviderFunding, len(flows))
+	for i := range flows {
+		items[i] = ProviderFunding{ID: flows[i].ID, ChannelID: flows[i].ChannelID, Reference: flows[i].Reference, AmountMinor: flows[i].AmountMinor, Currency: flows[i].Currency, Source: flows[i].Source, ProviderReference: flows[i].ProviderReference, Note: flows[i].Note, CreatedAt: flows[i].CreatedAt, CreatedBy: flows[i].CreatedBy}
+	}
 	return items, total, err
 }
 
 func SummarizeProviderFundings(filter ProviderFundingFilter) ([]ProviderFundingSummary, error) {
-	query := DB.Model(&ProviderFunding{})
+	if err := migrateProviderCashFlows(); err != nil {
+		return nil, err
+	}
+	query := DB.Model(&ProviderCashFlow{}).Where("direction = ?", ProviderCashFlowDirectionIncoming)
 	if filter.Currency != "" {
 		query = query.Where("currency = ?", normalizeProviderFundingCurrency(filter.Currency))
 	}
@@ -409,10 +432,14 @@ func AllocateProviderFunding(allocation *ProviderFundingAllocation) (*ProviderFu
 
 func ListProviderFundingAllocationHistory() ([]ProviderFundingAllocationHistory, error) {
 	var allocations []ProviderFundingAllocationHistory
-	err := DB.Model(&ProviderFundingAllocation{}).
-		Select("provider_funding_allocations.id, provider_funding_allocations.user_id, users.username AS user_name, users.display_name AS user_display_name, provider_funding_allocations.reference, provider_funding_allocations.amount_minor, provider_funding_allocations.currency, provider_funding_allocations.quota, provider_funding_allocations.exchange_rate, provider_funding_allocations.created_at, provider_funding_allocations.created_by").
-		Joins("LEFT JOIN users ON users.id = provider_funding_allocations.user_id").
-		Order("provider_funding_allocations.created_at DESC, provider_funding_allocations.id DESC").Find(&allocations).Error
+	if err := migrateProviderCashFlows(); err != nil {
+		return nil, err
+	}
+	err := DB.Model(&ProviderCashFlow{}).
+		Where("provider_cash_flows.direction = ?", ProviderCashFlowDirectionOutgoing).
+		Select("provider_cash_flows.id, provider_cash_flows.user_id, users.username AS user_name, users.display_name AS user_display_name, provider_cash_flows.reference, provider_cash_flows.amount_minor, provider_cash_flows.currency, provider_cash_flows.quota, provider_cash_flows.exchange_rate, provider_cash_flows.created_at, provider_cash_flows.created_by").
+		Joins("LEFT JOIN users ON users.id = provider_cash_flows.user_id").
+		Order("provider_cash_flows.created_at DESC, provider_cash_flows.id DESC").Find(&allocations).Error
 	for i := range allocations {
 		displayName := strings.TrimSpace(allocations[i].UserDisplayName)
 		username := strings.TrimSpace(allocations[i].UserName)

@@ -376,8 +376,6 @@ func migrateDB() error {
 		&CasbinRule{},
 		&AuthzRole{},
 		&UserAccessToken{},
-		&ProviderFunding{},
-		&ProviderFundingAllocation{},
 		&ProviderCashFlow{},
 		&WalletAccount{},
 		&FinancialTransaction{},
