@@ -106,6 +106,7 @@ export async function getProviderFundings(
 
 export async function createProviderFunding(input: {
   provider_partner_id: number
+  channel_id: number
   reference: string
   amount_minor: number
   currency: string
