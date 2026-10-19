@@ -29,6 +29,7 @@ import {
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { formatNumber } from '@/lib/format'
@@ -95,17 +96,20 @@ export function ProviderFunding() {
       <SectionPageLayout.Title>
         <span className='inline-flex items-center gap-2'>
           {t('Provider funding')}
-          <Tooltip>
-            <TooltipTrigger
-              aria-label={t('Provider funding guide')}
-              className='text-muted-foreground hover:text-foreground inline-flex rounded-full focus-visible:ring-2 focus-visible:outline-none'
-            >
-              <Info className='size-4' aria-hidden='true' />
-            </TooltipTrigger>
-            <TooltipContent className='max-w-sm whitespace-pre-line'>
-              {t('Provider funding guide')}
-            </TooltipContent>
-          </Tooltip>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                aria-label={t('Provider funding guide')}
+                title={t('Provider funding guide')}
+                className='text-primary hover:text-primary/80 inline-flex rounded-full focus-visible:ring-2 focus-visible:outline-none'
+              >
+                <Info className='size-5' strokeWidth={2.5} aria-hidden='true' />
+              </TooltipTrigger>
+              <TooltipContent className='max-w-sm whitespace-pre-line'>
+                {t('Provider funding guide')}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </span>
       </SectionPageLayout.Title>
       <SectionPageLayout.Content>
