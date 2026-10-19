@@ -207,9 +207,10 @@ export function ProviderFunding() {
         {fundingsQuery.isLoading && <LoadingState />}
         {fundingsQuery.isError && <ErrorState onRetry={() => void fundingsQuery.refetch()} />}
         {data && (
-          items.length === 0 ? (
-            <EmptyState icon={WalletCards} title={t('No provider funding records')} />
-          ) : (
+          <>
+            {items.length === 0 ? (
+              <EmptyState icon={WalletCards} title={t('No provider funding records')} />
+            ) : (
             <div className='bg-card mt-4 overflow-hidden rounded-lg border'>
                 <Table>
                   <TableHeader>
@@ -246,7 +247,58 @@ export function ProviderFunding() {
                   </div>
                 </div>
             </div>
-          )
+            )}
+            {data.allocations.length > 0 && (
+              <div className='bg-card mt-6 overflow-hidden rounded-lg border'>
+                <div className='border-b px-4 py-3 text-sm font-medium'>
+                  {t('Allocation history')}
+                </div>
+                <div className='overflow-x-auto'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('User')}</TableHead>
+                        <TableHead>{t('Credit allocation')}</TableHead>
+                        <TableHead>{t('Currency')}</TableHead>
+                        <TableHead>{t('Reference')}</TableHead>
+                        <TableHead>{t('Created by')}</TableHead>
+                        <TableHead>{t('Timestamp')}</TableHead>
+                        <TableHead>{t('Status')}</TableHead>
+                        <TableHead>{t('Balance effect')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.allocations.map((allocation) => (
+                        <TableRow key={allocation.id}>
+                          <TableCell>
+                            {allocation.user_display_name &&
+                            allocation.user_display_name !== allocation.user_name
+                              ? `${allocation.user_display_name} (${allocation.user_name})`
+                              : allocation.user_name || allocation.user_id}
+                          </TableCell>
+                          <TableCell className='tabular-nums'>
+                            {formatNumber(allocation.amount_minor / 100)}
+                          </TableCell>
+                          <TableCell>{allocation.currency}</TableCell>
+                          <TableCell className='max-w-48 truncate'>
+                            {allocation.reference}
+                          </TableCell>
+                          <TableCell>{allocation.created_by || t('Unknown')}</TableCell>
+                          <TableCell>{formatTimestampToDate(allocation.created_at)}</TableCell>
+                          <TableCell>
+                            {allocation.status === 'completed' ? t('Completed') : allocation.status}
+                          </TableCell>
+                          <TableCell className='tabular-nums'>
+                            {formatNumber(allocation.balance_effect_minor / 100)} {allocation.currency}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </SectionPageLayout.Content>
     </SectionPageLayout>

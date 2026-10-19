@@ -7322,6 +7322,9 @@
     "Provider partner updated": "Provider partner updated",
     "Provider partner deleted": "Provider partner deleted",
     "Provider partner cannot be deleted while it has channels or funding records": "This provider partner cannot be deleted while it has channels or funding records.",
-    "Credit allocation": "Credit allocation"
+    "Credit allocation": "Credit allocation",
+    "Allocation history": "Allocation history",
+    "Balance effect": "Balance effect",
+    "Timestamp": "Timestamp"
   }
 }

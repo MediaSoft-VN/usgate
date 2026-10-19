@@ -7322,6 +7322,9 @@
     "Provider partner updated": "供應商合作夥伴已更新",
     "Provider partner deleted": "供應商合作夥伴已刪除",
     "Provider partner cannot be deleted while it has channels or funding records": "此供應商合作夥伴有已分配渠道或充值記錄，無法刪除。",
-    "Credit allocation": "信用額度分配"
+    "Credit allocation": "信用額度分配",
+    "Allocation history": "分配記錄",
+    "Balance effect": "餘額影響",
+    "Timestamp": "時間戳記"
   }
 }

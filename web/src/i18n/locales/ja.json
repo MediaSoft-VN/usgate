@@ -7322,6 +7322,9 @@
     "Provider partner updated": "プロバイダーパートナーを更新しました",
     "Provider partner deleted": "プロバイダーパートナーを削除しました",
     "Provider partner cannot be deleted while it has channels or funding records": "チャンネルまたは入金記録があるため、このプロバイダーパートナーは削除できません。",
-    "Credit allocation": "クレジット割り当て"
+    "Credit allocation": "クレジット割り当て",
+    "Allocation history": "割り当て履歴",
+    "Balance effect": "残高への影響",
+    "Timestamp": "タイムスタンプ"
   }
 }

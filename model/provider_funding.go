@@ -70,6 +70,25 @@ type ProviderFundingAllocation struct {
 	CreatedBy   string `json:"created_by" gorm:"type:varchar(255);index"`
 }
 
+// ProviderFundingAllocationHistory is the read model used by the provider
+// wallet UI. Allocation rows are only created after the quota credit succeeds,
+// so each row represents a completed debit from the provider balance.
+type ProviderFundingAllocationHistory struct {
+	ID                int64  `json:"id"`
+	UserID            int    `json:"user_id"`
+	UserName          string `json:"user_name"`
+	UserDisplayName   string `json:"user_display_name"`
+	Reference         string `json:"reference"`
+	AmountMinor       int64  `json:"amount_minor"`
+	Currency          string `json:"currency"`
+	Quota             int    `json:"quota"`
+	ExchangeRate      string `json:"exchange_rate"`
+	CreatedAt         int64  `json:"created_at"`
+	CreatedBy         string `json:"created_by"`
+	Status            string `json:"status"`
+	BalanceEffectMinor int64 `json:"balance_effect_minor"`
+}
+
 func normalizeProviderFundingCurrency(currency string) string {
 	return strings.ToUpper(strings.TrimSpace(currency))
 }
@@ -250,8 +269,15 @@ func AllocateProviderFunding(allocation *ProviderFundingAllocation) (*ProviderFu
 	return &committed, false, nil
 }
 
-func ListProviderFundingAllocations() ([]ProviderFundingAllocation, error) {
-	var allocations []ProviderFundingAllocation
-	err := DB.Order("created_at DESC, id DESC").Find(&allocations).Error
+func ListProviderFundingAllocationHistory() ([]ProviderFundingAllocationHistory, error) {
+	var allocations []ProviderFundingAllocationHistory
+	err := DB.Model(&ProviderFundingAllocation{}).
+		Select("provider_funding_allocations.id, provider_funding_allocations.user_id, users.username AS user_name, users.display_name AS user_display_name, provider_funding_allocations.reference, provider_funding_allocations.amount_minor, provider_funding_allocations.currency, provider_funding_allocations.quota, provider_funding_allocations.exchange_rate, provider_funding_allocations.created_at, provider_funding_allocations.created_by").
+		Joins("LEFT JOIN users ON users.id = provider_funding_allocations.user_id").
+		Order("provider_funding_allocations.created_at DESC, provider_funding_allocations.id DESC").Find(&allocations).Error
+	for i := range allocations {
+		allocations[i].Status = FinancialTransactionCompleted
+		allocations[i].BalanceEffectMinor = -allocations[i].AmountMinor
+	}
 	return allocations, err
 }

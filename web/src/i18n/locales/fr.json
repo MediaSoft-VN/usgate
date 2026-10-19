@@ -7322,6 +7322,9 @@
     "Provider partner updated": "Partenaire fournisseur mis à jour",
     "Provider partner deleted": "Partenaire fournisseur supprimé",
     "Provider partner cannot be deleted while it has channels or funding records": "Ce partenaire fournisseur ne peut pas être supprimé car il possède des canaux ou des financements.",
-    "Credit allocation": "Allocation de crédit"
+    "Credit allocation": "Allocation de crédit",
+    "Allocation history": "Historique des allocations",
+    "Balance effect": "Effet sur le solde",
+    "Timestamp": "Horodatage"
   }
 }

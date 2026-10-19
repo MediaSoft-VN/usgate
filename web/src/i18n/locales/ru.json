@@ -7322,6 +7322,9 @@
     "Provider partner updated": "Партнёр провайдера обновлён",
     "Provider partner deleted": "Партнёр провайдера удалён",
     "Provider partner cannot be deleted while it has channels or funding records": "Партнёра провайдера нельзя удалить: у него есть каналы или записи о пополнениях.",
-    "Credit allocation": "Распределение кредита"
+    "Credit allocation": "Распределение кредита",
+    "Allocation history": "История распределений",
+    "Balance effect": "Влияние на баланс",
+    "Timestamp": "Временная метка"
   }
 }

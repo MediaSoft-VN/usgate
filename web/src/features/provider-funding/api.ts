@@ -25,6 +25,8 @@ export type ProviderFundingWalletSummary = {
 export type ProviderFundingAllocation = {
   id: number
   user_id: number
+  user_name: string
+  user_display_name: string
   reference: string
   amount_minor: number
   currency: string
@@ -32,6 +34,8 @@ export type ProviderFundingAllocation = {
   exchange_rate: string
   created_at: number
   created_by: string
+  status: string
+  balance_effect_minor: number
 }
 
 export type ProviderFundingPage = {

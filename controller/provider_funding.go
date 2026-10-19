@@ -47,7 +47,7 @@ func ListProviderFunding(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to load provider wallet summary")
 		return
 	}
-	allocations, err := model.ListProviderFundingAllocations()
+	allocations, err := model.ListProviderFundingAllocationHistory()
 	if err != nil {
 		common.ApiErrorT(c, "Failed to load provider allocation history")
 		return
