@@ -143,6 +143,25 @@ func TestAccessTokenRouteRulesCoverEveryDashboardRoute(t *testing.T) {
 	}
 }
 
+func TestProviderFundingAllocationRouteUsesBillingWriteScope(t *testing.T) {
+	engine := newAccessTokenScopeTestEngine(t)
+	const routeKey = "POST /api/financial/provider-funding/allocate"
+
+	registered := false
+	for _, route := range engine.Routes() {
+		if route.Method == "POST" && route.Path == "/api/financial/provider-funding/allocate" {
+			registered = true
+			break
+		}
+	}
+	require.True(t, registered, routeKey)
+
+	rule, ok := middleware.AccessTokenRouteRule(routeKey)
+	require.True(t, ok, routeKey)
+	assert.Equal(t, "scope", rule.Kind(), routeKey)
+	assert.Equal(t, "billing:write", rule.Scope(), routeKey)
+}
+
 func TestAccessTokenCatalogCoversEveryPermission(t *testing.T) {
 	catalog := service.AccessTokenCatalog(1, common.RoleRootUser)
 	scopes := map[string]bool{}
