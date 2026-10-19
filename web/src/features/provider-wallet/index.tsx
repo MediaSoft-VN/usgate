@@ -168,6 +168,7 @@ export function ProviderWallet() {
                   id='provider-allocation-amount'
                   type='number'
                   min={0.01}
+                  step={0.01}
                   value={allocationAmount}
                   onChange={(event) => setAllocationAmount(event.target.value)}
                 />
