@@ -7276,7 +7276,7 @@
     "Zhipu V4": "Zhipu V4",
     "Zoom": "Zoom",
     "Provider funding": "Provider funding",
-    "Provider funding guide": "Channel: choose the provider account.\nReference: enter a unique deposit reference.\nAmount: use the smallest currency unit (USD 10000 = $100.00).\nCurrency: enter the ISO currency code. Manual records increase the cumulative provider funding total.",
+    "Provider funding guide": "Channel: choose the provider account.\nReference: enter a unique deposit reference.\nAmount: enter the normal currency amount; the system converts it to minor units.\nCurrency: enter the ISO currency code. Manual records increase the cumulative provider funding total.",
     "Provider funding recorded": "Provider funding recorded",
     "Record provider funding": "Record provider funding",
     "No provider funding records": "No provider funding records",

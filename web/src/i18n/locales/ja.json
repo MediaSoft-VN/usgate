@@ -7276,7 +7276,7 @@
     "Zhipu V4": "Zhipu V 4",
     "Zoom": "Zoom",
     "Provider funding": "プロバイダー入金",
-    "Provider funding guide": "チャンネル：プロバイダーアカウントを選択します。\n参照番号：一意の入金参照番号を入力します。\n金額：通貨の最小単位を使用します（USD 10000 = $100.00）。\n通貨：ISO通貨コードを入力します。手動記録はプロバイダー入金累計を増やします。",
+    "Provider funding guide": "チャンネル：プロバイダーアカウントを選択します。\n参照番号：一意の入金参照番号を入力します。\n金額：通常の通貨金額を入力すると、システムが最小単位に変換します。\n通貨：ISO通貨コードを入力します。手動記録はプロバイダー入金累計を増やします。",
     "Provider funding recorded": "プロバイダー入金を記録しました",
     "Record provider funding": "プロバイダー入金を記録",
     "No provider funding records": "プロバイダー入金履歴はありません",

@@ -89,7 +89,7 @@ export function ProviderFunding() {
       createProviderFunding({
         channel_id: Number(channelID),
         reference: reference.trim(),
-        amount_minor: Number(amountMinor),
+        amount_minor: Math.round(Number(amountMinor) * 100),
         currency: currency.trim(),
         source: 'manual',
       }),
@@ -147,7 +147,15 @@ export function ProviderFunding() {
           className='bg-card grid gap-3 rounded-lg border p-4 md:grid-cols-5'
           onSubmit={(event) => {
             event.preventDefault()
-            if (!channelID || !reference.trim() || !amountMinor || !currency.trim()) return
+            const amount = Number(amountMinor)
+            if (
+              !channelID ||
+              !reference.trim() ||
+              !Number.isFinite(amount) ||
+              amount <= 0 ||
+              !Number.isSafeInteger(Math.round(amount * 100)) ||
+              !currency.trim()
+            ) return
             createMutation.mutate()
           }}
         >
@@ -199,7 +207,7 @@ export function ProviderFunding() {
               {summary.map((item) => (
                 <div className='bg-card rounded-lg border p-4' key={item.currency}>
                   <div className='text-muted-foreground text-sm'>{item.currency}</div>
-                  <div className='text-2xl font-semibold tabular-nums'>{formatNumber(item.amount_minor)}</div>
+                  <div className='text-2xl font-semibold tabular-nums'>{formatNumber(item.amount_minor / 100)}</div>
                 </div>
               ))}
             </div>
@@ -222,7 +230,7 @@ export function ProviderFunding() {
                       <TableRow key={item.id}>
                         <TableCell>{item.channel_id}</TableCell>
                         <TableCell className='font-mono text-xs'>{item.reference}</TableCell>
-                        <TableCell className='tabular-nums'>{formatNumber(item.amount_minor)}</TableCell>
+                        <TableCell className='tabular-nums'>{formatNumber(item.amount_minor / 100)}</TableCell>
                         <TableCell>{item.currency}</TableCell>
                         <TableCell>{item.source}</TableCell>
                       </TableRow>

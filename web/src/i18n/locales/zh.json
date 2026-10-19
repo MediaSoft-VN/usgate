@@ -7276,7 +7276,7 @@
     "Zhipu V4": "智谱 V4",
     "Zoom": "Zoom",
     "Provider funding": "供应商充值",
-    "Provider funding guide": "渠道：选择供应商账户。\n参考号：输入唯一的充值参考号。\n金额：使用货币最小单位（USD 10000 = $100.00）。\n货币：输入 ISO 货币代码。手动记录会增加供应商累计充值总额。",
+    "Provider funding guide": "渠道：选择供应商账户。\n参考号：输入唯一的充值参考号。\n金额：输入正常的货币金额，系统会自动转换为最小单位。\n货币：输入 ISO 货币代码。手动记录会增加供应商累计充值总额。",
     "Provider funding recorded": "供应商充值已记录",
     "Record provider funding": "记录供应商充值",
     "No provider funding records": "暂无供应商充值记录",
