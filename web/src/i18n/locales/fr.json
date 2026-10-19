@@ -7274,15 +7274,16 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom",,,
-    "Sync provider balances": "Synchroniser les soldes fournisseurs",
-    "Provider balance sync started": "Synchronisation des soldes fournisseurs lancée",
-    "Provider balance sync running": "Synchronisation des soldes fournisseurs en cours"
-    "Provider funding guide": "Canal : choisissez le compte fournisseur.\nRéférence : saisissez une référence de dépôt unique.\nMontant : utilisez la plus petite unité monétaire (USD 10000 = 100,00 $).\nDevise : saisissez le code ISO. Les saisies manuelles augmentent le total cumulé des financements fournisseur."
+    "Zoom": "Zoom",
     "Provider funding": "Financement fournisseur",
+    "Provider funding guide": "Canal : choisissez le compte fournisseur.\nRéférence : saisissez une référence de dépôt unique.\nMontant : utilisez la plus petite unité monétaire (USD 10000 = 100,00 $).\nDevise : saisissez le code ISO. Les saisies manuelles augmentent le total cumulé des financements fournisseur.",
     "Provider funding recorded": "Financement fournisseur enregistré",
     "Record provider funding": "Enregistrer un financement fournisseur",
     "No provider funding records": "Aucun financement fournisseur",
-    "Reference": "Référence"
+    "Reference": "Référence",
+    "Select channel": "Sélectionner un canal",
+    "Sync provider balances": "Synchroniser les soldes fournisseurs",
+    "Provider balance sync started": "Synchronisation des soldes fournisseurs lancée",
+    "Provider balance sync running": "Synchronisation des soldes fournisseurs en cours"
   }
 }
