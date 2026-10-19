@@ -129,7 +129,7 @@ export function ProviderFunding() {
               <SelectContent>
                 {channels.map((channel) => (
                   <SelectItem key={channel.id} value={String(channel.id)}>
-                    {channel.name || `#${channel.id}`} ({channel.type})
+                    {channel.name || channel.type}
                   </SelectItem>
                 ))}
               </SelectContent>
