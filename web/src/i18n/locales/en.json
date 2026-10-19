@@ -7302,6 +7302,10 @@
     "Partner image URL": "Partner image URL",
     "API endpoint": "Token usage API endpoint",
     "API key configured": "API key configured",
-    "API key not configured": "API key not configured"
+    "API key not configured": "API key not configured",
+    "Partner image": "Provider image (optional)",
+    "Provider partner guide": "Enter the partner name, upload an optional PNG/JPEG image, and provide the token usage API credentials. The partner code is generated automatically.",
+    "Partner website": "Partner website",
+    "Provider image is too large": "Provider image is too large"
   }
 }

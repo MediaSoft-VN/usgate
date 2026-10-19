@@ -1,8 +1,10 @@
 package model
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,7 +25,8 @@ type ProviderPartner struct {
 	ID               int64  `json:"id" gorm:"primaryKey"`
 	Code             string `json:"code" gorm:"type:varchar(64);not null;uniqueIndex"`
 	Name             string `json:"name" gorm:"type:varchar(255);not null;index"`
-	ImageURL         string `json:"image_url" gorm:"type:varchar(1024)"`
+	ImageURL         string `json:"image_url" gorm:"type:text"`
+	WebsiteURL       string `json:"website_url" gorm:"type:varchar(1024)"`
 	APIKey           string `json:"-" gorm:"type:varchar(512)"`
 	APIEndpoint      string `json:"api_endpoint" gorm:"type:varchar(1024)"`
 	APIKeyConfigured bool   `json:"api_key_configured" gorm:"-"`
@@ -39,14 +42,27 @@ func normalizeProviderPartner(partner *ProviderPartner) error {
 	partner.Code = strings.ToLower(strings.TrimSpace(partner.Code))
 	partner.Name = strings.TrimSpace(partner.Name)
 	partner.ImageURL = strings.TrimSpace(partner.ImageURL)
+	partner.WebsiteURL = strings.TrimSpace(partner.WebsiteURL)
 	partner.APIKey = strings.TrimSpace(partner.APIKey)
 	partner.APIEndpoint = strings.TrimSpace(partner.APIEndpoint)
-	if partner.Code == "" || len(partner.Code) > 64 || partner.Name == "" || len(partner.Name) > 255 || partner.APIKey == "" || partner.APIEndpoint == "" || len(partner.ImageURL) > 1024 || len(partner.APIKey) > 512 || len(partner.APIEndpoint) > 1024 {
+	if partner.Code == "" && partner.Name != "" {
+		partner.Code = providerPartnerCode(partner.Name)
+	}
+	if partner.Code == "" || len(partner.Code) > 64 || partner.Name == "" || len(partner.Name) > 255 || partner.APIKey == "" || partner.APIEndpoint == "" || len(partner.ImageURL) > 512*1024 || len(partner.WebsiteURL) > 1024 || len(partner.APIKey) > 512 || len(partner.APIEndpoint) > 1024 {
+		return ErrInvalidProviderPartner
+	}
+	if partner.ImageURL != "" && !validProviderPartnerImage(partner.ImageURL) {
 		return ErrInvalidProviderPartner
 	}
 	if partner.APIEndpoint != "" {
 		endpoint, err := url.ParseRequestURI(partner.APIEndpoint)
 		if err != nil || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Host == "" {
+			return ErrInvalidProviderPartner
+		}
+	}
+	if partner.WebsiteURL != "" {
+		website, err := url.ParseRequestURI(partner.WebsiteURL)
+		if err != nil || (website.Scheme != "http" && website.Scheme != "https") || website.Host == "" {
 			return ErrInvalidProviderPartner
 		}
 	}
@@ -56,12 +72,53 @@ func normalizeProviderPartner(partner *ProviderPartner) error {
 	return nil
 }
 
+func providerPartnerCode(name string) string {
+	var builder strings.Builder
+	for _, character := range strings.ToLower(name) {
+		switch {
+		case character >= 'a' && character <= 'z', character >= '0' && character <= '9':
+			builder.WriteRune(character)
+		case builder.Len() > 0 && !strings.HasSuffix(builder.String(), "-"):
+			builder.WriteByte('-')
+		}
+	}
+	code := strings.Trim(builder.String(), "-")
+	if code == "" {
+		return "partner"
+	}
+	return code
+}
+
+func validProviderPartnerImage(imageData string) bool {
+	media, payload, ok := strings.Cut(strings.TrimPrefix(imageData, "data:"), ";base64,")
+	if !strings.HasPrefix(imageData, "data:") || !ok || (media != "image/png" && media != "image/jpeg") {
+		return false
+	}
+	decoded, err := base64.StdEncoding.Strict().DecodeString(payload)
+	if err != nil || len(decoded) == 0 {
+		return false
+	}
+	return (media == "image/png" && strings.HasPrefix(string(decoded), "\x89PNG\r\n\x1a\n")) ||
+		(media == "image/jpeg" && len(decoded) > 2 && decoded[0] == 0xff && decoded[1] == 0xd8)
+}
+
 func CreateProviderPartner(partner *ProviderPartner) error {
 	if err := normalizeProviderPartner(partner); err != nil {
 		return err
 	}
 	partner.CreatedAt = time.Now().Unix()
 	partner.UpdatedAt = partner.CreatedAt
+	baseCode := partner.Code
+	for suffix := 1; ; suffix++ {
+		var count int64
+		if err := DB.Model(&ProviderPartner{}).Where("code = ?", partner.Code).Count(&count).Error; err != nil {
+			return err
+		}
+		if count == 0 {
+			break
+		}
+		partner.Code = baseCode + "-" + strconv.Itoa(suffix+1)
+	}
 	if err := DB.Create(partner).Error; err != nil {
 		return ErrProviderPartnerExists
 	}

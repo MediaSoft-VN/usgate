@@ -7302,6 +7302,10 @@
     "Partner image URL": "パートナー画像 URL",
     "API endpoint": "トークン消費 API エンドポイント",
     "API key configured": "API キー設定済み",
-    "API key not configured": "API キー未設定"
+    "API key not configured": "API キー未設定",
+    "Partner image": "プロバイダー画像（任意）",
+    "Provider partner guide": "パートナー名を入力し、任意で PNG/JPEG 画像をアップロードして、トークン消費 API の認証情報を入力します。パートナーコードは自動生成されます。",
+    "Partner website": "パートナー公式サイト",
+    "Provider image is too large": "プロバイダー画像が大きすぎます"
   }
 }

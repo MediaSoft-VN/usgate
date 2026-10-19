@@ -7302,6 +7302,10 @@
     "Partner image URL": "URL изображения партнёра",
     "API endpoint": "API-эндпоинт потребления токенов",
     "API key configured": "API-ключ настроен",
-    "API key not configured": "API-ключ не настроен"
+    "API key not configured": "API-ключ не настроен",
+    "Partner image": "Изображение провайдера (необязательно)",
+    "Provider partner guide": "Укажите название партнёра, при необходимости загрузите изображение PNG/JPEG и введите данные API для потребления токенов. Код партнёра создаётся автоматически.",
+    "Partner website": "Сайт партнёра",
+    "Provider image is too large": "Изображение провайдера слишком большое"
   }
 }

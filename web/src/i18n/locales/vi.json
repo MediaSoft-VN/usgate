@@ -7302,6 +7302,10 @@
     "Partner image URL": "URL hình ảnh đối tác",
     "API endpoint": "API endpoint tiêu thụ token",
     "API key configured": "Đã cấu hình API key",
-    "API key not configured": "Chưa cấu hình API key"
+    "API key not configured": "Chưa cấu hình API key",
+    "Partner image": "Ảnh nhà cung cấp (tùy chọn)",
+    "Provider partner guide": "Nhập tên đối tác, tải ảnh PNG/JPEG nếu cần và cung cấp thông tin API tiêu thụ token. Mã đối tác sẽ được tự sinh.",
+    "Partner website": "Trang chủ đối tác",
+    "Provider image is too large": "Ảnh nhà cung cấp quá lớn"
   }
 }

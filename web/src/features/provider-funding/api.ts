@@ -32,6 +32,7 @@ export type ProviderPartner = {
   code: string
   name: string
   image_url: string
+  website_url: string
   api_endpoint: string
   api_key_configured: boolean
   status: number
@@ -46,9 +47,9 @@ export async function getProviderPartners() {
 }
 
 export async function createProviderPartner(input: {
-  code: string
   name: string
   image_url: string
+  website_url: string
   api_key: string
   api_endpoint: string
 }) {

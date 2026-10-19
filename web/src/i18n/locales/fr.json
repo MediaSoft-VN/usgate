@@ -7302,6 +7302,10 @@
     "Partner image URL": "URL de l’image du partenaire",
     "API endpoint": "Point d’accès API pour la consommation des tokens",
     "API key configured": "Clé API configurée",
-    "API key not configured": "Clé API non configurée"
+    "API key not configured": "Clé API non configurée",
+    "Partner image": "Image du fournisseur (facultatif)",
+    "Provider partner guide": "Saisissez le nom du partenaire, importez une image PNG/JPEG facultative et fournissez les identifiants API de consommation des tokens. Le code est généré automatiquement.",
+    "Partner website": "Site web du partenaire",
+    "Provider image is too large": "L’image du fournisseur est trop volumineuse"
   }
 }

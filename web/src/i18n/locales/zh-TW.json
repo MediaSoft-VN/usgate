@@ -7302,6 +7302,10 @@
     "Partner image URL": "合作夥伴圖片 URL",
     "API endpoint": "Token 消耗 API 位址",
     "API key configured": "已設定 API 金鑰",
-    "API key not configured": "未設定 API 金鑰"
+    "API key not configured": "未設定 API 金鑰",
+    "Partner image": "供應商圖片（選填）",
+    "Provider partner guide": "填寫合作夥伴名稱，可上傳 PNG/JPEG 圖片，並提供 Token 消耗 API 憑證。合作夥伴代碼會自動產生。",
+    "Partner website": "合作夥伴官網",
+    "Provider image is too large": "供應商圖片過大"
   }
 }

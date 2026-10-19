@@ -28,9 +28,9 @@ import {
 export function ProviderPartners() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [partnerCode, setPartnerCode] = useState('')
   const [partnerName, setPartnerName] = useState('')
   const [imageURL, setImageURL] = useState('')
+  const [websiteURL, setWebsiteURL] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [apiEndpoint, setApiEndpoint] = useState('')
   const [providerPartnerID, setProviderPartnerID] = useState('')
@@ -48,17 +48,17 @@ export function ProviderPartners() {
   })
   const createMutation = useMutation({
     mutationFn: () => createProviderPartner({
-      code: partnerCode.trim(),
       name: partnerName.trim(),
       image_url: imageURL.trim(),
+      website_url: websiteURL.trim(),
       api_key: apiKey,
       api_endpoint: apiEndpoint.trim(),
     }),
     onSuccess: (partner) => {
       toast.success(t('Provider partner created'))
-      setPartnerCode('')
       setPartnerName('')
       setImageURL('')
+      setWebsiteURL('')
       setApiKey('')
       setApiEndpoint('')
       setProviderPartnerID(String(partner.id))
@@ -90,14 +90,25 @@ export function ProviderPartners() {
                   <DialogDescription>{t('Provider partner guide')}</DialogDescription>
                 </DialogHeader>
                 <div className='grid gap-3'>
-                  <Input aria-label={t('Provider partner code')} placeholder={t('Provider partner code')} value={partnerCode} onChange={(event) => setPartnerCode(event.target.value)} />
                   <Input aria-label={t('Provider partner name')} placeholder={t('Provider partner name')} value={partnerName} onChange={(event) => setPartnerName(event.target.value)} />
-                  <Input aria-label={t('Partner image URL')} placeholder={t('Partner image URL')} type='url' value={imageURL} onChange={(event) => setImageURL(event.target.value)} />
+                  <Input aria-label={t('Partner website')} placeholder={t('Partner website')} type='url' value={websiteURL} onChange={(event) => setWebsiteURL(event.target.value)} />
+                  <Input aria-label={t('Partner image')} accept='image/png,image/jpeg' type='file' onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) return
+                    if (file.size > 384 * 1024) {
+                      toast.error(t('Provider image is too large'))
+                      event.target.value = ''
+                      return
+                    }
+                    const reader = new FileReader()
+                    reader.addEventListener('load', () => setImageURL(typeof reader.result === 'string' ? reader.result : ''))
+                    reader.readAsDataURL(file)
+                  }} />
                   <Input aria-label={t('API endpoint')} placeholder={t('API endpoint')} type='url' value={apiEndpoint} onChange={(event) => setApiEndpoint(event.target.value)} />
                   <Input aria-label={t('API key')} placeholder={t('API key')} type='password' value={apiKey} onChange={(event) => setApiKey(event.target.value)} />
                 </div>
                 <DialogFooter>
-                  <Button disabled={createMutation.isPending || !partnerCode.trim() || !partnerName.trim() || !apiKey.trim() || !apiEndpoint.trim()} onClick={() => createMutation.mutate()}>
+                  <Button disabled={createMutation.isPending || !partnerName.trim() || !apiKey.trim() || !apiEndpoint.trim()} onClick={() => createMutation.mutate()}>
                     {t('Add')}
                   </Button>
                 </DialogFooter>

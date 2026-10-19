@@ -7302,6 +7302,10 @@
     "Partner image URL": "合作伙伴图片 URL",
     "API endpoint": "Token 消耗 API 地址",
     "API key configured": "已配置 API 密钥",
-    "API key not configured": "未配置 API 密钥"
+    "API key not configured": "未配置 API 密钥",
+    "Partner image": "供应商图片（可选）",
+    "Provider partner guide": "填写合作伙伴名称，可上传 PNG/JPEG 图片，并提供 Token 消耗 API 凭据。合作伙伴代码会自动生成。",
+    "Partner website": "合作伙伴官网",
+    "Provider image is too large": "供应商图片过大"
   }
 }
