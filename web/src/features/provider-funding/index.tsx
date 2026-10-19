@@ -103,6 +103,9 @@ export function ProviderFunding() {
 
   const data = fundingsQuery.data
   const channels = channelsQuery.data ?? []
+  const selectedChannelName = channels.find(
+    (channel) => String(channel.id) === channelID
+  )?.name
   const items = data?.items ?? []
   const summary = data?.summary ?? []
   const total = data?.total ?? 0
@@ -158,7 +161,9 @@ export function ProviderFunding() {
               onValueChange={(value) => setChannelID(value ?? '')}
             >
               <SelectTrigger id='provider-funding-channel' className='w-full'>
-                <SelectValue placeholder={t('Select channel')} />
+                <SelectValue placeholder={t('Select channel')}>
+                  {selectedChannelName}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {channels.map((channel) => (
