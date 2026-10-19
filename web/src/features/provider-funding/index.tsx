@@ -33,13 +33,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { formatNumber } from '@/lib/format'
-import { createServerError } from '@/lib/server-error-message'
 
-import { getChannels } from '../channels/api'
 import {
-  assignChannelProviderPartner,
   createProviderFunding,
-  createProviderPartner,
   getProviderPartners,
   getProviderFundingSyncStatus,
   getProviderFundings,
@@ -53,27 +49,9 @@ export function ProviderFunding() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [providerPartnerID, setProviderPartnerID] = useState('')
-  const [channelID, setChannelID] = useState('')
-  const [partnerCode, setPartnerCode] = useState('')
-  const [partnerName, setPartnerName] = useState('')
   const [reference, setReference] = useState('')
   const [amountMinor, setAmountMinor] = useState('')
   const [currency, setCurrency] = useState('USD')
-  const channelsQuery = useQuery({
-    queryKey: ['provider-funding-channels'],
-    queryFn: async () => {
-      const response = await getChannels({
-        p: 1,
-        page_size: 100,
-        sort_by: 'id',
-        sort_order: 'desc',
-      })
-      if (!response.success) {
-        throw createServerError(response, t('Failed to load'))
-      }
-      return response.data?.items ?? []
-    },
-  })
   const partnersQuery = useQuery({
     queryKey: ['provider-partners'],
     queryFn: getProviderPartners,
@@ -94,24 +72,6 @@ export function ProviderFunding() {
     queryKey: ['provider-funding', page, providerPartnerID],
     queryFn: () => getProviderFundings(page, PAGE_SIZE, Number(providerPartnerID) || undefined),
   })
-  const createPartnerMutation = useMutation({
-    mutationFn: () => createProviderPartner({ code: partnerCode.trim(), name: partnerName.trim() }),
-    onSuccess: (partner) => {
-      toast.success(t('Provider partner created'))
-      setPartnerCode('')
-      setPartnerName('')
-      setProviderPartnerID(String(partner.id))
-      void queryClient.invalidateQueries({ queryKey: ['provider-partners'] })
-    },
-  })
-  const assignChannelMutation = useMutation({
-    mutationFn: () => assignChannelProviderPartner(Number(channelID), Number(providerPartnerID)),
-    onSuccess: () => {
-      toast.success(t('Provider channel assigned'))
-      setChannelID('')
-      void channelsQuery.refetch()
-    },
-  })
   const createMutation = useMutation({
     mutationFn: () =>
       createProviderFunding({
@@ -130,7 +90,6 @@ export function ProviderFunding() {
   })
 
   const data = fundingsQuery.data
-  const channels = channelsQuery.data ?? []
   const partnerNames = new Map(
     (partnersQuery.data ?? []).map((partner) => [partner.id, partner.name])
   )
@@ -221,60 +180,6 @@ export function ProviderFunding() {
             <Button type='submit' disabled={createMutation.isPending}>{t('Record provider funding')}</Button>
           </div>
         </form>
-
-        <div className='bg-card mt-4 grid gap-3 rounded-lg border p-4 md:grid-cols-4'>
-          <div className='md:col-span-2'>
-            <div className='text-sm font-medium'>{t('Add provider partner')}</div>
-            <div className='text-muted-foreground text-sm'>{t('Provider partner guide')}</div>
-          </div>
-          <Input
-            aria-label={t('Provider partner code')}
-            placeholder={t('Provider partner code')}
-            value={partnerCode}
-            onChange={(event) => setPartnerCode(event.target.value)}
-          />
-          <div className='flex gap-2'>
-            <Input
-              aria-label={t('Provider partner name')}
-              placeholder={t('Provider partner name')}
-              value={partnerName}
-              onChange={(event) => setPartnerName(event.target.value)}
-            />
-            <Button
-              disabled={createPartnerMutation.isPending || !partnerCode.trim() || !partnerName.trim()}
-              onClick={() => createPartnerMutation.mutate()}
-            >
-              {t('Add')}
-            </Button>
-          </div>
-        </div>
-
-        <div className='bg-card mt-4 grid gap-3 rounded-lg border p-4 md:grid-cols-3'>
-          <div>
-            <div className='text-sm font-medium'>{t('Assign channels to provider partner')}</div>
-            <div className='text-muted-foreground text-sm'>{t('Provider channel assignment guide')}</div>
-          </div>
-          <Select value={channelID} onValueChange={(value) => setChannelID(value ?? '')}>
-            <SelectTrigger className='w-full'>
-              <SelectValue placeholder={t('Select channel')} />
-            </SelectTrigger>
-            <SelectContent>
-              {channels.map((channel) => (
-                <SelectItem key={channel.id} value={String(channel.id)}>
-                  {channel.name || channel.type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            disabled={
-              assignChannelMutation.isPending || !channelID || !providerPartnerID
-            }
-            onClick={() => assignChannelMutation.mutate()}
-          >
-            {t('Assign channel')}
-          </Button>
-        </div>
 
         {fundingsQuery.isLoading && <LoadingState />}
         {fundingsQuery.isError && <ErrorState onRetry={() => void fundingsQuery.refetch()} />}
