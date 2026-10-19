@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -19,12 +20,16 @@ var (
 // ProviderPartner is the business partner that owns provider channels. A
 // partner may have channels for multiple upstream AI providers and models.
 type ProviderPartner struct {
-	ID        int64  `json:"id" gorm:"primaryKey"`
-	Code      string `json:"code" gorm:"type:varchar(64);not null;uniqueIndex"`
-	Name      string `json:"name" gorm:"type:varchar(255);not null;index"`
-	Status    int    `json:"status" gorm:"not null;index"`
-	CreatedAt int64  `json:"created_at" gorm:"not null;index"`
-	UpdatedAt int64  `json:"updated_at" gorm:"not null;index"`
+	ID               int64  `json:"id" gorm:"primaryKey"`
+	Code             string `json:"code" gorm:"type:varchar(64);not null;uniqueIndex"`
+	Name             string `json:"name" gorm:"type:varchar(255);not null;index"`
+	ImageURL         string `json:"image_url" gorm:"type:varchar(1024)"`
+	APIKey           string `json:"-" gorm:"type:varchar(512)"`
+	APIEndpoint      string `json:"api_endpoint" gorm:"type:varchar(1024)"`
+	APIKeyConfigured bool   `json:"api_key_configured" gorm:"-"`
+	Status           int    `json:"status" gorm:"not null;index"`
+	CreatedAt        int64  `json:"created_at" gorm:"not null;index"`
+	UpdatedAt        int64  `json:"updated_at" gorm:"not null;index"`
 }
 
 func normalizeProviderPartner(partner *ProviderPartner) error {
@@ -33,8 +38,17 @@ func normalizeProviderPartner(partner *ProviderPartner) error {
 	}
 	partner.Code = strings.ToLower(strings.TrimSpace(partner.Code))
 	partner.Name = strings.TrimSpace(partner.Name)
-	if partner.Code == "" || len(partner.Code) > 64 || partner.Name == "" || len(partner.Name) > 255 {
+	partner.ImageURL = strings.TrimSpace(partner.ImageURL)
+	partner.APIKey = strings.TrimSpace(partner.APIKey)
+	partner.APIEndpoint = strings.TrimSpace(partner.APIEndpoint)
+	if partner.Code == "" || len(partner.Code) > 64 || partner.Name == "" || len(partner.Name) > 255 || partner.APIKey == "" || partner.APIEndpoint == "" || len(partner.ImageURL) > 1024 || len(partner.APIKey) > 512 || len(partner.APIEndpoint) > 1024 {
 		return ErrInvalidProviderPartner
+	}
+	if partner.APIEndpoint != "" {
+		endpoint, err := url.ParseRequestURI(partner.APIEndpoint)
+		if err != nil || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Host == "" {
+			return ErrInvalidProviderPartner
+		}
 	}
 	if partner.Status != ProviderPartnerActive && partner.Status != ProviderPartnerDisabled {
 		partner.Status = ProviderPartnerActive
@@ -51,12 +65,16 @@ func CreateProviderPartner(partner *ProviderPartner) error {
 	if err := DB.Create(partner).Error; err != nil {
 		return ErrProviderPartnerExists
 	}
+	partner.APIKeyConfigured = partner.APIKey != ""
 	return nil
 }
 
 func ListProviderPartners() ([]ProviderPartner, error) {
 	var partners []ProviderPartner
 	err := DB.Order("name ASC, id ASC").Find(&partners).Error
+	for i := range partners {
+		partners[i].APIKeyConfigured = partners[i].APIKey != ""
+	}
 	return partners, err
 }
 

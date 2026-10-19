@@ -31,6 +31,9 @@ export type ProviderPartner = {
   id: number
   code: string
   name: string
+  image_url: string
+  api_endpoint: string
+  api_key_configured: boolean
   status: number
 }
 
@@ -45,6 +48,9 @@ export async function getProviderPartners() {
 export async function createProviderPartner(input: {
   code: string
   name: string
+  image_url: string
+  api_key: string
+  api_endpoint: string
 }) {
   const response = await api.post<{
     success: boolean

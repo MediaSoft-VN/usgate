@@ -7298,6 +7298,10 @@
     "Provider channel assigned": "渠道已分配",
     "Provider level": "供应商级别",
     "Add": "添加",
-    "Provider partners": "供应商合作伙伴"
+    "Provider partners": "供应商合作伙伴",
+    "Partner image URL": "合作伙伴图片 URL",
+    "API endpoint": "Token 消耗 API 地址",
+    "API key configured": "已配置 API 密钥",
+    "API key not configured": "未配置 API 密钥"
   }
 }

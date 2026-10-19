@@ -7298,6 +7298,10 @@
     "Provider channel assigned": "チャンネルを割り当てました",
     "Provider level": "プロバイダーレベル",
     "Add": "追加",
-    "Provider partners": "プロバイダーパートナー"
+    "Provider partners": "プロバイダーパートナー",
+    "Partner image URL": "パートナー画像 URL",
+    "API endpoint": "トークン消費 API エンドポイント",
+    "API key configured": "API キー設定済み",
+    "API key not configured": "API キー未設定"
   }
 }

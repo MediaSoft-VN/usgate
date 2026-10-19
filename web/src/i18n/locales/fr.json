@@ -7298,6 +7298,10 @@
     "Provider channel assigned": "Canal affecté",
     "Provider level": "Niveau fournisseur",
     "Add": "Ajouter",
-    "Provider partners": "Partenaires fournisseurs"
+    "Provider partners": "Partenaires fournisseurs",
+    "Partner image URL": "URL de l’image du partenaire",
+    "API endpoint": "Point d’accès API pour la consommation des tokens",
+    "API key configured": "Clé API configurée",
+    "API key not configured": "Clé API non configurée"
   }
 }

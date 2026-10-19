@@ -7298,6 +7298,10 @@
     "Provider channel assigned": "Канал назначен",
     "Provider level": "Уровень провайдера",
     "Add": "Добавить",
-    "Provider partners": "Партнёры провайдеров"
+    "Provider partners": "Партнёры провайдеров",
+    "Partner image URL": "URL изображения партнёра",
+    "API endpoint": "API-эндпоинт потребления токенов",
+    "API key configured": "API-ключ настроен",
+    "API key not configured": "API-ключ не настроен"
   }
 }

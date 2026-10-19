@@ -81,9 +81,12 @@ func CreateProviderFunding(c *gin.Context) {
 }
 
 type providerPartnerRequest struct {
-	Code   string `json:"code" binding:"required,max=64"`
-	Name   string `json:"name" binding:"required,max=255"`
-	Status int    `json:"status"`
+	Code        string `json:"code" binding:"required,max=64"`
+	Name        string `json:"name" binding:"required,max=255"`
+	ImageURL    string `json:"image_url" binding:"max=1024"`
+	APIKey      string `json:"api_key" binding:"required,max=512"`
+	APIEndpoint string `json:"api_endpoint" binding:"required,max=1024"`
+	Status      int    `json:"status"`
 }
 
 func ListProviderPartners(c *gin.Context) {
@@ -101,7 +104,7 @@ func CreateProviderPartner(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid provider partner")
 		return
 	}
-	partner := &model.ProviderPartner{Code: req.Code, Name: req.Name, Status: req.Status}
+	partner := &model.ProviderPartner{Code: req.Code, Name: req.Name, ImageURL: req.ImageURL, APIKey: req.APIKey, APIEndpoint: req.APIEndpoint, Status: req.Status}
 	if err := model.CreateProviderPartner(partner); err != nil {
 		if errors.Is(err, model.ErrInvalidProviderPartner) || errors.Is(err, model.ErrProviderPartnerExists) {
 			common.ApiErrorT(c, "Invalid provider partner")

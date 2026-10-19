@@ -7298,6 +7298,10 @@
     "Provider channel assigned": "Provider channel assigned",
     "Provider level": "Provider level",
     "Add": "Add",
-    "Provider partners": "Provider partners"
+    "Provider partners": "Provider partners",
+    "Partner image URL": "Partner image URL",
+    "API endpoint": "Token usage API endpoint",
+    "API key configured": "API key configured",
+    "API key not configured": "API key not configured"
   }
 }

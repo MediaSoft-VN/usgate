@@ -7298,6 +7298,10 @@
     "Provider channel assigned": "Đã gán kênh",
     "Provider level": "Cấp nhà cung cấp",
     "Add": "Thêm",
-    "Provider partners": "Đối tác cung cấp"
+    "Provider partners": "Đối tác cung cấp",
+    "Partner image URL": "URL hình ảnh đối tác",
+    "API endpoint": "API endpoint tiêu thụ token",
+    "API key configured": "Đã cấu hình API key",
+    "API key not configured": "Chưa cấu hình API key"
   }
 }
