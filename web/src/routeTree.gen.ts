@@ -28,6 +28,7 @@ import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedChat2linkRouteImport } from './routes/_authenticated/chat2link'
 import { Route as AuthenticatedProviderFundingRouteImport } from './routes/_authenticated/provider-funding'
+import { Route as AuthenticatedProviderWalletRouteImport } from './routes/_authenticated/provider-wallet'
 import { Route as AuthenticatedSystemSettingsRouteRouteImport } from './routes/_authenticated/system-settings/route'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as OauthProviderRouteImport } from './routes/oauth/$provider'
@@ -167,6 +168,12 @@ const AuthenticatedProviderFundingRoute =
   AuthenticatedProviderFundingRouteImport.update({
     id: '/provider-funding',
     path: '/provider-funding',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProviderWalletRoute =
+  AuthenticatedProviderWalletRouteImport.update({
+    id: '/provider-wallet',
+    path: '/provider-wallet',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSystemSettingsRouteRoute =
@@ -455,6 +462,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
+  '/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/pricing/': typeof PricingIndexRoute
@@ -519,6 +527,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
+  '/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about': typeof AboutIndexRoute
   '/pricing': typeof PricingIndexRoute
@@ -587,6 +596,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/chat2link': typeof AuthenticatedChat2linkRoute
   '/_authenticated/provider-funding': typeof AuthenticatedProviderFundingRoute
+  '/_authenticated/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/pricing/': typeof PricingIndexRoute
@@ -654,6 +664,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/chat2link'
     | '/provider-funding'
+    | '/provider-wallet'
     | '/oauth/$provider'
     | '/about/'
     | '/pricing/'
@@ -718,6 +729,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/chat2link'
     | '/provider-funding'
+    | '/provider-wallet'
     | '/oauth/$provider'
     | '/about'
     | '/pricing'
@@ -785,6 +797,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/chat2link'
     | '/_authenticated/provider-funding'
+    | '/_authenticated/provider-wallet'
     | '/oauth/$provider'
     | '/about/'
     | '/pricing/'
@@ -984,6 +997,13 @@ declare module '@tanstack/react-router' {
       path: '/provider-funding'
       fullPath: '/provider-funding'
       preLoaderRoute: typeof AuthenticatedProviderFundingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/provider-wallet': {
+      id: '/_authenticated/provider-wallet'
+      path: '/provider-wallet'
+      fullPath: '/provider-wallet'
+      preLoaderRoute: typeof AuthenticatedProviderWalletRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/system-settings': {
@@ -1404,6 +1424,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSystemSettingsRouteRoute: typeof AuthenticatedSystemSettingsRouteRouteWithChildren
   AuthenticatedChat2linkRoute: typeof AuthenticatedChat2linkRoute
   AuthenticatedProviderFundingRoute: typeof AuthenticatedProviderFundingRoute
+  AuthenticatedProviderWalletRoute: typeof AuthenticatedProviderWalletRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
   AuthenticatedDashboardSectionRoute: typeof AuthenticatedDashboardSectionRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
@@ -1432,6 +1453,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSystemSettingsRouteRouteWithChildren,
   AuthenticatedChat2linkRoute: AuthenticatedChat2linkRoute,
   AuthenticatedProviderFundingRoute: AuthenticatedProviderFundingRoute,
+  AuthenticatedProviderWalletRoute: AuthenticatedProviderWalletRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
   AuthenticatedDashboardSectionRoute: AuthenticatedDashboardSectionRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,

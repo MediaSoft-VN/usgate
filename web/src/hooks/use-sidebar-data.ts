@@ -164,6 +164,11 @@ export function useSidebarData(): SidebarData {
             icon: Wallet,
           },
           {
+            title: t('Provider total wallet'),
+            url: '/provider-wallet',
+            icon: Wallet,
+          },
+          {
             title: t('Pricing'),
             url: '/system-settings/billing/model-pricing',
             activeUrls: ['/system-settings/billing'],
