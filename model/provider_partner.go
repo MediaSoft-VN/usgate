@@ -140,7 +140,11 @@ func CreateProviderPartner(partner *ProviderPartner) error {
 
 func ListProviderPartners() ([]ProviderPartner, error) {
 	var partners []ProviderPartner
-	err := DB.Order("name ASC, id ASC").Find(&partners).Error
+	assignedPartnerIDs := DB.Model(&Channel{}).
+		Select("provider_partner_id").
+		Where("provider_partner_id IS NOT NULL")
+	err := DB.Where("id IN (?)", assignedPartnerIDs).
+		Order("name ASC, id ASC").Find(&partners).Error
 	for i := range partners {
 		partners[i].APIKeyConfigured = partners[i].APIKey != ""
 	}

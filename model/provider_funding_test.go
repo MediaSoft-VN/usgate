@@ -14,13 +14,20 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.NoError(t, CreateProviderPartner(partner))
 	duplicate := &ProviderPartner{Code: "funding-test-duplicate", Name: "Funding Test", APIKey: "test-api-key", APIEndpoint: "https://provider.example.test/usage"}
 	require.ErrorIs(t, CreateProviderPartner(duplicate), ErrProviderPartnerExists)
+	unassigned := &ProviderPartner{Code: "unassigned-test", Name: "Unassigned Test", APIKey: "test-api-key", APIEndpoint: "https://provider.example.test/usage"}
+	require.NoError(t, CreateProviderPartner(unassigned))
 	channel := &Channel{Name: "provider funding test", Type: 1, Key: "provider-funding-test-key", ProviderPartnerID: &partner.ID}
 	require.NoError(t, DB.Create(channel).Error)
 	t.Cleanup(func() {
 		DB.Exec("DELETE FROM provider_fundings")
 		DB.Exec("DELETE FROM channels WHERE id = ?", channel.Id)
 		DB.Exec("DELETE FROM provider_partners WHERE id = ?", partner.ID)
+		DB.Exec("DELETE FROM provider_partners WHERE id = ?", unassigned.ID)
 	})
+	partners, err := ListProviderPartners()
+	require.NoError(t, err)
+	require.Len(t, partners, 1)
+	assert.Equal(t, partner.ID, partners[0].ID)
 
 	funding := &ProviderFunding{ProviderPartnerID: partner.ID, ChannelID: channel.Id, Reference: "provider-deposit-1", AmountMinor: 12500, Currency: "usd", Source: ProviderFundingSourceManual}
 	record, replay, err := RecordProviderFunding(funding)
