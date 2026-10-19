@@ -52,6 +52,25 @@ export type ProviderFundingPage = {
   wallets: ProviderFundingWalletSummary[]
   provider_wallets: ProviderFundingChannelSummary[]
   allocations: ProviderFundingAllocation[]
+  cash_flows: ProviderCashFlow[]
+  cash_flow_total: number
+}
+
+export type ProviderCashFlow = {
+  id: number
+  channel_id: number
+  user_id: number
+  direction: 'incoming' | 'outgoing'
+  type: 'funding' | 'allocation'
+  reference: string
+  amount_minor: number
+  currency: string
+  source: string
+  quota: number
+  exchange_rate: string
+  counterparty_name: string
+  created_at: number
+  created_by: string
 }
 
 export async function getProviderFundings(page: number, pageSize: number) {

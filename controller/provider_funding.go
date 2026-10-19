@@ -31,7 +31,7 @@ func ListProviderFunding(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	channelID, _ := strconv.Atoi(c.Query("channel_id"))
-	items, total, err := model.ListProviderFundings(model.ProviderFundingFilter{
+	items, _, err := model.ListProviderFundings(model.ProviderFundingFilter{
 		ChannelID: channelID,
 		Currency:  c.Query("currency"),
 		Source:    c.Query("source"),
@@ -40,6 +40,11 @@ func ListProviderFunding(c *gin.Context) {
 	})
 	if err != nil {
 		common.ApiErrorT(c, "Failed to load provider funding records")
+		return
+	}
+	cashFlows, cashFlowTotal, err := model.ListProviderCashFlows(page, pageSize)
+	if err != nil {
+		common.ApiErrorT(c, "Failed to load provider cash flow records")
 		return
 	}
 	wallets, err := model.SummarizeProviderFundingWallets()
@@ -57,7 +62,7 @@ func ListProviderFunding(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to load provider allocation history")
 		return
 	}
-	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "wallets": wallets, "provider_wallets": providerWallets, "allocations": allocations})
+	common.ApiSuccess(c, gin.H{"items": items, "total": cashFlowTotal, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "wallets": wallets, "provider_wallets": providerWallets, "allocations": allocations, "cash_flows": cashFlows, "cash_flow_total": cashFlowTotal})
 }
 
 type providerFundingAllocationRequest struct {

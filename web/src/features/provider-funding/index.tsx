@@ -49,6 +49,7 @@ import {
   getProviderFundingSyncStatus,
   getProviderFundings,
   startProviderFundingSync,
+  type ProviderCashFlow,
   type ProviderFunding,
   type ProviderFundingAllocation,
 } from './api'
@@ -111,6 +112,25 @@ function createCashFlowRows(
     (left, right) =>
       right.createdAt - left.createdAt || right.id.localeCompare(left.id)
   )
+}
+
+function mapProviderCashFlows(
+  cashFlows: ProviderCashFlow[],
+  channelNames: Map<number, string>,
+  unknownLabel: string
+): CashFlowRow[] {
+  return cashFlows.map((flow) => ({
+    id: String(flow.id),
+    direction: flow.direction,
+    type: flow.type,
+    counterparty:
+      flow.counterparty_name || channelNames.get(flow.channel_id) || unknownLabel,
+    amountMinor: flow.amount_minor,
+    currency: flow.currency,
+    reference: flow.reference,
+    createdBy: flow.created_by,
+    createdAt: flow.created_at,
+  }))
 }
 
 export function ProviderFunding() {
@@ -183,12 +203,9 @@ export function ProviderFunding() {
   const items = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const cashFlowRows = createCashFlowRows(
-    items,
-    data?.allocations ?? [],
-    channelNames,
-    t('Unknown')
-  )
+  const cashFlowRows = data?.cash_flows
+    ? mapProviderCashFlows(data.cash_flows, channelNames, t('Unknown'))
+    : createCashFlowRows(items, data?.allocations ?? [], channelNames, t('Unknown'))
 
   return (
     <SectionPageLayout fixedContent>

@@ -378,6 +378,7 @@ func migrateDB() error {
 		&UserAccessToken{},
 		&ProviderFunding{},
 		&ProviderFundingAllocation{},
+		&ProviderCashFlow{},
 		&WalletAccount{},
 		&FinancialTransaction{},
 		&LedgerEntry{},
@@ -385,6 +386,9 @@ func migrateDB() error {
 		&ExchangeRate{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := migrateProviderCashFlows(); err != nil {
 		return err
 	}
 	if err := InitializeUserAuthVersions(); err != nil {

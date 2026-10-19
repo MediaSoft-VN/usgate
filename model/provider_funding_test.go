@@ -8,12 +8,13 @@ import (
 )
 
 func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
-	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderFunding{}, &ProviderFundingAllocation{}, &User{}))
+	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderFunding{}, &ProviderFundingAllocation{}, &ProviderCashFlow{}, &User{}))
 	channel := &Channel{Name: "provider funding test", Type: 1, Key: "provider-funding-test-key"}
 	require.NoError(t, DB.Create(channel).Error)
 	t.Cleanup(func() {
 		DB.Exec("DELETE FROM provider_fundings")
 		DB.Exec("DELETE FROM provider_funding_allocations")
+		DB.Exec("DELETE FROM provider_cash_flows")
 		DB.Exec("DELETE FROM channels WHERE id = ?", channel.Id)
 	})
 
@@ -43,6 +44,12 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.Len(t, channelWallets, 1)
 	assert.Equal(t, channel.Id, channelWallets[0].ChannelID)
 	assert.Equal(t, int64(12500), channelWallets[0].AmountMinor)
+	flows, total, err := ListProviderCashFlows(1, 20)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	require.Len(t, flows, 1)
+	assert.Equal(t, ProviderCashFlowDirectionIncoming, flows[0].Direction)
+	assert.Equal(t, ProviderCashFlowTypeFunding, flows[0].Type)
 }
 
 func TestListProviderFundingAllocationHistoryIncludesCounterpartyName(t *testing.T) {
