@@ -55,7 +55,10 @@ export function ProviderFunding() {
   })
 
   const data = fundingsQuery.data
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
+  const items = data?.items ?? []
+  const summary = data?.summary ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <SectionPageLayout fixedContent>
@@ -95,14 +98,14 @@ export function ProviderFunding() {
         {data && (
           <>
             <div className='grid gap-3 md:grid-cols-3'>
-              {data.summary.map((item) => (
+              {summary.map((item) => (
                 <div className='bg-card rounded-lg border p-4' key={item.currency}>
                   <div className='text-muted-foreground text-sm'>{item.currency}</div>
                   <div className='text-2xl font-semibold tabular-nums'>{formatNumber(item.amount_minor)}</div>
                 </div>
               ))}
             </div>
-            {data.items.length === 0 ? (
+            {items.length === 0 ? (
               <EmptyState icon={WalletCards} title={t('No provider funding records')} />
             ) : (
               <div className='bg-card overflow-hidden rounded-lg border'>
@@ -117,7 +120,7 @@ export function ProviderFunding() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.items.map((item) => (
+                    {items.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>{item.channel_id}</TableCell>
                         <TableCell className='font-mono text-xs'>{item.reference}</TableCell>
@@ -129,7 +132,7 @@ export function ProviderFunding() {
                   </TableBody>
                 </Table>
                 <div className='flex items-center justify-between border-t px-4 py-3'>
-                  <span className='text-muted-foreground text-sm'>{data.total}</span>
+                  <span className='text-muted-foreground text-sm'>{total}</span>
                   <div className='flex items-center gap-2'>
                     <Button variant='outline' size='sm' disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>{t('Previous')}</Button>
                     <span className='text-muted-foreground text-sm'>{page} / {totalPages}</span>
