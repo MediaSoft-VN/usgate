@@ -7274,7 +7274,10 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom",,
+    "Zoom": "Zoom",,,
+    "Sync provider balances": "Sync provider balances",
+    "Provider balance sync started": "Provider balance sync started",
+    "Provider balance sync running": "Provider balance sync running"
     "Provider funding guide": "Channel: choose the provider account.\nReference: enter a unique deposit reference.\nAmount: use the smallest currency unit (USD 10000 = $100.00).\nCurrency: enter the ISO currency code. Manual records increase the cumulative provider funding total."
     "Provider funding": "Provider funding",
     "Provider funding recorded": "Provider funding recorded",

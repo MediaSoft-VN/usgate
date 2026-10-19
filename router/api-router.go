@@ -280,6 +280,8 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/financial/transactions", middleware.AdminAuth(), controller.ListFinancialTransactions)
 		apiRouter.GET("/financial/provider-funding", middleware.AdminAuth(), controller.ListProviderFunding)
 		apiRouter.POST("/financial/provider-funding", middleware.AdminAuth(), controller.CreateProviderFunding)
+		apiRouter.GET("/financial/provider-funding/sync", middleware.AdminAuth(), controller.GetProviderFundingSyncStatus)
+		apiRouter.POST("/financial/provider-funding/sync", middleware.AdminAuth(), controller.StartProviderFundingSync)
 		registerChannelRoutes(apiRouter)
 		registerAuthzRoutes(apiRouter)
 		tokenRoute := apiRouter.Group("/token")

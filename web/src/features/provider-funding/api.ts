@@ -44,3 +44,25 @@ export async function createProviderFunding(input: {
   const response = await api.post('/api/financial/provider-funding', input)
   return requireServerSuccess(response.data).data
 }
+
+export type ProviderFundingSyncStatus = {
+  running: boolean
+  started_at: number
+  completed_at: number
+}
+
+export async function getProviderFundingSyncStatus() {
+  const response = await api.get<{
+    success: boolean
+    data: ProviderFundingSyncStatus
+  }>('/api/financial/provider-funding/sync')
+  return requireServerSuccess(response.data).data
+}
+
+export async function startProviderFundingSync() {
+  const response = await api.post<{
+    success: boolean
+    data: Pick<ProviderFundingSyncStatus, 'running' | 'started_at'>
+  }>('/api/financial/provider-funding/sync')
+  return requireServerSuccess(response.data).data
+}

@@ -36,7 +36,12 @@ import { formatNumber } from '@/lib/format'
 import { createServerError } from '@/lib/server-error-message'
 
 import { getChannels } from '../channels/api'
-import { createProviderFunding, getProviderFundings } from './api'
+import {
+  createProviderFunding,
+  getProviderFundingSyncStatus,
+  getProviderFundings,
+  startProviderFundingSync,
+} from './api'
 
 const PAGE_SIZE = 20
 
@@ -61,6 +66,18 @@ export function ProviderFunding() {
         throw createServerError(response, t('Failed to load'))
       }
       return response.data?.items ?? []
+    },
+  })
+  const syncQuery = useQuery({
+    queryKey: ['provider-funding-sync-status'],
+    queryFn: getProviderFundingSyncStatus,
+    refetchInterval: (query) => (query.state.data?.running ? 2000 : false),
+  })
+  const syncMutation = useMutation({
+    mutationFn: startProviderFundingSync,
+    onSuccess: () => {
+      toast.success(t('Provider balance sync started'))
+      void syncQuery.refetch()
     },
   })
   const fundingsQuery = useQuery({
@@ -111,6 +128,17 @@ export function ProviderFunding() {
           </TooltipProvider>
         </span>
       </SectionPageLayout.Title>
+      <SectionPageLayout.Actions>
+        <Button
+          disabled={syncMutation.isPending || syncQuery.data?.running === true}
+          onClick={() => syncMutation.mutate()}
+          variant='outline'
+        >
+          {syncQuery.data?.running
+            ? t('Provider balance sync running')
+            : t('Sync provider balances')}
+        </Button>
+      </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <form
           className='bg-card grid gap-3 rounded-lg border p-4 md:grid-cols-5'
@@ -122,7 +150,13 @@ export function ProviderFunding() {
         >
           <div className='grid gap-2'>
             <Label htmlFor='provider-funding-channel' required>{t('Channel')}</Label>
-            <Select value={channelID} onValueChange={(value) => setChannelID(value ?? '')}>
+            <Select
+              value={channelID}
+              itemToStringValue={(value) =>
+                channels.find((channel) => String(channel.id) === value)?.name ?? ''
+              }
+              onValueChange={(value) => setChannelID(value ?? '')}
+            >
               <SelectTrigger id='provider-funding-channel' className='w-full'>
                 <SelectValue placeholder={t('Select channel')} />
               </SelectTrigger>

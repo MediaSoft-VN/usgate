@@ -4,11 +4,17 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
 )
+
+var providerFundingSyncRunning atomic.Bool
+var providerFundingSyncStartedAt atomic.Int64
+var providerFundingSyncCompletedAt atomic.Int64
 
 type providerFundingRequest struct {
 	ChannelID         int    `json:"channel_id" binding:"required,gt=0"`
@@ -66,4 +72,27 @@ func CreateProviderFunding(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{"record": record, "replay": replay})
+}
+
+func GetProviderFundingSyncStatus(c *gin.Context) {
+	common.ApiSuccess(c, gin.H{
+		"running":      providerFundingSyncRunning.Load(),
+		"started_at":   providerFundingSyncStartedAt.Load(),
+		"completed_at": providerFundingSyncCompletedAt.Load(),
+	})
+}
+
+func StartProviderFundingSync(c *gin.Context) {
+	if !providerFundingSyncRunning.CompareAndSwap(false, true) {
+		common.ApiSuccess(c, gin.H{"running": true, "started_at": providerFundingSyncStartedAt.Load()})
+		return
+	}
+	startedAt := time.Now().Unix()
+	providerFundingSyncStartedAt.Store(startedAt)
+	go func() {
+		defer providerFundingSyncRunning.Store(false)
+		defer providerFundingSyncCompletedAt.Store(time.Now().Unix())
+		_ = updateAllChannelsBalance()
+	}()
+	common.ApiSuccess(c, gin.H{"running": true, "started_at": startedAt})
 }

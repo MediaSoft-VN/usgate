@@ -7274,7 +7274,10 @@
     "Zhipu": "智譜",
     "Zhipu GLM": "智譜GLM",
     "Zhipu V4": "智譜 V4",
-    "Zoom": "縮放",,
+    "Zoom": "縮放",,,
+    "Sync provider balances": "同步供應商餘額",
+    "Provider balance sync started": "供應商餘額同步已啟動",
+    "Provider balance sync running": "供應商餘額同步中"
     "Provider funding guide": "渠道：選擇供應商帳戶。\n參考號：輸入唯一的充值參考號。\n金額：使用貨幣最小單位（USD 10000 = $100.00）。\n貨幣：輸入 ISO 貨幣代碼。手動記錄會增加供應商累計充值總額。"
     "Provider funding": "供應商充值",
     "Provider funding recorded": "供應商充值已記錄",
