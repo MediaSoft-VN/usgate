@@ -33,6 +33,16 @@ describe('tenant management API', () => {
     })
   })
 
+  it('surfaces a failed partner upgrade response', async () => {
+    vi.spyOn(api, 'post').mockResolvedValue({
+      data: { success: false, message: 'Partner already exists' },
+    })
+
+    await expect(
+      promoteTenant({ slug: 'acme', name: 'Acme', owner_user_id: 4 })
+    ).rejects.toThrow('Partner already exists')
+  })
+
   it('uses the M1 member and domain endpoints with tenant-scoped paths', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({
       data: { success: true, data: { id: 3, tenant_id: 7, user_id: 4, role_key: 'member' } },

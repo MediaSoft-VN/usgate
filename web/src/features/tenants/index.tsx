@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, Globe, Plus, Users } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState } from '@/components/empty-state'
@@ -16,6 +17,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
@@ -86,20 +88,27 @@ export function Tenants() {
     onError: (error) => handleServerError(error, t('Failed to update tenant member')),
   })
   const partnerMutation = useMutation({
-    mutationFn: () => promoteTenant({
-      name: partnerName.trim(),
-      slug: partnerSlug.trim(),
-      owner_user_id: Number(partnerOwnerId),
-    }),
+    mutationFn: promoteTenant,
     onSuccess: async () => {
       setPartnerDialogOpen(false)
       setPartnerOwnerId('')
       setPartnerName('')
       setPartnerSlug('')
       await queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      toast.success(t('Provider partner created'))
     },
     onError: (error) => handleServerError(error, t('Failed to upgrade user to partner')),
   })
+  const submitPartnerUpgrade = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending) return
+
+    partnerMutation.mutate({
+      name: partnerName.trim(),
+      slug: partnerSlug.trim(),
+      owner_user_id: Number(partnerOwnerId),
+    })
+  }
   const roleMutation = useMutation({
     mutationFn: (values: { userId: number; role: string }) => updateTenantMember(selectedTenantId as number, values.userId, values.role),
     onSuccess: () => void refreshTenant('tenant-members'),
@@ -131,9 +140,32 @@ export function Tenants() {
           <Card>
             <CardHeader><CardTitle>{t('Admin actions')}</CardTitle></CardHeader>
             <CardContent>
-              <Button onClick={() => setPartnerDialogOpen(true)}>
-                {t('Upgrade user to partner')}
-              </Button>
+              <Dialog open={partnerDialogOpen} onOpenChange={setPartnerDialogOpen}>
+                <DialogTrigger render={<Button />}>
+                  {t('Upgrade user to partner')}
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>{t('Upgrade user to partner')}</DialogTitle></DialogHeader>
+                  <form className='grid gap-3' onSubmit={submitPartnerUpgrade}>
+                    <label className='grid gap-1 text-sm'>
+                      <span>{t('Partner owner')}</span>
+                      <NativeSelect value={partnerOwnerId} onChange={(event) => setPartnerOwnerId(event.target.value)}>
+                        <NativeSelectOption value=''>{t('Select an existing user')}</NativeSelectOption>
+                        {ownerCandidatesQuery.data?.map((user) => <NativeSelectOption key={user.id} value={user.id}>{user.display_name || user.username} ({user.username})</NativeSelectOption>)}
+                      </NativeSelect>
+                    </label>
+                    <label className='grid gap-1 text-sm'>
+                      <span>{t('Partner name')}</span>
+                      <Input value={partnerName} onChange={(event) => setPartnerName(event.target.value)} />
+                    </label>
+                    <label className='grid gap-1 text-sm'>
+                      <span>{t('Partner slug')}</span>
+                      <Input value={partnerSlug} onChange={(event) => setPartnerSlug(event.target.value)} />
+                    </label>
+                    <DialogFooter><Button type='submit' disabled={!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
           <Card>
@@ -156,29 +188,6 @@ export function Tenants() {
           </Tabs>}
         </div>
       </SectionPageLayout.Content>
-      <Dialog open={partnerDialogOpen} onOpenChange={setPartnerDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('Upgrade user to partner')}</DialogTitle></DialogHeader>
-          <div className='grid gap-3'>
-            <label className='grid gap-1 text-sm'>
-              <span>{t('Partner owner')}</span>
-              <NativeSelect value={partnerOwnerId} onChange={(event) => setPartnerOwnerId(event.target.value)}>
-                <NativeSelectOption value=''>{t('Select an existing user')}</NativeSelectOption>
-                {ownerCandidatesQuery.data?.map((user) => <NativeSelectOption key={user.id} value={user.id}>{user.display_name || user.username} ({user.username})</NativeSelectOption>)}
-              </NativeSelect>
-            </label>
-            <label className='grid gap-1 text-sm'>
-              <span>{t('Partner name')}</span>
-              <Input value={partnerName} onChange={(event) => setPartnerName(event.target.value)} />
-            </label>
-            <label className='grid gap-1 text-sm'>
-              <span>{t('Partner slug')}</span>
-              <Input value={partnerSlug} onChange={(event) => setPartnerSlug(event.target.value)} />
-            </label>
-          </div>
-          <DialogFooter><Button onClick={() => partnerMutation.mutate()} disabled={!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}><DialogContent><DialogHeader><DialogTitle>{t('Add member')}</DialogTitle></DialogHeader><div className='grid gap-3'><label className='grid gap-1 text-sm'><span>{t('User')}</span><NativeSelect value={memberUserId} onChange={(event) => setMemberUserId(event.target.value)}><NativeSelectOption value=''>{t('Select an existing user')}</NativeSelectOption>{ownerCandidatesQuery.data?.map((user) => <NativeSelectOption key={user.id} value={user.id}>{user.display_name || user.username} ({user.username})</NativeSelectOption>)}</NativeSelect></label><label className='grid gap-1 text-sm'><span>{t('Role')}</span><NativeSelect value={memberRole} onChange={(event) => setMemberRole(event.target.value)}>{roles.map((role) => <NativeSelectOption key={role} value={role}>{role}</NativeSelectOption>)}</NativeSelect></label></div><DialogFooter><Button onClick={() => memberMutation.mutate()} disabled={!memberUserId || memberMutation.isPending}>{t('Add')}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={domainDialogOpen} onOpenChange={setDomainDialogOpen}><DialogContent><DialogHeader><DialogTitle>{t('Add domain')}</DialogTitle></DialogHeader><label className='grid gap-1 text-sm'><span>{t('Hostname')}</span><Input value={hostname} onChange={(event) => setHostname(event.target.value)} placeholder='app.example.com' /></label><DialogFooter><Button onClick={() => domainMutation.mutate()} disabled={!hostname || domainMutation.isPending}>{t('Add')}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={verifyDomain !== null} onOpenChange={(open) => !open && setVerifyDomain(null)}><DialogContent><DialogHeader><DialogTitle>{t('Verify domain')}</DialogTitle></DialogHeader><p className='text-muted-foreground text-sm'>{verifyDomain?.hostname}</p>{verificationToken && <p className='text-sm'><span>{t('Verification token')}: </span><code className='break-all rounded bg-muted px-1'>{verificationToken}</code></p>}<label className='grid gap-1 text-sm'><span>{t('Verification token')}</span><Input value={token} onChange={(event) => setToken(event.target.value)} /></label><DialogFooter><Button onClick={() => verifyMutation.mutate()} disabled={!token || verifyMutation.isPending}>{t('Verify')}</Button></DialogFooter></DialogContent></Dialog>
