@@ -170,7 +170,7 @@ export function PartnerWorkspace() {
             </div>
           )}
           {tenant && (
-            <Tabs defaultValue='members'>
+            <Tabs defaultValue='domains'>
               <TabsList aria-label={t('Tenant settings')}>
                 <TabsTrigger value='members'>
                   <Users className='size-4' aria-hidden='true' />
