@@ -243,7 +243,6 @@ export function PartnerWorkspace() {
                             <DialogTitle>{t('Add domain')}</DialogTitle>
                           </DialogHeader>
                           <label className='grid gap-1 text-sm'>
-                            <span>{t('Hostname')}</span>
                             <Input
                               value={hostname}
                               onChange={(event) => setHostname(event.target.value)}
