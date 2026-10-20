@@ -382,8 +382,14 @@ func migrateDB() error {
 		&LedgerEntry{},
 		&IdempotencyKey{},
 		&ExchangeRate{},
+		&Tenant{},
+		&TenantMembership{},
+		&TenantDomain{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := MigrateTenants(); err != nil {
 		return err
 	}
 	if err := migrateProviderCashFlows(); err != nil {

@@ -61,6 +61,26 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/oauth/:provider", middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.TryUserAuth(), controller.HandleOAuth)
 		apiRouter.GET("/ratio_config", middleware.CriticalRateLimit(), controller.GetRatioConfig)
 
+		tenantRoute := apiRouter.Group("/tenants")
+		tenantRoute.Use(middleware.UserAuth())
+		{
+			tenantRoute.GET("", controller.GetTenants)
+			tenantRoute.POST("", controller.CreateTenant)
+			tenantRoute.GET("/:tenant_id", controller.GetTenant)
+			tenantRoute.PATCH("/:tenant_id", controller.UpdateTenant)
+			tenantRoute.GET("/:tenant_id/members", controller.ListTenantMembers)
+			tenantRoute.POST("/:tenant_id/members/invitations", controller.UpsertTenantMember)
+			tenantRoute.PATCH("/:tenant_id/members/:user_id", controller.UpdateTenantMember)
+			tenantRoute.DELETE("/:tenant_id/members/:user_id", controller.RemoveTenantMember)
+			tenantRoute.POST("/:tenant_id/members/:user_id/transfer-owner", controller.TransferTenantOwner)
+			tenantRoute.GET("/:tenant_id/domains", controller.ListTenantDomains)
+			tenantRoute.POST("/:tenant_id/domains", controller.CreateTenantDomain)
+			tenantRoute.POST("/:tenant_id/domains/:domain_id/verify", controller.VerifyTenantDomain)
+			tenantRoute.DELETE("/:tenant_id/domains/:domain_id", controller.DisableTenantDomain)
+		}
+		apiRouter.GET("/tenant-context", middleware.UserAuth(), controller.TenantContextInfo)
+		apiRouter.POST("/tenant-context/select", middleware.UserAuth(), controller.SelectTenantContext)
+
 		apiRouter.POST("/stripe/webhook", anonymousRequestBodyLimit, controller.StripeWebhook)
 		apiRouter.POST("/creem/webhook", anonymousRequestBodyLimit, controller.CreemWebhook)
 		apiRouter.POST("/waffo/webhook", anonymousRequestBodyLimit, controller.WaffoWebhook)
