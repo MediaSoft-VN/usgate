@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, Globe, Plus, Users } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -60,13 +60,6 @@ export function Tenants() {
   const [partnerOwnerId, setPartnerOwnerId] = useState('')
   const [partnerName, setPartnerName] = useState('')
   const [partnerSlug, setPartnerSlug] = useState('')
-  const [partnerCode, setPartnerCode] = useState('')
-  const [partnerCodeManual, setPartnerCodeManual] = useState(false)
-
-  useEffect(() => {
-    if (partnerCodeManual) return
-    setPartnerCode(partnerName.trim().toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-|-$/g, '').slice(0, 64))
-  }, [partnerCodeManual, partnerName])
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
   const ownerCandidatesQuery = useQuery({ queryKey: ['tenant-owner-candidates'], queryFn: getTenantOwnerCandidates })
@@ -101,8 +94,6 @@ export function Tenants() {
       setPartnerOwnerId('')
       setPartnerName('')
       setPartnerSlug('')
-      setPartnerCode('')
-      setPartnerCodeManual(false)
       await queryClient.invalidateQueries({ queryKey: ['tenants'] })
       toast.success(t('Provider partner created'))
     },
@@ -115,7 +106,6 @@ export function Tenants() {
     partnerMutation.mutate({
       name: partnerName.trim(),
       slug: partnerSlug.trim(),
-      partner_code: partnerCode.trim(),
       owner_user_id: Number(partnerOwnerId),
     })
   }
@@ -171,10 +161,6 @@ export function Tenants() {
                     <label className='grid gap-1 text-sm'>
                       <span>{t('Partner slug')}</span>
                       <Input value={partnerSlug} onChange={(event) => setPartnerSlug(event.target.value)} />
-                    </label>
-                    <label className='grid gap-1 text-sm'>
-                      <span>{t('Provider partner code')}</span>
-                      <Input value={partnerCode} onChange={(event) => { setPartnerCode(event.target.value); setPartnerCodeManual(true) }} placeholder={t('Generated from partner name')} />
                     </label>
                     <DialogFooter><Button type='submit' disabled={!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
                   </form>
