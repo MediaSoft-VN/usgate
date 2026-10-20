@@ -16,6 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
@@ -223,14 +224,37 @@ export function PartnerWorkspace() {
                   <CardHeader>
                     <CardTitle className='flex items-center justify-between'>
                       <span>{t('Tenant domains')}</span>
-                      <Button
-                        type='button'
-                        size='sm'
-                        onClick={() => setDomainDialogOpen(true)}
+                      <Dialog
+                        open={domainDialogOpen}
+                        onOpenChange={setDomainDialogOpen}
                       >
-                        <Plus className='size-4' aria-hidden='true' />
-                        {t('Add domain')}
-                      </Button>
+                        <DialogTrigger render={<Button size='sm' />}>
+                          <Plus className='size-4' aria-hidden='true' />
+                          {t('Add domain')}
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>{t('Add domain')}</DialogTitle>
+                          </DialogHeader>
+                          <label className='grid gap-1 text-sm'>
+                            <span>{t('Hostname')}</span>
+                            <Input
+                              value={hostname}
+                              onChange={(event) => setHostname(event.target.value)}
+                              placeholder='app.example.com'
+                            />
+                          </label>
+                          <DialogFooter>
+                            <Button
+                              type='button'
+                              onClick={() => domainMutation.mutate()}
+                              disabled={!hostname || domainMutation.isPending}
+                            >
+                              {t('Add')}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -290,29 +314,6 @@ export function PartnerWorkspace() {
           )}
         </div>
       </SectionPageLayout.Content>
-      <Dialog open={domainDialogOpen} onOpenChange={setDomainDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('Add domain')}</DialogTitle>
-          </DialogHeader>
-          <label className='grid gap-1 text-sm'>
-            <span>{t('Hostname')}</span>
-            <Input
-              value={hostname}
-              onChange={(event) => setHostname(event.target.value)}
-              placeholder='app.example.com'
-            />
-          </label>
-          <DialogFooter>
-            <Button
-              onClick={() => domainMutation.mutate()}
-              disabled={!hostname || domainMutation.isPending}
-            >
-              {t('Add')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog
         open={verifyDomain !== null}
         onOpenChange={(open) => !open && setVerifyDomain(null)}
