@@ -7282,7 +7282,6 @@
     "Total funded": "Tổng tiền đã nạp",
     "Provider funding guide": "Kênh: chọn tài khoản nhà cung cấp.\nMã tham chiếu: nhập mã duy nhất của khoản nạp.\nSố tiền: nhập số tiền thông thường; hệ thống tự chuyển sang đơn vị nhỏ nhất.\nTiền tệ: nhập mã tiền tệ ISO. Bản ghi thủ công sẽ cộng vào tổng tiền đã nạp cho nhà cung cấp.",
     "Provider funding recorded": "Đã ghi nhận khoản nạp cho nhà cung cấp",
-    "Record provider funding": "Ghi nhận khoản nạp nhà cung cấp",
     "No provider funding records": "Chưa có khoản nạp nào cho nhà cung cấp",
     "Reference": "Mã tham chiếu",
     "Select channel": "Chọn kênh",

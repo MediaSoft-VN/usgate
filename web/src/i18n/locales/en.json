@@ -7282,7 +7282,6 @@
     "Total funded": "Total funded",
     "Provider funding guide": "Channel: choose the provider account.\nReference: enter a unique deposit reference.\nAmount: enter the normal currency amount; the system converts it to minor units.\nCurrency: enter the ISO currency code. Manual records increase the cumulative provider funding total.",
     "Provider funding recorded": "Provider funding recorded",
-    "Record provider funding": "Record provider funding",
     "No provider funding records": "No provider funding records",
     "Reference": "Reference",
     "Select channel": "Select channel",
