@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -35,7 +34,8 @@ func TenantContext() gin.HandlerFunc {
 
 func TenantID(c *gin.Context) (int, bool) {
 	if value, ok := c.Get(string(constant.ContextKeyTenantID)); ok {
-		id, ok := value.(int); return id, ok && id > 0
+		id, ok := value.(int)
+		return id, ok && id > 0
 	}
 	return 0, false
 }
