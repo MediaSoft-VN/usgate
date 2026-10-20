@@ -49,22 +49,32 @@ func isPositiveOptionValue(value string) bool {
 }
 
 func validateTenantDomainDNSOption(key, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return errors.New("DNS record value is required")
+	}
+
 	switch key {
-	case "TenantDomainDNSRecordType":
-		if value != "CNAME" && value != "A" {
-			return errors.New("DNS record type must be CNAME or A")
+	case "TenantDomainDNSRecordCNAME":
+		if net.ParseIP(value) != nil || len(value) > 253 || strings.ContainsAny(value, "/: ") {
+			return errors.New("CNAME target must be a valid hostname")
 		}
-	case "TenantDomainDNSRecordTarget":
-		value = strings.TrimSpace(value)
-		if value == "" {
-			return nil
+		for label := range strings.SplitSeq(value, ".") {
+			if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+				return errors.New("CNAME target must be a valid hostname")
+			}
+			for _, char := range label {
+				if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
+					(char < '0' || char > '9') && char != '-' {
+					return errors.New("CNAME target must be a valid hostname")
+				}
+			}
 		}
+	case "TenantDomainDNSRecordA":
 		if net.ParseIP(value) != nil {
 			return nil
 		}
-		if strings.ContainsAny(value, "/: ") || !strings.Contains(value, ".") {
-			return errors.New("DNS record target must be a hostname or IP address")
-		}
+		return errors.New("A record IP must be a valid IPv4 or IPv6 address")
 	}
 	return nil
 }
@@ -240,7 +250,7 @@ func UpdateOption(c *gin.Context) {
 		}
 	}
 	switch option.Key {
-	case "TenantDomainDNSRecordType", "TenantDomainDNSRecordTarget":
+	case "TenantDomainDNSRecordCNAME", "TenantDomainDNSRecordA":
 		if err := validateTenantDomainDNSOption(option.Key, option.Value.(string)); err != nil {
 			common.ApiError(c, err)
 			return

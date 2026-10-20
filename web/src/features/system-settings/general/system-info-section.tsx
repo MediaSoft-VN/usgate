@@ -31,13 +31,6 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
@@ -53,12 +46,38 @@ import { useSettingsForm } from '../hooks/use-settings-form'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { isValidTaskPublicAddress } from './task-public-address'
 
+function isValidCnameTarget(value: string): boolean {
+  const target = value.trim()
+  if (!target || target.length > 253) return false
+  return target.split('.').every((label) =>
+    /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label)
+  )
+}
+
+function isValidIpAddress(value: string): boolean {
+  const target = value.trim()
+  if (!target) return false
+  const parts = target.includes(':') ? target.split(':') : target.split('.')
+  if (target.includes(':')) {
+    return (
+      !target.includes(':::') &&
+      parts.length >= 3 &&
+      parts.length <= 8 &&
+      /^[0-9a-f:]+$/i.test(target)
+    )
+  }
+  return (
+    parts.length === 4 &&
+    parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255)
+  )
+}
+
 const _systemInfoSchema = z.object({
   SystemName: z.string().min(1),
   ServerAddress: z.string().optional(),
   TaskPublicAddress: z.string().refine(isValidTaskPublicAddress),
-  TenantDomainDNSRecordType: z.enum(['CNAME', 'A']),
-  TenantDomainDNSRecordTarget: z.string(),
+  TenantDomainDNSRecordCNAME: z.string().refine(isValidCnameTarget),
+  TenantDomainDNSRecordA: z.string().refine(isValidIpAddress),
   Logo: z.string().url().optional().or(z.literal('')),
   Footer: z.string().optional(),
   About: z.string().optional(),
@@ -91,8 +110,8 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     SystemName: normalizeValue(defaultValues.SystemName),
     ServerAddress: normalizeValue(defaultValues.ServerAddress),
     TaskPublicAddress: normalizeValue(defaultValues.TaskPublicAddress),
-    TenantDomainDNSRecordType: defaultValues.TenantDomainDNSRecordType === 'A' ? 'A' : 'CNAME',
-    TenantDomainDNSRecordTarget: normalizeValue(defaultValues.TenantDomainDNSRecordTarget),
+    TenantDomainDNSRecordCNAME: normalizeValue(defaultValues.TenantDomainDNSRecordCNAME),
+    TenantDomainDNSRecordA: normalizeValue(defaultValues.TenantDomainDNSRecordA),
     Logo: normalizeValue(defaultValues.Logo),
     Footer: normalizeValue(defaultValues.Footer),
     About: normalizeValue(defaultValues.About),
@@ -117,8 +136,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
           'Enter an absolute HTTP(S) URL without credentials, query parameters, or fragments'
         ),
     }),
-    TenantDomainDNSRecordType: z.enum(['CNAME', 'A']),
-    TenantDomainDNSRecordTarget: z.string(),
+    TenantDomainDNSRecordCNAME: z.string().refine(isValidCnameTarget, {
+      error: () => t('Enter a valid CNAME hostname'),
+    }),
+    TenantDomainDNSRecordA: z.string().refine(isValidIpAddress, {
+      error: () => t('Enter a valid IPv4 or IPv6 address'),
+    }),
     Logo: z.string().url().optional().or(z.literal('')),
     Footer: z.string().optional(),
     About: z.string().optional(),
@@ -249,23 +272,15 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name='TenantDomainDNSRecordType'
+                name='TenantDomainDNSRecordCNAME'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Tenant domain DNS record type')}</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value='CNAME'>CNAME</SelectItem>
-                        <SelectItem value='A'>A</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>{t('CNAME target')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder='proxy.example.com' {...field} />
+                    </FormControl>
                     <FormDescription>
-                      {t('The DNS record type partners should configure for custom domains')}
+                      {t('The hostname partners can use as an alternative to the A record')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -274,15 +289,15 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
 
               <FormField
                 control={form.control}
-                name='TenantDomainDNSRecordTarget'
+                name='TenantDomainDNSRecordA'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Tenant domain DNS record target')}</FormLabel>
+                    <FormLabel>{t('A record IP')}</FormLabel>
                     <FormControl>
-                      <Input placeholder='proxy.example.com or 203.0.113.10' {...field} />
+                      <Input placeholder='203.0.113.10 or 2001:db8::10' {...field} />
                     </FormControl>
                     <FormDescription>
-                      {t('The hostname or IP address partners should use as the DNS target')}
+                      {t('The IPv4 or IPv6 address partners can use as an alternative to CNAME')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

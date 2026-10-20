@@ -264,13 +264,19 @@ export function PartnerWorkspace() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {dnsRecordQuery.data?.target && (
+                    {dnsRecordQuery.data && (
                       <div className='bg-muted mb-4 rounded-md p-3 text-sm'>
-                        <p className='font-medium'>{t('DNS record to configure')}</p>
-                        <p className='text-muted-foreground mt-1'>
-                          {dnsRecordQuery.data.type} →{' '}
-                          <code className='font-mono'>{dnsRecordQuery.data.target}</code>
-                        </p>
+                        <p className='font-medium'>{t('DNS records to configure')}</p>
+                        <div className='text-muted-foreground mt-1 grid gap-1'>
+                          <p>
+                            <span className='font-medium'>CNAME:</span>{' '}
+                            <code className='font-mono'>{dnsRecordQuery.data.cname_target}</code>
+                          </p>
+                          <p>
+                            <span className='font-medium'>A:</span>{' '}
+                            <code className='font-mono'>{dnsRecordQuery.data.a_record_ip}</code>
+                          </p>
+                        </div>
                       </div>
                     )}
                     {domainsQuery.isLoading ? (

@@ -36,8 +36,8 @@ export type TenantDomain = {
 }
 
 export type TenantDNSRecord = {
-  type: 'CNAME' | 'A'
-  target: string
+  cname_target: string
+  a_record_ip: string
 }
 
 export async function getTenants(): Promise<Tenant[]> {

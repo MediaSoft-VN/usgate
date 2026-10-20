@@ -13,8 +13,8 @@ import (
 )
 
 type tenantDNSRecord struct {
-	Type   string `json:"type"`
-	Target string `json:"target"`
+	CNAMETarget string `json:"cname_target"`
+	ARecordIP   string `json:"a_record_ip"`
 }
 
 type tenantRequest struct {
@@ -135,13 +135,10 @@ func GetTenantDomainDNSRecord(c *gin.Context) {
 	}
 	common.OptionMapRWMutex.RLock()
 	record := tenantDNSRecord{
-		Type:   common.Interface2String(common.OptionMap["TenantDomainDNSRecordType"]),
-		Target: common.Interface2String(common.OptionMap["TenantDomainDNSRecordTarget"]),
+		CNAMETarget: common.Interface2String(common.OptionMap["TenantDomainDNSRecordCNAME"]),
+		ARecordIP:   common.Interface2String(common.OptionMap["TenantDomainDNSRecordA"]),
 	}
 	common.OptionMapRWMutex.RUnlock()
-	if record.Type != "A" && record.Type != "CNAME" {
-		record.Type = "CNAME"
-	}
 	common.ApiSuccess(c, record)
 }
 

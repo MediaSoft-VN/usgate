@@ -58,12 +58,15 @@ describe('tenant management API', () => {
 
   it('reads the tenant-scoped DNS record without exposing admin settings', async () => {
     const get = vi.spyOn(api, 'get').mockResolvedValue({
-      data: { success: true, data: { type: 'CNAME', target: 'proxy.example.com' } },
+      data: {
+        success: true,
+        data: { cname_target: 'proxy.example.com', a_record_ip: '203.0.113.10' },
+      },
     })
 
     await expect(getTenantDNSRecord(7)).resolves.toEqual({
-      type: 'CNAME',
-      target: 'proxy.example.com',
+      cname_target: 'proxy.example.com',
+      a_record_ip: '203.0.113.10',
     })
     expect(get).toHaveBeenCalledWith('/api/tenants/7/domains/dns-record')
   })
