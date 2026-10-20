@@ -84,12 +84,6 @@ export function ProviderWallet() {
   })
   const wallets = walletQuery.data?.wallets ?? []
   const providerWallets = walletQuery.data?.provider_wallets ?? []
-  const channelFunding = new Map<number, typeof providerWallets>()
-  for (const funding of providerWallets) {
-    const summaries = channelFunding.get(funding.channel_id) ?? []
-    summaries.push(funding)
-    channelFunding.set(funding.channel_id, summaries)
-  }
   const providerChannels = [
     ...new Map(
       providerWallets.map((wallet) => [
@@ -102,9 +96,6 @@ export function ProviderWallet() {
 
   return (
     <SectionPageLayout fixedContent>
-      <SectionPageLayout.Title>
-        {t('Provider total wallet')}
-      </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
         <Dialog open={allocationOpen} onOpenChange={setAllocationOpen}>
           <DialogTrigger render={<Button variant='outline' />}>
@@ -222,27 +213,13 @@ export function ProviderWallet() {
           <div className='space-y-6'>
             {wallets.length > 0 && (
               <Card className='border-primary/30 bg-primary/5 shadow-sm'>
-                <CardHeader className='border-b'>
-                  <CardTitle className='text-primary text-xl'>
-                    {t('Provider total wallet')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className='grid gap-4 pt-1 sm:grid-cols-3'>
+                <CardContent className='grid gap-4 pt-4 sm:grid-cols-3'>
                   {wallets.map((wallet) => (
                     <div key={wallet.currency} className='space-y-1'>
                       <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
                         {wallet.currency}
                       </p>
                       <div>
-                        <p className='text-muted-foreground text-sm'>
-                          {t('Total funded')}
-                        </p>
-                        <p className='text-2xl font-bold tabular-nums'>
-                          {formatNumber(wallet.amount_minor / 100)}{' '}
-                          {wallet.currency}
-                        </p>
-                      </div>
-                      <div className='border-border/60 border-t pt-2'>
                         <p className='text-muted-foreground text-sm'>
                           {t('Available')}
                         </p>
@@ -263,7 +240,6 @@ export function ProviderWallet() {
                 </div>
                 <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
                   {providerChannels.map((channel) => {
-                    const funding = channelFunding.get(channel.id) ?? []
                     return (
                       <Card key={channel.id} size='sm' className='h-full'>
                         <CardHeader className='border-b'>
@@ -274,26 +250,6 @@ export function ProviderWallet() {
                             {t('Channel')} #{channel.id}
                           </p>
                         </CardHeader>
-                        <CardContent className='grid gap-4 sm:grid-cols-2'>
-                          {funding.length > 0 && (
-                            <div>
-                              <p className='text-muted-foreground text-sm'>
-                                {t('Total funded')}
-                              </p>
-                              <div className='space-y-1'>
-                                {funding.map((wallet) => (
-                                  <p
-                                    key={`${wallet.channel_id}-${wallet.currency}`}
-                                    className='text-lg font-semibold tabular-nums'
-                                  >
-                                    {formatNumber(wallet.amount_minor / 100)}{' '}
-                                    {wallet.currency}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
                       </Card>
                     )
                   })}
