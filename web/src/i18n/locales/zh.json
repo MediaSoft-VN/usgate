@@ -7359,6 +7359,26 @@
     "No Tenants Found": "未找到租户",
     "Failed to create tenant": "创建租户失败",
     "Partner owner": "合作伙伴所有者",
-    "Select an existing user": "选择现有用户"
+    "Select an existing user": "选择现有用户",
+    "Select tenant": "选择租户",
+    "Choose a tenant": "选择租户",
+    "Use tenant": "使用租户",
+    "Tenant settings": "租户设置",
+    "Members": "成员",
+    "Domains": "域名",
+    "Tenant members": "租户成员",
+    "Add member": "添加成员",
+    "Role for user {{id}}": "用户 {{id}} 的角色",
+    "Tenant domains": "租户域名",
+    "Add domain": "添加域名",
+    "Hostname": "主机名",
+    "Verify domain": "验证域名",
+    "Verification token": "验证令牌",
+    "Remove item": "移除项目",
+    "Failed to select tenant": "选择租户失败",
+    "Failed to update tenant member": "更新租户成员失败",
+    "Failed to add domain": "添加域名失败",
+    "Failed to verify domain": "验证域名失败",
+    "Failed to remove item": "移除项目失败"
   }
 }

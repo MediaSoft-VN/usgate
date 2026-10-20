@@ -7359,6 +7359,26 @@
     "No Tenants Found": "テナントがありません",
     "Failed to create tenant": "テナントの作成に失敗しました",
     "Partner owner": "パートナー所有者",
-    "Select an existing user": "既存のユーザーを選択"
+    "Select an existing user": "既存のユーザーを選択",
+    "Select tenant": "テナントを選択",
+    "Choose a tenant": "テナントを選択",
+    "Use tenant": "テナントを使用",
+    "Tenant settings": "テナント設定",
+    "Members": "メンバー",
+    "Domains": "ドメイン",
+    "Tenant members": "テナントメンバー",
+    "Add member": "メンバーを追加",
+    "Role for user {{id}}": "ユーザー {{id}} のロール",
+    "Tenant domains": "テナントドメイン",
+    "Add domain": "ドメインを追加",
+    "Hostname": "ホスト名",
+    "Verify domain": "ドメインを検証",
+    "Verification token": "検証トークン",
+    "Remove item": "項目を削除",
+    "Failed to select tenant": "テナントの選択に失敗しました",
+    "Failed to update tenant member": "テナントメンバーの更新に失敗しました",
+    "Failed to add domain": "ドメインの追加に失敗しました",
+    "Failed to verify domain": "ドメインの検証に失敗しました",
+    "Failed to remove item": "項目の削除に失敗しました"
   }
 }

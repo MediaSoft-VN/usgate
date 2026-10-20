@@ -7359,6 +7359,26 @@
     "No Tenants Found": "No Tenants Found",
     "Failed to create tenant": "Failed to create tenant",
     "Partner owner": "Partner owner",
-    "Select an existing user": "Select an existing user"
+    "Select an existing user": "Select an existing user",
+    "Select tenant": "Select tenant",
+    "Choose a tenant": "Choose a tenant",
+    "Use tenant": "Use tenant",
+    "Tenant settings": "Tenant settings",
+    "Members": "Members",
+    "Domains": "Domains",
+    "Tenant members": "Tenant members",
+    "Add member": "Add member",
+    "Role for user {{id}}": "Role for user {{id}}",
+    "Tenant domains": "Tenant domains",
+    "Add domain": "Add domain",
+    "Hostname": "Hostname",
+    "Verify domain": "Verify domain",
+    "Verification token": "Verification token",
+    "Remove item": "Remove item",
+    "Failed to select tenant": "Failed to select tenant",
+    "Failed to update tenant member": "Failed to update tenant member",
+    "Failed to add domain": "Failed to add domain",
+    "Failed to verify domain": "Failed to verify domain",
+    "Failed to remove item": "Failed to remove item"
   }
 }
