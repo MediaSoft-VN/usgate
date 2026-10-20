@@ -84,18 +84,13 @@ export function ProviderWallet() {
   })
   const wallets = walletQuery.data?.wallets ?? []
   const providerWallets = walletQuery.data?.provider_wallets ?? []
-  const providerChannels = [
-    ...new Map(
-      providerWallets.map((wallet) => [
-        wallet.channel_id,
-        { id: wallet.channel_id, name: wallet.channel_name },
-      ])
-    ).values(),
-  ]
   const hasWalletData = wallets.length > 0 || providerWallets.length > 0
 
   return (
     <SectionPageLayout fixedContent>
+      <SectionPageLayout.Title>
+        {t('Provider total wallet')}
+      </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
         <Dialog open={allocationOpen} onOpenChange={setAllocationOpen}>
           <DialogTrigger render={<Button variant='outline' />}>
@@ -233,23 +228,37 @@ export function ProviderWallet() {
                 </CardContent>
               </Card>
             )}
-            {providerChannels.length > 0 && (
+            {providerWallets.length > 0 && (
               <section className='space-y-3'>
                 <div>
                   <h3 className='text-lg font-semibold'>{t('Channels')}</h3>
                 </div>
                 <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
-                  {providerChannels.map((channel) => {
+                  {providerWallets.map((wallet) => {
                     return (
-                      <Card key={channel.id} size='sm' className='h-full'>
+                      <Card
+                        key={`${wallet.channel_id}-${wallet.currency}`}
+                        size='sm'
+                        className='h-full'
+                      >
                         <CardHeader className='border-b'>
                           <CardTitle>
-                            {channel.name || t('Unknown')}
+                            {wallet.channel_name || t('Unknown')}
                           </CardTitle>
                           <p className='text-muted-foreground text-sm'>
-                            {t('Channel')} #{channel.id}
+                            {t('Channel')} #{wallet.channel_id} ·{' '}
+                            {wallet.currency}
                           </p>
                         </CardHeader>
+                        <CardContent>
+                          <p className='text-muted-foreground text-sm'>
+                            {t('Current Balance')}
+                          </p>
+                          <p className='text-2xl font-semibold tabular-nums'>
+                            {formatNumber(wallet.amount_minor / 100)}{' '}
+                            {wallet.currency}
+                          </p>
+                        </CardContent>
                       </Card>
                     )
                   })}

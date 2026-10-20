@@ -83,11 +83,14 @@ it('shows provider funding without using the channel upstream balance', async ()
     </QueryClientProvider>
   )
 
+  expect(
+    screen.getByRole('heading', { name: 'Provider total wallet' })
+  ).toBeInTheDocument()
   expect(await screen.findByText('Provider One')).toBeInTheDocument()
   expect(screen.getAllByText('Available')).toHaveLength(1)
   expect(screen.queryByText('Total funded')).not.toBeInTheDocument()
-  expect(screen.queryByText('Current Balance')).not.toBeInTheDocument()
+  expect(screen.getByText('Current Balance')).toBeInTheDocument()
+  expect(screen.getByText(/100 USD/)).toBeInTheDocument()
   expect(screen.getByText(/75 USD/)).toBeInTheDocument()
-  expect(screen.queryByText(/100 USD/)).not.toBeInTheDocument()
   expect(screen.queryByText(/42\.5 USD/)).not.toBeInTheDocument()
 })
