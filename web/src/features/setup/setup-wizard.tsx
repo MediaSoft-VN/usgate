@@ -283,7 +283,7 @@ export function SetupWizard() {
   }
 
   return (
-    <div className='bg-muted/40 relative min-h-svh py-10'>
+    <div className='relative min-h-svh overflow-hidden bg-muted/35 py-10'>
       <div className='absolute top-4 right-4 sm:top-6 sm:right-6'>
         <LanguageSwitcher />
       </div>
@@ -314,7 +314,7 @@ export function SetupWizard() {
           </p>
         </div>
 
-        <Card className='shadow-lg'>
+          <Card className='border-border/70 bg-card/90 shadow-[0_24px_80px_-32px_oklch(0.2_0.08_250/0.45)] backdrop-blur-xl'>
           <CardHeader className='space-y-2'>
             <CardTitle className='text-xl font-semibold'>
               {t('System setup wizard')}
@@ -333,7 +333,7 @@ export function SetupWizard() {
                   <li
                     key={step.titleKey}
                     className={cn('rounded-xl border p-3', {
-                      'border-primary ring-primary/20 ring-2': isActive,
+                      'border-primary bg-primary/[0.04] shadow-sm ring-primary/20 ring-2': isActive,
                       'border-primary/40 bg-primary/5':
                         !isActive && isCompleted,
                       'border-muted bg-card': !isActive && !isCompleted,

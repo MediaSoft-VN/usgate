@@ -1,0 +1,21 @@
+name: new-api-build
+
+services:
+  native-builder:
+    platform: ${NATIVE_PLATFORM:-linux/amd64}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder2
+      args:
+        NEW_API_BUILD_PGO: "false"
+    volumes:
+      - ./deploy:/output
+    command:
+      - sh
+      - -ec
+      - |
+        rm -f /output/new-api /output/new-api.gz /output/new-api-client.tar.gz
+        gzip -n -c /build/new-api > /output/new-api.gz
+        tar -czf /output/new-api-client.tar.gz -C /build/web/dist .
+        sha256sum /output/new-api.gz /output/new-api-client.tar.gz

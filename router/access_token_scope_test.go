@@ -60,6 +60,8 @@ var accessTokenExemptRoutes = []string{
 	"POST /api/creem/webhook",
 	"POST /api/waffo/webhook",
 	"POST /api/waffo-pancake/webhook/:env",
+	"POST /api/sepay/webhook",
+	"GET /api/sepay/return",
 	"GET /api/user/epay/notify",
 	"POST /api/user/epay/notify",
 	"GET /api/subscription/epay/notify",
@@ -141,6 +143,25 @@ func TestAccessTokenRouteRulesCoverEveryDashboardRoute(t *testing.T) {
 		assert.Equal(t, "scope", rule.Kind(), key)
 		assert.Equal(t, service.AccessTokenScopeOf(permission), rule.Scope(), key)
 	}
+}
+
+func TestProviderFundingAllocationRouteUsesBillingWriteScope(t *testing.T) {
+	engine := newAccessTokenScopeTestEngine(t)
+	const routeKey = "POST /api/financial/provider-funding/allocate"
+
+	registered := false
+	for _, route := range engine.Routes() {
+		if route.Method == "POST" && route.Path == "/api/financial/provider-funding/allocate" {
+			registered = true
+			break
+		}
+	}
+	require.True(t, registered, routeKey)
+
+	rule, ok := middleware.AccessTokenRouteRule(routeKey)
+	require.True(t, ok, routeKey)
+	assert.Equal(t, "scope", rule.Kind(), routeKey)
+	assert.Equal(t, "billing:write", rule.Scope(), routeKey)
 }
 
 func TestAccessTokenCatalogCoversEveryPermission(t *testing.T) {

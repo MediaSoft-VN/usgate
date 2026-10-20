@@ -35,6 +35,7 @@ import {
   Ticket,
   User,
   Users,
+  Building2,
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -148,6 +149,45 @@ export function useSidebarData(): SidebarData {
             icon: Users,
           },
           {
+            title: t('Tenants'),
+            url: '/tenants',
+            icon: Building2,
+          },
+          {
+            title: t('Wallet'),
+            url: '/customer-wallet',
+            icon: Wallet,
+          },
+          {
+            title: t('Billing'),
+            url: '/usage-logs/common',
+            activeUrls: ['/usage-logs'],
+            icon: FileText,
+          },
+          {
+            title: t('Cash flow history'),
+            url: '/provider-funding',
+            icon: Wallet,
+          },
+          {
+            title: t('Provider total wallet'),
+            url: '/provider-wallet',
+            icon: Wallet,
+          },
+          {
+            title: t('Pricing'),
+            url: '/system-settings/billing/model-pricing',
+            activeUrls: ['/system-settings/billing'],
+            icon: CreditCard,
+            requiredRole: ROLE.SUPER_ADMIN,
+          },
+          {
+            title: `${t('Billing')} ${t('Audit Logs')}`,
+            url: '/usage-logs/audit',
+            activeUrls: ['/usage-logs/audit'],
+            icon: ClipboardList,
+          },
+          {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
@@ -175,6 +215,18 @@ export function useSidebarData(): SidebarData {
             activeUrls: ['/system-settings'],
             icon: Settings,
             requiredRole: ROLE.SUPER_ADMIN,
+          },
+        ],
+      },
+      {
+        id: 'partner',
+        title: t('Partner management'),
+        items: [
+          {
+            title: t('Partner workspace'),
+            url: '/partner-workspace',
+            icon: Building2,
+            requiredPartner: true,
           },
         ],
       },

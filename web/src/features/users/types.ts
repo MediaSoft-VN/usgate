@@ -62,6 +62,7 @@ export const userSchema = z.object({
   admin_permissions: z
     .record(z.string(), z.record(z.string(), z.boolean()))
     .optional(),
+  is_partner: z.boolean().optional(),
 })
 export type User = z.infer<typeof userSchema>
 
@@ -135,6 +136,8 @@ export type ManageUserAction =
   | 'disable'
   | 'delete'
   | 'add_quota'
+  | 'partner_promote'
+  | 'partner_demote'
 
 export type QuotaAdjustMode = 'add' | 'subtract' | 'override'
 

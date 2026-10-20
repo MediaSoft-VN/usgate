@@ -100,3 +100,28 @@ func TestSaveStatusStateFromSingleKeySnapshotPreservesUnownedColumns(t *testing.
 	assert.Equal(t, "manual operation", otherInfo["status_reason"])
 	assert.Equal(t, float64(1234), otherInfo["status_time"])
 }
+
+func TestProviderCreditThresholdDisablesAndRestoresChannel(t *testing.T) {
+	setupChannelStatusTest(t)
+
+	channel := Channel{Name: "credit-threshold", Key: "key", Status: common.ChannelStatusEnabled, Balance: 10}
+	require.NoError(t, DB.Create(&channel).Error)
+
+	updated, err := SetProviderCreditThreshold(channel.Id, 20)
+	require.NoError(t, err)
+	assert.Equal(t, common.ChannelStatusAutoDisabled, updated.Status)
+	assert.True(t, GetProviderCreditSettings(updated).AutoDisabled)
+
+	updated.UpdateBalance(25)
+	var restored Channel
+	require.NoError(t, DB.First(&restored, channel.Id).Error)
+	assert.Equal(t, common.ChannelStatusEnabled, restored.Status)
+	assert.False(t, GetProviderCreditSettings(&restored).AutoDisabled)
+}
+
+func TestProviderCreditThresholdRejectsInvalidValues(t *testing.T) {
+	setupChannelStatusTest(t)
+
+	_, err := SetProviderCreditThreshold(1, -1)
+	assert.ErrorIs(t, err, ErrInvalidProviderCreditThreshold)
+}

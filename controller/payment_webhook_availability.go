@@ -108,3 +108,12 @@ func isEpayWebhookConfigured() bool {
 func isEpayWebhookEnabled() bool {
 	return isEpayTopUpEnabled()
 }
+
+func isSePayTopUpEnabled() bool {
+	if !isPaymentComplianceConfirmed() {
+		return false
+	}
+	return strings.TrimSpace(setting.SePayMerchantID) != "" &&
+		strings.TrimSpace(setting.SePaySecretKey) != "" &&
+		strings.TrimSpace(setting.SePayWebhookSecret) != ""
+}

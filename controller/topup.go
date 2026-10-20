@@ -53,6 +53,14 @@ func GetTopUpInfo(c *gin.Context) {
 			payMethods = append(payMethods, stripeMethod)
 		}
 	}
+	if isSePayTopUpEnabled() {
+		payMethods = append(payMethods, map[string]string{
+			"name":      "SePay",
+			"type":      "sepay",
+			"color":     "#0f766e",
+			"min_topup": strconv.Itoa(setting.SePayMinTopUp),
+		})
+	}
 
 	// Waffo Pancake is displayed above the standard Waffo gateway.
 	enableWaffoPancake := isWaffoPancakeTopUpEnabled()
@@ -99,6 +107,7 @@ func GetTopUpInfo(c *gin.Context) {
 
 	data := gin.H{
 		"enable_online_topup":              isEpayTopUpEnabled(),
+		"enable_sepay_topup":               isSePayTopUpEnabled(),
 		"enable_stripe_topup":              isStripeTopUpEnabled(),
 		"enable_creem_topup":               isCreemTopUpEnabled(),
 		"enable_waffo_topup":               enableWaffo,
@@ -115,6 +124,7 @@ func GetTopUpInfo(c *gin.Context) {
 		"creem_products":          setting.CreemProducts,
 		"pay_methods":             payMethods,
 		"min_topup":               operation_setting.MinTopUp,
+		"sepay_min_topup":         setting.SePayMinTopUp,
 		"stripe_min_topup":        setting.StripeMinTopUp,
 		"waffo_min_topup":         setting.WaffoMinTopUp,
 		"waffo_pancake_min_topup": setting.WaffoPancakeMinTopUp,

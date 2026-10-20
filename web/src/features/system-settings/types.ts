@@ -39,6 +39,24 @@ export type UpdateOptionResponse = {
   message: string
 }
 
+export type ExchangeRateRow = {
+  quote_currency: string
+  rate: string
+  effective_date: string
+  source: string
+  rate_type: string
+}
+
+export type ExchangeRatesResponse = {
+  success: boolean
+  message: string
+  data: {
+    source: string
+    rate_type: string
+    rates: ExchangeRateRow[]
+  }
+}
+
 export interface PasskeyDomainChange {
   rp_id: string
   legacy_rp_ids: string
@@ -282,7 +300,11 @@ export type BillingSettings = {
   USDExchangeRate: number
   'general_setting.quota_display_type': string
   'general_setting.custom_currency_symbol': string
+  'general_setting.custom_currency_code': string
   'general_setting.custom_currency_exchange_rate': number
+  'general_setting.exchange_rate_source': string
+  'general_setting.exchange_rate_type': string
+  'general_setting.manual_exchange_rates': string
   DisplayInCurrencyEnabled: boolean
   DisplayTokenStatEnabled: boolean
   ModelPrice: string
@@ -326,6 +348,12 @@ export type BillingSettings = {
   StripeUnitPrice: number
   StripeMinTopUp: number
   StripePromotionCodesEnabled: boolean
+  SePayMerchantID: string
+  SePaySecretKey: string
+  SePayWebhookSecret: string
+  SePaySandbox: boolean
+  SePayPaymentMethod: string
+  SePayMinTopUp: number
   CreemApiKey: string
   CreemWebhookSecret: string
   CreemTestMode: boolean

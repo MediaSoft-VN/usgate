@@ -626,6 +626,10 @@ func (channel *Channel) UpdateBalance(balance float64) {
 	}).Error
 	if err != nil {
 		common.SysLog(common.LogText("failed to update balance: channel_id=%d, error=%v", channel.Id, err))
+		return
+	}
+	if err := EvaluateProviderCredit(channel.Id); err != nil {
+		common.SysLog(common.LogText("failed to evaluate provider credit: channel_id=%d, error=%v", channel.Id, err))
 	}
 }
 

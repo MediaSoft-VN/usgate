@@ -20,6 +20,13 @@ type GeneralSetting struct {
 	CustomCurrencySymbol string `json:"custom_currency_symbol"`
 	// 自定义货币与美元汇率（1 USD = X Custom）
 	CustomCurrencyExchangeRate float64 `json:"custom_currency_exchange_rate"`
+	// ExchangeRateSource selects Vietcombank data or operator-entered rates.
+	ExchangeRateSource string `json:"exchange_rate_source"`
+	// ExchangeRateType selects cash, transfer, or sell from the bank response.
+	ExchangeRateType string `json:"exchange_rate_type"`
+	// ManualExchangeRates is a JSON object keyed by quote currency code.
+	ManualExchangeRates string `json:"manual_exchange_rates"`
+	CustomCurrencyCode  string `json:"custom_currency_code"`
 }
 
 // 默认配置
@@ -30,6 +37,10 @@ var generalSetting = GeneralSetting{
 	QuotaDisplayType:           QuotaDisplayTypeUSD,
 	CustomCurrencySymbol:       "¤",
 	CustomCurrencyExchangeRate: 1.0,
+	ExchangeRateSource:         "vietcombank",
+	ExchangeRateType:           "sell",
+	ManualExchangeRates:        "{}",
+	CustomCurrencyCode:         "CUSTOM",
 }
 
 func init() {
@@ -54,6 +65,22 @@ func IsCNYDisplay() bool {
 // GetQuotaDisplayType 返回额度展示类型
 func GetQuotaDisplayType() string {
 	return generalSetting.QuotaDisplayType
+}
+
+func GetFinancialCurrencyCode() string {
+	switch generalSetting.QuotaDisplayType {
+	case QuotaDisplayTypeCNY:
+		return "CNY"
+	case QuotaDisplayTypeCustom:
+		if generalSetting.CustomCurrencyCode != "" {
+			return generalSetting.CustomCurrencyCode
+		}
+		return "CUSTOM"
+	case QuotaDisplayTypeTokens:
+		return "USD"
+	default:
+		return "USD"
+	}
 }
 
 // GetCurrencySymbol 返回当前展示类型对应符号
