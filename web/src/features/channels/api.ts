@@ -38,6 +38,7 @@ import type {
   GetChannelsResponse,
   MultiKeyManageParams,
   MultiKeyStatusResponse,
+  ProviderCreditSnapshot,
   SearchChannelsParams,
   SearchChannelsResponse,
   TagOperationParams,
@@ -302,6 +303,27 @@ export async function updateChannelBalance(
     channelActionConfig()
   )
   return res.data
+}
+
+export async function getProviderCredit(
+  channelId: number
+): Promise<ProviderCreditSnapshot> {
+  const response = await api.get<{
+    success: boolean
+    data: ProviderCreditSnapshot
+  }>(`/api/channel/${channelId}/provider-credit`)
+  return requireServerSuccess(response.data).data
+}
+
+export async function updateProviderCredit(
+  channelId: number,
+  threshold: number
+): Promise<ProviderCreditSnapshot> {
+  const response = await api.put<{
+    success: boolean
+    data: ProviderCreditSnapshot
+  }>(`/api/channel/${channelId}/provider-credit`, { threshold })
+  return requireServerSuccess(response.data).data
 }
 
 /**

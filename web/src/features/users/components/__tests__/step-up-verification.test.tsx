@@ -198,3 +198,38 @@ it('disabling a user from the row menu binds the proof to the user and action', 
     expect.anything()
   )
 })
+
+it('upgrading a user from the row menu binds the partner action to that user', async () => {
+  const proof = mockVerification('admin.user.manage', 'partner-proof')
+  const post = vi.spyOn(api, 'post').mockImplementation(async (url) => {
+    if (url === '/api/verify') return proof
+    if (url === '/api/user/manage') return { data: { success: true } }
+    throw new Error(`Unexpected POST ${url}`)
+  })
+  renderInProvider(
+    <DataTableRowActions row={{ original: target } as Row<User>} />
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+  await userEvent.click(
+    await screen.findByRole('menuitem', { name: 'Upgrade to partner' })
+  )
+  await completeTwoFactorVerification()
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith(
+      '/api/user/manage',
+      { id: 2, action: 'partner_promote' },
+      expect.objectContaining({
+        headers: { 'X-Security-Proof': 'partner-proof' },
+        singleUseAuthorization: true,
+      })
+    )
+  )
+  expect(post).toHaveBeenCalledWith(
+    '/api/verify',
+    expect.objectContaining({
+      scope: 'admin.user.manage',
+      context: { user_id: 2, action: 'partner_promote' },
+    }),
+    expect.anything()
+  )
+})

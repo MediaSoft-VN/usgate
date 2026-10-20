@@ -61,12 +61,35 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/oauth/:provider", middleware.CriticalRateLimit(), middleware.DisableCache(), middleware.TryUserAuth(), controller.HandleOAuth)
 		apiRouter.GET("/ratio_config", middleware.CriticalRateLimit(), controller.GetRatioConfig)
 
+		tenantRoute := apiRouter.Group("/tenants")
+		tenantRoute.Use(middleware.UserAuth())
+		{
+			tenantRoute.GET("", controller.GetTenants)
+			tenantRoute.POST("", middleware.AdminAuth(), controller.PromoteTenant)
+			tenantRoute.GET("/:tenant_id", controller.GetTenant)
+			tenantRoute.PATCH("/:tenant_id", controller.UpdateTenant)
+			tenantRoute.GET("/:tenant_id/members", controller.ListTenantMembers)
+			tenantRoute.GET("/:tenant_id/member-candidates", controller.ListTenantMemberCandidates)
+			tenantRoute.POST("/:tenant_id/members/invitations", controller.UpsertTenantMember)
+			tenantRoute.PATCH("/:tenant_id/members/:user_id", controller.UpdateTenantMember)
+			tenantRoute.DELETE("/:tenant_id/members/:user_id", controller.RemoveTenantMember)
+			tenantRoute.POST("/:tenant_id/members/:user_id/transfer-owner", controller.TransferTenantOwner)
+			tenantRoute.GET("/:tenant_id/domains", controller.ListTenantDomains)
+			tenantRoute.POST("/:tenant_id/domains", controller.CreateTenantDomain)
+			tenantRoute.POST("/:tenant_id/domains/:domain_id/verify", controller.VerifyTenantDomain)
+			tenantRoute.DELETE("/:tenant_id/domains/:domain_id", controller.DisableTenantDomain)
+		}
+		apiRouter.GET("/tenant-context", middleware.UserAuth(), controller.TenantContextInfo)
+		apiRouter.POST("/tenant-context/select", middleware.UserAuth(), controller.SelectTenantContext)
+
 		apiRouter.POST("/stripe/webhook", anonymousRequestBodyLimit, controller.StripeWebhook)
 		apiRouter.POST("/creem/webhook", anonymousRequestBodyLimit, controller.CreemWebhook)
 		apiRouter.POST("/waffo/webhook", anonymousRequestBodyLimit, controller.WaffoWebhook)
 		// :env separates test vs prod URLs so the operator can register each
 		// in Pancake's matching webhook slot; handler enforces env match.
 		apiRouter.POST("/waffo-pancake/webhook/:env", anonymousRequestBodyLimit, controller.WaffoPancakeWebhook)
+		apiRouter.POST("/sepay/webhook", anonymousRequestBodyLimit, controller.SePayWebhook)
+		apiRouter.GET("/sepay/return", controller.SePayReturn)
 
 		// Universal secure verification routes
 		apiRouter.GET("/verify/methods", middleware.UserAuth(), middleware.DisableCache(), controller.GetVerificationMethods)
@@ -123,6 +146,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/topup/self", controller.GetUserTopUps)
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), controller.TopUp)
 				selfRoute.POST("/pay", middleware.CriticalRateLimit(), controller.RequestEpay)
+				selfRoute.POST("/sepay/pay", middleware.CriticalRateLimit(), controller.RequestSePay)
 				selfRoute.POST("/amount", controller.RequestAmount)
 				selfRoute.POST("/stripe/pay", middleware.CriticalRateLimit(), controller.RequestStripePay)
 				selfRoute.POST("/stripe/amount", controller.RequestStripeAmount)
@@ -155,6 +179,8 @@ func SetApiRouter(router *gin.Engine) {
 			{
 				adminRoute.GET("/", controller.GetAllUsers)
 				adminRoute.GET("/topup", controller.GetAllTopUps)
+				adminRoute.GET("/exchange-rates", controller.GetExchangeRates)
+				adminRoute.POST("/exchange-rates/sync", middleware.CriticalRateLimit(), controller.SyncExchangeRates)
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopUp)
 				adminRoute.GET("/search", controller.SearchUsers)
 				adminRoute.GET("/:id/oauth/bindings", controller.GetUserOAuthBindingsByAdmin)
@@ -182,6 +208,7 @@ func SetApiRouter(router *gin.Engine) {
 			subscriptionRoute.PUT("/self/preference", controller.UpdateSubscriptionPreference)
 			subscriptionRoute.POST("/balance/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestBalancePay)
 			subscriptionRoute.POST("/epay/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestEpay)
+			subscriptionRoute.POST("/sepay/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestSePay)
 			subscriptionRoute.POST("/stripe/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestStripePay)
 			subscriptionRoute.POST("/creem/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestCreemPay)
 			subscriptionRoute.POST("/waffo-pancake/pay", middleware.CriticalRateLimit(), controller.SubscriptionRequestWaffoPancakePay)
@@ -278,6 +305,11 @@ func SetApiRouter(router *gin.Engine) {
 		}
 		handlePermissionRoute(apiRouter.Group("", middleware.AdminAuth()), http.MethodGet, "/task_plugin_options", authz.TaskPluginBind, controller.GetTaskPluginOptions)
 		registerChannelRoutes(apiRouter)
+		apiRouter.GET("/financial/provider-funding", middleware.AdminAuth(), controller.ListProviderFunding)
+		apiRouter.POST("/financial/provider-funding", middleware.AdminAuth(), controller.CreateProviderFunding)
+		apiRouter.POST("/financial/provider-funding/allocate", middleware.AdminAuth(), controller.AllocateProviderFunding)
+		apiRouter.GET("/financial/provider-funding/sync", middleware.AdminAuth(), controller.GetProviderFundingSyncStatus)
+		apiRouter.POST("/financial/provider-funding/sync", middleware.AdminAuth(), controller.StartProviderFundingSync)
 		registerAuthzRoutes(apiRouter)
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())

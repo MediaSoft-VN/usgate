@@ -1,0 +1,37 @@
+┌─────────────────────────────────────────────────────────────────────┐
+│ PHASE 1: PM + PLAN (Parallel)                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│ /wbs → tạo WBS → ⛔ STOP (G_PM0) → user confirm                      │
+│     ↓ yes                                                            │
+│ create-tasks-dual.sh --phase wbs → Tier 1 Feature + Tier 2 9 Phases │
+│     ↓ save mapping                                                   │
+│ sync-status.sh PM+Plan phase → processing                            │
+├─────────────────────────────────────────────────────────────────────┤
+│ /estimate → G_PM1 → sync-status processing                          │
+│ /schedule → Gantt → mermaid                                          │
+│ /plan → G00 → sync-status processing                                 │
+└─────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ PHASE 2: SDLC PIPELINE                                              │
+├─────────────────────────────────────────────────────────────────────┤
+│ /ba → G01 → sync-status BA processing                               │
+│ /bd → G02 → sync-status BD processing                               │
+│ /dd → G03 → ⛔ STOP → user confirm                                   │
+│     ↓ yes                                                            │
+│ create-tasks-dual.sh --phase dd → Tier 3 Logic Blocks under Code    │
+│     ↓ save mapping                                                   │
+│ sync-status.sh Code phase → processing                              │
+├─────────────────────────────────────────────────────────────────────┤
+│ /code → implement exactly one task / Logic Block                    │
+│     ↓ implement → focused tests → E2E → review diff → commit        │
+│     ↓ commit succeeds before the next task                          │
+│     sync-status.sh <lb> done "" <code_phase_parent> → auto update   │
+│     ↓ all LB done                                                    │
+│     sync-status.sh <code_phase> done "" <feature_parent> → auto up  │
+├─────────────────────────────────────────────────────────────────────┤
+│ /test → /review → /ops → /guide                                     │
+│     each phase done → sync-status done "" <feature_parent>          │
+└─────────────────────────────────────────────────────────────────────┘
+                                  ↓
+                          Feature (Tier 1) → complete

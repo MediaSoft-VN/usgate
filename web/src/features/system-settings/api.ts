@@ -20,6 +20,7 @@ import { api } from '@/lib/api'
 
 import type {
   ConfirmPaymentComplianceResponse,
+  ExchangeRatesResponse,
   FetchUpstreamRatiosRequest,
   LogCleanupTask,
   SystemOptionsResponse,
@@ -123,5 +124,15 @@ export async function fetchUpstreamRatios(request: FetchUpstreamRatiosRequest) {
     '/api/ratio_sync/fetch',
     request
   )
+  return res.data
+}
+
+export async function syncExchangeRates() {
+  const res = await api.post('/api/user/exchange-rates/sync', {})
+  return res.data
+}
+
+export async function getExchangeRates(): Promise<ExchangeRatesResponse> {
+  const res = await api.get<ExchangeRatesResponse>('/api/user/exchange-rates')
   return res.data
 }

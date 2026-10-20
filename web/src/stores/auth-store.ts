@@ -34,6 +34,7 @@ export interface AuthUser {
   display_name?: string
   email?: string
   role: number
+  is_partner?: boolean
   status?: number
   group?: string
   quota?: number

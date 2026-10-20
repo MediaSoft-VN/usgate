@@ -376,8 +376,23 @@ func migrateDB() error {
 		&CasbinRule{},
 		&AuthzRole{},
 		&UserAccessToken{},
+		&ProviderCashFlow{},
+		&WalletAccount{},
+		&FinancialTransaction{},
+		&LedgerEntry{},
+		&IdempotencyKey{},
+		&ExchangeRate{},
+		&Tenant{},
+		&TenantMembership{},
+		&TenantDomain{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := MigrateTenants(); err != nil {
+		return err
+	}
+	if err := migrateProviderCashFlows(); err != nil {
 		return err
 	}
 	if err := InitializeUserAuthVersions(); err != nil {

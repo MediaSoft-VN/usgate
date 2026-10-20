@@ -9,4 +9,6 @@ docs
 .gocache
 /web/node_modules
 /web/dist
+/deploy/*.gz
+/deploy/new-api
 !THIRD-PARTY-LICENSES.md

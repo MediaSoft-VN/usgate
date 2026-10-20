@@ -283,12 +283,33 @@ func Register(c *gin.Context) {
 	if common.EmailVerificationEnabled {
 		cleanUser.Email = user.Email
 	}
-	if err := cleanUser.Insert(inviterId); err != nil {
-		if errors.Is(err, model.ErrEmailAlreadyTaken) {
+	// A verified custom domain is the only trusted tenant selector. A missing,
+	// unknown, or unverified hostname deliberately follows global registration.
+	tenant, tenantErr := model.ResolveVerifiedTenantForRegistration(c.Request.Host)
+	if tenantErr != nil && !errors.Is(tenantErr, model.ErrTenantNotFound) {
+		common.ApiErrorT(c, "Database error, please contact the administrator")
+		return
+	}
+	var insertErr error
+	if tenant != nil {
+		insertErr = model.DB.Transaction(func(tx *gorm.DB) error {
+			if err := cleanUser.InsertWithTx(tx, inviterId); err != nil {
+				return err
+			}
+			return model.EnsureActiveTenantMembership(tx, tenant.Id, cleanUser.Id)
+		})
+		if insertErr == nil {
+			cleanUser.FinishInsert(inviterId)
+		}
+	} else {
+		insertErr = cleanUser.Insert(inviterId)
+	}
+	if insertErr != nil {
+		if errors.Is(insertErr, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorT(c, "Email address is already in use")
 			return
 		}
-		common.ApiError(c, err)
+		common.ApiError(c, insertErr)
 		return
 	}
 
@@ -501,6 +522,7 @@ func buildSelfUserData(user *model.User) map[string]any {
 		"display_name":      user.DisplayName,
 		"has_password":      user.HasPassword,
 		"role":              user.Role,
+		"is_partner":        user.IsPartner,
 		"status":            user.Status,
 		"email":             user.Email,
 		"github_id":         user.GitHubId,
@@ -1175,6 +1197,11 @@ func ManageUser(c *gin.Context) {
 			return
 		}
 		user.Role = common.RoleCommonUser
+	case "partner_promote", "partner_demote":
+		if user.Status != common.UserStatusEnabled {
+			common.ApiErrorT(c, "User is disabled")
+			return
+		}
 	default:
 		common.ApiErrorT(c, "Invalid parameters")
 		return
@@ -1182,6 +1209,26 @@ func ManageUser(c *gin.Context) {
 
 	authorization := requireAdminUserProof(c, service.VerificationScopeAdminUserManage, service.AdminUserManageContext{UserID: user.Id, Action: req.Action})
 	if authorization == nil {
+		return
+	}
+	if req.Action == "partner_promote" || req.Action == "partner_demote" {
+		var partnerErr error
+		if req.Action == "partner_promote" {
+			partnerErr = service.PromoteUserPartner(user.Id)
+		} else {
+			partnerErr = service.DemoteUserPartner(user.Id)
+		}
+		if partnerErr != nil {
+			common.ApiError(c, partnerErr)
+			return
+		}
+		recordManageAuditFor(c, user.Id, "user.partner.manage", map[string]any{
+			"action":              req.Action,
+			"username":            user.Username,
+			"id":                  user.Id,
+			"verification_method": authorization.Method,
+		})
+		common.ApiSuccess(c, gin.H{"is_partner": req.Action == "partner_promote"})
 		return
 	}
 	if req.Action == "demote" {

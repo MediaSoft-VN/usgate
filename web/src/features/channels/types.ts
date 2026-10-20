@@ -214,6 +214,16 @@ export interface ChannelBalanceResponse {
   raw_response?: string
 }
 
+export interface ProviderCreditSnapshot {
+  channel_id: number
+  balance: number
+  threshold: number
+  below_threshold: boolean
+  auto_disabled: boolean
+  status: number
+  checked_at: number
+}
+
 export interface FetchModelsResponse {
   success: boolean
   message?: string

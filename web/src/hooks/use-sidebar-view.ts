@@ -48,6 +48,7 @@ export function useSidebarView(): ResolvedSidebarView {
   const { t } = useTranslation()
   const pathname = useLocation({ select: (l) => l.pathname })
   const userRole = useAuthStore((s) => s.auth.user?.role)
+  const isPartner = useAuthStore((s) => s.auth.user?.is_partner === true)
   const rootSidebarData = useSidebarData()
   const configFilteredRoot = useSidebarConfig(rootSidebarData.navGroups)
 
@@ -55,14 +56,20 @@ export function useSidebarView(): ResolvedSidebarView {
     const role = userRole ?? ROLE.GUEST
     const isAdmin = role >= ROLE.ADMIN
     return configFilteredRoot
-      .filter((group) => (group.id === 'admin' ? isAdmin : true))
+      .filter((group) => {
+        if (group.id === 'admin') return isAdmin
+        if (group.id === 'partner') return isPartner
+        return true
+      })
       .map((group) => {
         const items = group.items.filter(
-          (item) => item.requiredRole === undefined || role >= item.requiredRole
+          (item) =>
+            (item.requiredRole === undefined || role >= item.requiredRole) &&
+            (item.requiredPartner !== true || isPartner)
         )
         return items.length === group.items.length ? group : { ...group, items }
       })
-  }, [configFilteredRoot, userRole])
+  }, [configFilteredRoot, isPartner, userRole])
 
   const view = resolveSidebarView(pathname)
 

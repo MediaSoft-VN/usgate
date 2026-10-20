@@ -95,8 +95,21 @@ const BILLING_SECTIONS = [
             ),
             custom_currency_symbol:
               settings['general_setting.custom_currency_symbol'] ?? '¤',
+            custom_currency_code:
+              settings['general_setting.custom_currency_code'] ?? 'CUSTOM',
             custom_currency_exchange_rate:
               settings['general_setting.custom_currency_exchange_rate'] ?? 1,
+            exchange_rate_source:
+              settings['general_setting.exchange_rate_source'] === 'manual'
+                ? 'manual'
+                : 'vietcombank',
+            exchange_rate_type:
+              settings['general_setting.exchange_rate_type'] === 'cash' ||
+              settings['general_setting.exchange_rate_type'] === 'transfer'
+                ? settings['general_setting.exchange_rate_type']
+                : 'sell',
+            manual_exchange_rates:
+              settings['general_setting.manual_exchange_rates'] ?? '{}',
           },
         }}
       />
@@ -149,6 +162,12 @@ const BILLING_SECTIONS = [
           StripeUnitPrice: settings.StripeUnitPrice,
           StripeMinTopUp: settings.StripeMinTopUp,
           StripePromotionCodesEnabled: settings.StripePromotionCodesEnabled,
+          SePayMerchantID: settings.SePayMerchantID ?? '',
+          SePaySecretKey: settings.SePaySecretKey ?? '',
+          SePayWebhookSecret: settings.SePayWebhookSecret ?? '',
+          SePaySandbox: settings.SePaySandbox ?? true,
+          SePayPaymentMethod: settings.SePayPaymentMethod ?? 'BANK_TRANSFER',
+          SePayMinTopUp: settings.SePayMinTopUp ?? 1,
           CreemApiKey: settings.CreemApiKey,
           CreemWebhookSecret: settings.CreemWebhookSecret,
           CreemTestMode: settings.CreemTestMode,

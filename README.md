@@ -206,6 +206,9 @@ curl --fail-with-body http://localhost:3000/v1/responses \
 
 ### Docker Compose
 
+For a non-Docker deployment using a native binary, systemd, and Nginx, see the
+[build and deployment guide](./docs/deployment/build-and-deploy-with-nginx.md).
+
 The repository's [Compose configuration](./docker-compose.yml) starts **New API + PostgreSQL + Redis** by default. It also contains examples for MySQL and a separate ClickHouse log database.
 
 ```bash
