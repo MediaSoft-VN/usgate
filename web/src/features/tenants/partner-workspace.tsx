@@ -224,6 +224,7 @@ export function PartnerWorkspace() {
                     <CardTitle className='flex items-center justify-between'>
                       <span>{t('Tenant domains')}</span>
                       <Button
+                        type='button'
                         size='sm'
                         onClick={() => setDomainDialogOpen(true)}
                       >
