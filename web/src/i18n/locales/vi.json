@@ -7350,6 +7350,13 @@
     "Vietcombank daily rates or manually entered rates for SePay settlement": "Tỷ giá hàng ngày của Vietcombank hoặc tỷ giá nhập tay cho quyết toán SePay",
     "VND Exchange Rates": "Tỷ giá VND",
     "VND per one unit of foreign currency": "VND cho một đơn vị ngoại tệ",
-    "Record credit": "Ghi nhận tín dụng"
+    "Record credit": "Ghi nhận tín dụng",
+    "Tenant Management": "Quản lý tenant",
+    "Create Tenant": "Tạo tenant",
+    "Tenant name": "Tên tenant",
+    "Tenant slug": "Slug tenant",
+    "Tenants": "Tenant",
+    "No Tenants Found": "Không tìm thấy tenant",
+    "Failed to create tenant": "Không thể tạo tenant"
   }
 }

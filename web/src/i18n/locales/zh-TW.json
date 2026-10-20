@@ -7350,6 +7350,13 @@
     "Vietcombank daily rates or manually entered rates for SePay settlement": "用於 SePay 結算的 Vietcombank 每日匯率或手動匯率",
     "VND Exchange Rates": "VND 匯率",
     "VND per one unit of foreign currency": "1 單位外幣對應多少 VND",
-    "Record credit": "記錄信用額度"
+    "Record credit": "記錄信用額度",
+    "Tenant Management": "租戶管理",
+    "Create Tenant": "建立租戶",
+    "Tenant name": "租戶名稱",
+    "Tenant slug": "租戶識別碼",
+    "Tenants": "租戶",
+    "No Tenants Found": "找不到租戶",
+    "Failed to create tenant": "建立租戶失敗"
   }
 }

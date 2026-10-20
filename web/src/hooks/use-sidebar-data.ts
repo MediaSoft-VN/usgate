@@ -35,6 +35,7 @@ import {
   Ticket,
   User,
   Users,
+  Building2,
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -146,6 +147,11 @@ export function useSidebarData(): SidebarData {
             title: t('Users'),
             url: '/users',
             icon: Users,
+          },
+          {
+            title: t('Tenants'),
+            url: '/tenants',
+            icon: Building2,
           },
           {
             title: t('Wallet'),
