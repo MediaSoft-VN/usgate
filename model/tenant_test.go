@@ -56,7 +56,10 @@ func TestGenerateTenantPartnerCode(t *testing.T) {
 }
 
 func TestNormalizeTenantHostname(t *testing.T) {
-	tests := []struct { input, expected string; valid bool }{
+	tests := []struct {
+		input, expected string
+		valid           bool
+	}{
 		{"Console.Example.com.", "console.example.com", true},
 		{"console.example.com:443", "", false},
 		{"user@example.com", "", false},
@@ -64,7 +67,12 @@ func TestNormalizeTenantHostname(t *testing.T) {
 	}
 	for _, test := range tests {
 		got, err := NormalizeTenantHostname(test.input)
-		if test.valid { require.NoError(t, err); require.Equal(t, test.expected, got) } else { require.Error(t, err) }
+		if test.valid {
+			require.NoError(t, err)
+			require.Equal(t, test.expected, got)
+		} else {
+			require.Error(t, err)
+		}
 	}
 }
 
@@ -76,4 +84,41 @@ func TestVerifyTenantDomainRequiresPendingMatchingToken(t *testing.T) {
 	require.False(t, VerifyTenantDomain(&domain, "wrong-token"))
 	domain.Status = DomainDisabled
 	require.False(t, VerifyTenantDomain(&domain, token))
+}
+
+func TestRegistrationTenantResolutionAndMembershipAreHostBoundAndIdempotent(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&User{}, &Tenant{}, &TenantMembership{}, &TenantDomain{}))
+	previousDB := DB
+	DB = db
+	t.Cleanup(func() { DB = previousDB })
+
+	owner := User{Username: "registration-owner", Password: "unused", AffCode: "registration-owner-code", Status: common.UserStatusEnabled}
+	newUser := User{Username: "registration-user", Password: "unused", AffCode: "registration-user-code", Status: common.UserStatusEnabled}
+	require.NoError(t, db.Create(&owner).Error)
+	require.NoError(t, db.Create(&newUser).Error)
+	first, err := CreateTenantWithOwner(db, "first-tenant", "First Tenant", owner.Id)
+	require.NoError(t, err)
+	second, err := CreateTenantWithOwner(db, "second-tenant", "Second Tenant", owner.Id)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&TenantDomain{TenantId: first.Id, Hostname: "first.example.com", Status: DomainVerified}).Error)
+	require.NoError(t, db.Create(&TenantDomain{TenantId: second.Id, Hostname: "pending.example.com", Status: DomainPending}).Error)
+
+	resolved, err := ResolveVerifiedTenantForRegistration("FIRST.EXAMPLE.COM.")
+	require.NoError(t, err)
+	require.Equal(t, first.Id, resolved.Id)
+	_, err = ResolveVerifiedTenantForRegistration("pending.example.com")
+	require.ErrorIs(t, err, ErrTenantNotFound)
+	_, err = ResolveVerifiedTenantForRegistration("unknown.example.com")
+	require.ErrorIs(t, err, ErrTenantNotFound)
+
+	require.NoError(t, EnsureActiveTenantMembership(db, first.Id, newUser.Id))
+	require.NoError(t, EnsureActiveTenantMembership(db, first.Id, newUser.Id))
+	var memberships []TenantMembership
+	require.NoError(t, db.Where("user_id = ?", newUser.Id).Find(&memberships).Error)
+	require.Len(t, memberships, 1)
+	require.Equal(t, MembershipActive, memberships[0].Status)
+	_, err = ActiveMembership(second.Id, newUser.Id)
+	require.Error(t, err)
 }

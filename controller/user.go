@@ -283,12 +283,33 @@ func Register(c *gin.Context) {
 	if common.EmailVerificationEnabled {
 		cleanUser.Email = user.Email
 	}
-	if err := cleanUser.Insert(inviterId); err != nil {
-		if errors.Is(err, model.ErrEmailAlreadyTaken) {
+	// A verified custom domain is the only trusted tenant selector. A missing,
+	// unknown, or unverified hostname deliberately follows global registration.
+	tenant, tenantErr := model.ResolveVerifiedTenantForRegistration(c.Request.Host)
+	if tenantErr != nil && !errors.Is(tenantErr, model.ErrTenantNotFound) {
+		common.ApiErrorT(c, "Database error, please contact the administrator")
+		return
+	}
+	var insertErr error
+	if tenant != nil {
+		insertErr = model.DB.Transaction(func(tx *gorm.DB) error {
+			if err := cleanUser.InsertWithTx(tx, inviterId); err != nil {
+				return err
+			}
+			return model.EnsureActiveTenantMembership(tx, tenant.Id, cleanUser.Id)
+		})
+		if insertErr == nil {
+			cleanUser.FinishInsert(inviterId)
+		}
+	} else {
+		insertErr = cleanUser.Insert(inviterId)
+	}
+	if insertErr != nil {
+		if errors.Is(insertErr, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorT(c, "Email address is already in use")
 			return
 		}
-		common.ApiError(c, err)
+		common.ApiError(c, insertErr)
 		return
 	}
 

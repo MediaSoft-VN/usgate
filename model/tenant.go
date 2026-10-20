@@ -254,6 +254,21 @@ func VerifyTenantDomain(domain *TenantDomain, token string) bool {
 }
 
 func ResolveVerifiedTenant(host string, userID int) (*Tenant, error) {
+	tenant, err := ResolveVerifiedTenantForRegistration(host)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = ActiveMembership(tenant.Id, userID); err != nil {
+		return nil, ErrTenantNotFound
+	}
+	return tenant, nil
+}
+
+// ResolveVerifiedTenantForRegistration resolves a tenant from the request
+// host without using any client-supplied tenant identifier. Unlike the normal
+// tenant resolver, it does not require membership because registration creates
+// that membership as part of the same operation.
+func ResolveVerifiedTenantForRegistration(host string) (*Tenant, error) {
 	normalized, err := NormalizeTenantHostname(host)
 	if err != nil {
 		return nil, ErrTenantNotFound
@@ -266,10 +281,31 @@ func ResolveVerifiedTenant(host string, userID int) (*Tenant, error) {
 	if err = DB.Where("id = ? AND status = ? AND deleted_at IS NULL", domain.TenantId, TenantActive).First(&tenant).Error; err != nil {
 		return nil, ErrTenantNotFound
 	}
-	if _, err = ActiveMembership(tenant.Id, userID); err != nil {
-		return nil, ErrTenantNotFound
-	}
 	return &tenant, nil
+}
+
+// EnsureActiveTenantMembership makes a user an active member of a tenant. It
+// is idempotent so retries cannot create duplicate memberships, and it also
+// reactivates a prior membership for the same user and tenant.
+func EnsureActiveTenantMembership(tx *gorm.DB, tenantID, userID int) error {
+	var membership TenantMembership
+	err := tx.Where("tenant_id = ? AND user_id = ?", tenantID, userID).First(&membership).Error
+	now := common.GetTimestamp()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return tx.Create(&TenantMembership{
+			TenantId: tenantID, UserId: userID, RoleKey: TenantRoleMember,
+			Status: MembershipActive, CreatedAt: now, UpdatedAt: now,
+		}).Error
+	}
+	if err != nil {
+		return err
+	}
+	if membership.Status == MembershipActive {
+		return nil
+	}
+	return tx.Model(&membership).Updates(map[string]any{
+		"status": MembershipActive, "role_key": TenantRoleMember, "updated_at": now,
+	}).Error
 }
 
 func MigrateTenants() error {
