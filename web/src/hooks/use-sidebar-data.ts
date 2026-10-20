@@ -218,6 +218,18 @@ export function useSidebarData(): SidebarData {
           },
         ],
       },
+      {
+        id: 'partner',
+        title: t('Partner Workspace'),
+        items: [
+          {
+            title: t('Tenant settings'),
+            url: '/partner-workspace',
+            icon: Building2,
+            requiredPartner: true,
+          },
+        ],
+      },
     ],
   }
 }

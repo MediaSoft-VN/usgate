@@ -27,6 +27,7 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedChat2linkRouteImport } from './routes/_authenticated/chat2link'
+import { Route as AuthenticatedPartnerWorkspaceRouteImport } from './routes/_authenticated/partner-workspace'
 import { Route as AuthenticatedProviderFundingRouteImport } from './routes/_authenticated/provider-funding'
 import { Route as AuthenticatedProviderWalletRouteImport } from './routes/_authenticated/provider-wallet'
 import { Route as AuthenticatedSystemSettingsRouteRouteImport } from './routes/_authenticated/system-settings/route'
@@ -165,6 +166,12 @@ const AuthenticatedChat2linkRoute = AuthenticatedChat2linkRouteImport.update({
   path: '/chat2link',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPartnerWorkspaceRoute =
+  AuthenticatedPartnerWorkspaceRouteImport.update({
+    id: '/partner-workspace',
+    path: '/partner-workspace',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProviderFundingRoute =
   AuthenticatedProviderFundingRouteImport.update({
     id: '/provider-funding',
@@ -468,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
+  '/partner-workspace': typeof AuthenticatedPartnerWorkspaceRoute
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -534,6 +542,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
+  '/partner-workspace': typeof AuthenticatedPartnerWorkspaceRoute
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -604,6 +613,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/chat2link': typeof AuthenticatedChat2linkRoute
+  '/_authenticated/partner-workspace': typeof AuthenticatedPartnerWorkspaceRoute
   '/_authenticated/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/_authenticated/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -673,6 +683,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/chat2link'
+    | '/partner-workspace'
     | '/provider-funding'
     | '/provider-wallet'
     | '/oauth/$provider'
@@ -739,6 +750,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/chat2link'
+    | '/partner-workspace'
     | '/provider-funding'
     | '/provider-wallet'
     | '/oauth/$provider'
@@ -808,6 +820,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/chat2link'
+    | '/_authenticated/partner-workspace'
     | '/_authenticated/provider-funding'
     | '/_authenticated/provider-wallet'
     | '/oauth/$provider'
@@ -1003,6 +1016,13 @@ declare module '@tanstack/react-router' {
       path: '/chat2link'
       fullPath: '/chat2link'
       preLoaderRoute: typeof AuthenticatedChat2linkRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/partner-workspace': {
+      id: '/_authenticated/partner-workspace'
+      path: '/partner-workspace'
+      fullPath: '/partner-workspace'
+      preLoaderRoute: typeof AuthenticatedPartnerWorkspaceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/provider-funding': {
@@ -1443,6 +1463,7 @@ const AuthenticatedSystemSettingsRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedSystemSettingsRouteRoute: typeof AuthenticatedSystemSettingsRouteRouteWithChildren
   AuthenticatedChat2linkRoute: typeof AuthenticatedChat2linkRoute
+  AuthenticatedPartnerWorkspaceRoute: typeof AuthenticatedPartnerWorkspaceRoute
   AuthenticatedProviderFundingRoute: typeof AuthenticatedProviderFundingRoute
   AuthenticatedProviderWalletRoute: typeof AuthenticatedProviderWalletRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
@@ -1473,6 +1494,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSystemSettingsRouteRoute:
     AuthenticatedSystemSettingsRouteRouteWithChildren,
   AuthenticatedChat2linkRoute: AuthenticatedChat2linkRoute,
+  AuthenticatedPartnerWorkspaceRoute: AuthenticatedPartnerWorkspaceRoute,
   AuthenticatedProviderFundingRoute: AuthenticatedProviderFundingRoute,
   AuthenticatedProviderWalletRoute: AuthenticatedProviderWalletRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
