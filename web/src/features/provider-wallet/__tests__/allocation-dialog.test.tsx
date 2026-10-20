@@ -100,7 +100,7 @@ it('shows provider funding without using the channel upstream balance', async ()
   expect(screen.getAllByText('Available')).toHaveLength(1)
   expect(screen.getByText('Total funded')).toBeInTheDocument()
   expect(
-    screen.getAllByRole('button', { name: 'Sync provider balances' })
+    screen.getAllByRole('button', { name: 'Sync credit' })
   ).toHaveLength(1)
   expect(screen.getByText(/100 USD/)).toBeInTheDocument()
   expect(screen.getByText(/75 USD/)).toBeInTheDocument()
