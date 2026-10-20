@@ -7357,6 +7357,8 @@
     "Tenant slug": "Tenant slug",
     "Tenants": "Tenants",
     "No Tenants Found": "No Tenants Found",
-    "Failed to create tenant": "Failed to create tenant"
+    "Failed to create tenant": "Failed to create tenant",
+    "Partner owner": "Partner owner",
+    "Select an existing user": "Select an existing user"
   }
 }

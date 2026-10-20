@@ -7357,6 +7357,8 @@
     "Tenant slug": "テナントスラッグ",
     "Tenants": "テナント",
     "No Tenants Found": "テナントがありません",
-    "Failed to create tenant": "テナントの作成に失敗しました"
+    "Failed to create tenant": "テナントの作成に失敗しました",
+    "Partner owner": "パートナー所有者",
+    "Select an existing user": "既存のユーザーを選択"
   }
 }

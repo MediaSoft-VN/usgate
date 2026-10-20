@@ -20,13 +20,16 @@ Payment channels, wallets and custom branding are planned for later milestones.
 
 Platform administrators remain separate from tenant roles.
 
-## 3. Create a tenant
+## 3. Promote a user into a tenant partner
 
-1. Open tenant management.
-2. Select **Create tenant**.
+1. A platform administrator opens tenant management.
+2. Select **Create tenant** and choose an existing enabled system user as the
+   partner owner.
 3. Enter a unique slug and display name.
 4. Save.
-5. The creator becomes the tenant owner.
+5. The selected user becomes the tenant owner.
+
+Regular users cannot create tenants themselves.
 
 Tenant slugs are lowercase and cannot be reused by another tenant.
 
@@ -80,9 +83,15 @@ fix the tenant.
 
 ## 8. Planned next milestones
 
-After M1 is accepted:
+The following partner capabilities are not implemented in this M1 flow and
+remain M2 work:
 
-1. Tenant wallet and ledger.
-2. Tenant payment channels and webhooks.
-3. Tenant-to-user credit allocation.
-4. White-label branding and user-facing payment UI.
+1. Tenant verified-domain management UI and end-to-end domain operations.
+2. Tenant member management UI and invitation lifecycle.
+3. Tenant cash-flow views and ledger reporting.
+4. Tenant wallet crediting and user wallet allocation.
+
+After M2 is accepted:
+
+1. Tenant payment channels and webhooks.
+2. White-label branding and user-facing payment UI.

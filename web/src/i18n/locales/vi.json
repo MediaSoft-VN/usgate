@@ -7357,6 +7357,8 @@
     "Tenant slug": "Slug tenant",
     "Tenants": "Tenant",
     "No Tenants Found": "Không tìm thấy tenant",
-    "Failed to create tenant": "Không thể tạo tenant"
+    "Failed to create tenant": "Không thể tạo tenant",
+    "Partner owner": "Chủ đối tác",
+    "Select an existing user": "Chọn người dùng hiện có"
   }
 }

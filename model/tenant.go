@@ -67,6 +67,7 @@ type TenantDomain struct {
 var ErrTenantNotFound = errors.New("tenant not found")
 var ErrTenantForbidden = errors.New("tenant access denied")
 var ErrFinalOwner = errors.New("the final active owner cannot be removed or demoted")
+var ErrInvalidTenantOwner = errors.New("tenant owner must be an existing enabled user")
 
 func normalizeTenantSlug(slug string) (string, error) {
 	slug = strings.ToLower(strings.TrimSpace(slug))
@@ -110,6 +111,10 @@ func CreateTenantWithOwner(tx *gorm.DB, slug, name string, userID int) (*Tenant,
 	slug, err = normalizeTenantSlug(slug)
 	if err != nil || strings.TrimSpace(name) == "" || len(name) > 128 {
 		return nil, errors.New("invalid tenant")
+	}
+	var user User
+	if err = tx.Where("id = ? AND status = ?", userID, common.UserStatusEnabled).First(&user).Error; err != nil {
+		return nil, ErrInvalidTenantOwner
 	}
 	now := common.GetTimestamp()
 	tenant := &Tenant{Slug: slug, Name: strings.TrimSpace(name), Status: TenantActive, CreatedBy: userID, CreatedAt: now, UpdatedAt: now}

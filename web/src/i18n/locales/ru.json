@@ -7357,6 +7357,8 @@
     "Tenant slug": "Идентификатор арендатора",
     "Tenants": "Арендаторы",
     "No Tenants Found": "Арендаторы не найдены",
-    "Failed to create tenant": "Не удалось создать арендатора"
+    "Failed to create tenant": "Не удалось создать арендатора",
+    "Partner owner": "Владелец партнёра",
+    "Select an existing user": "Выберите существующего пользователя"
   }
 }

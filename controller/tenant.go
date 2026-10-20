@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type tenantRequest struct { Slug string `json:"slug"`; Name string `json:"name"` }
+type tenantRequest struct { Slug string `json:"slug"`; Name string `json:"name"`; OwnerUserID int `json:"owner_user_id"` }
 type membershipRequest struct { UserID int `json:"user_id"`; Role string `json:"role_key"` }
 type domainRequest struct { Hostname string `json:"hostname"` }
 type domainVerifyRequest struct { Token string `json:"token"` }
@@ -23,14 +23,18 @@ func tenantIDParam(c *gin.Context) (int, bool) {
 
 func GetTenants(c *gin.Context) {
 	var tenants []model.Tenant
-	err := model.DB.Joins("JOIN tenant_memberships ON tenant_memberships.tenant_id = tenants.id").Where("tenant_memberships.user_id = ? AND tenant_memberships.status = ? AND tenants.deleted_at IS NULL", c.GetInt("id"), model.MembershipActive).Find(&tenants).Error
+	query := model.DB.Where("tenants.deleted_at IS NULL")
+	if c.GetInt("role") < common.RoleAdminUser {
+		query = query.Joins("JOIN tenant_memberships ON tenant_memberships.tenant_id = tenants.id").Where("tenant_memberships.user_id = ? AND tenant_memberships.status = ?", c.GetInt("id"), model.MembershipActive)
+	}
+	err := query.Find(&tenants).Error
 	if err != nil { common.ApiError(c, err); return }; common.ApiSuccess(c, tenants)
 }
 
-func CreateTenant(c *gin.Context) {
+func PromoteTenant(c *gin.Context) {
 	var request tenantRequest
-	if err := c.ShouldBindJSON(&request); err != nil { common.ApiErrorT(c, "Invalid parameters"); return }
-	tenant, err := service.CreateTenant(request.Slug, request.Name, c.GetInt("id"))
+	if err := c.ShouldBindJSON(&request); err != nil || request.OwnerUserID <= 0 { common.ApiErrorT(c, "Invalid parameters"); return }
+	tenant, err := service.PromoteTenant(request.Slug, request.Name, request.OwnerUserID)
 	if err != nil { common.ApiError(c, err); return }; common.ApiSuccess(c, tenant)
 }
 

@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -22,11 +23,12 @@ import {
 } from '@/components/ui/table'
 import { handleServerError } from '@/lib/handle-server-error'
 
-import { createTenant, getTenants } from './api'
+import { getTenantOwnerCandidates, getTenants, promoteTenant } from './api'
 
 const tenantSchema = z.object({
   slug: z.string().trim().min(1).max(64),
   name: z.string().trim().min(1).max(128),
+  owner_user_id: z.number().int().positive(),
 })
 
 type TenantForm = z.infer<typeof tenantSchema>
@@ -38,12 +40,16 @@ export function Tenants() {
     queryKey: ['tenants'],
     queryFn: getTenants,
   })
+  const ownerCandidatesQuery = useQuery({
+    queryKey: ['tenant-owner-candidates'],
+    queryFn: getTenantOwnerCandidates,
+  })
   const form = useForm<TenantForm>({
     resolver: zodResolver(tenantSchema),
-    defaultValues: { slug: '', name: '' },
+    defaultValues: { slug: '', name: '', owner_user_id: 0 },
   })
   const createMutation = useMutation({
-    mutationFn: createTenant,
+    mutationFn: promoteTenant,
     onSuccess: async () => {
       form.reset()
       await queryClient.invalidateQueries({ queryKey: ['tenants'] })
@@ -67,7 +73,7 @@ export function Tenants() {
             </CardHeader>
             <CardContent>
               <form
-                className='grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end'
+                className='grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end'
                 onSubmit={form.handleSubmit((values) =>
                   createMutation.mutate(values)
                 )}
@@ -78,6 +84,22 @@ export function Tenants() {
                     aria-invalid={!!form.formState.errors.name}
                     {...form.register('name')}
                   />
+                </label>
+                <label className='grid gap-1 text-sm'>
+                  <span>{t('Partner owner')}</span>
+                  <NativeSelect
+                    aria-invalid={!!form.formState.errors.owner_user_id}
+                    {...form.register('owner_user_id', { valueAsNumber: true })}
+                  >
+                    <NativeSelectOption value={0}>
+                      {t('Select an existing user')}
+                    </NativeSelectOption>
+                    {ownerCandidatesQuery.data?.map((user) => (
+                      <NativeSelectOption key={user.id} value={user.id}>
+                        {user.display_name || user.username} ({user.username})
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
                 </label>
                 <label className='grid gap-1 text-sm'>
                   <span>{t('Tenant slug')}</span>

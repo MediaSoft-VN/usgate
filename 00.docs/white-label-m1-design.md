@@ -6,8 +6,9 @@
 
 ## 1. Objective
 
-Allow any eligible user to operate an isolated White-label tenant with its own
-domain, members and permissions. M1 establishes the security boundary. Wallet,
+Allow a platform administrator to promote an existing system user into an
+isolated White-label tenant partner with its own domain, members and permissions.
+M1 establishes the security boundary. Wallet,
 payment channels and tenant branding are later milestones that consume this
 boundary.
 
@@ -114,17 +115,19 @@ The existing global platform role remains separate from tenant membership.
 ```text
 GET   /api/tenants
 GET   /api/tenants/:tenant_id
-POST  /api/tenants
+POST  /api/tenants (platform admin only)
 PATCH /api/tenants/:tenant_id
 ```
 
 Create request:
 
 ```json
-{"slug":"acme","name":"Acme"}
+{"slug":"acme","name":"Acme","owner_user_id":42}
 ```
 
-Creation atomically creates the tenant and the owner membership.
+The platform administrator must select an existing enabled system user. Creation
+atomically creates the tenant and the owner membership; users cannot create
+tenants for themselves.
 
 ### Memberships
 

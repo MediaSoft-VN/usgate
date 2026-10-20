@@ -65,7 +65,7 @@ func SetApiRouter(router *gin.Engine) {
 		tenantRoute.Use(middleware.UserAuth())
 		{
 			tenantRoute.GET("", controller.GetTenants)
-			tenantRoute.POST("", controller.CreateTenant)
+			tenantRoute.POST("", middleware.AdminAuth(), controller.PromoteTenant)
 			tenantRoute.GET("/:tenant_id", controller.GetTenant)
 			tenantRoute.PATCH("/:tenant_id", controller.UpdateTenant)
 			tenantRoute.GET("/:tenant_id/members", controller.ListTenantMembers)

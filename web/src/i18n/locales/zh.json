@@ -7357,6 +7357,8 @@
     "Tenant slug": "租户标识",
     "Tenants": "租户",
     "No Tenants Found": "未找到租户",
-    "Failed to create tenant": "创建租户失败"
+    "Failed to create tenant": "创建租户失败",
+    "Partner owner": "合作伙伴所有者",
+    "Select an existing user": "选择现有用户"
   }
 }
