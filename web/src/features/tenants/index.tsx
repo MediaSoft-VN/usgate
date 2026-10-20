@@ -58,8 +58,6 @@ export function Tenants() {
   const [token, setToken] = useState('')
   const [verificationToken, setVerificationToken] = useState('')
   const [partnerOwnerId, setPartnerOwnerId] = useState('')
-  const [partnerName, setPartnerName] = useState('')
-  const [partnerSlug, setPartnerSlug] = useState('')
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
   const ownerCandidatesQuery = useQuery({ queryKey: ['tenant-owner-candidates'], queryFn: getTenantOwnerCandidates })
@@ -92,8 +90,6 @@ export function Tenants() {
     onSuccess: async () => {
       setPartnerDialogOpen(false)
       setPartnerOwnerId('')
-      setPartnerName('')
-      setPartnerSlug('')
       await queryClient.invalidateQueries({ queryKey: ['tenants'] })
       toast.success(t('Provider partner created'))
     },
@@ -101,11 +97,16 @@ export function Tenants() {
   })
   const submitPartnerUpgrade = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending) return
+    if (!partnerOwnerId || partnerMutation.isPending) return
+
+    const owner = ownerCandidatesQuery.data?.find((user) => user.id === Number(partnerOwnerId))
+    if (!owner) return
+    const name = owner.display_name?.trim() || owner.username
+    const slug = owner.username.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-|-$/g, '').slice(0, 64) || `partner-${owner.id}`
 
     partnerMutation.mutate({
-      name: partnerName.trim(),
-      slug: partnerSlug.trim(),
+      name,
+      slug,
       owner_user_id: Number(partnerOwnerId),
     })
   }
@@ -154,15 +155,7 @@ export function Tenants() {
                         {ownerCandidatesQuery.data?.map((user) => <NativeSelectOption key={user.id} value={user.id}>{user.display_name || user.username} ({user.username})</NativeSelectOption>)}
                       </NativeSelect>
                     </label>
-                    <label className='grid gap-1 text-sm'>
-                      <span>{t('Partner name')}</span>
-                      <Input value={partnerName} onChange={(event) => setPartnerName(event.target.value)} />
-                    </label>
-                    <label className='grid gap-1 text-sm'>
-                      <span>{t('Partner slug')}</span>
-                      <Input value={partnerSlug} onChange={(event) => setPartnerSlug(event.target.value)} />
-                    </label>
-                    <DialogFooter><Button type='submit' disabled={!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
+                    <DialogFooter><Button type='submit' disabled={!partnerOwnerId || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
