@@ -69,6 +69,7 @@ func SetApiRouter(router *gin.Engine) {
 			tenantRoute.GET("/:tenant_id", controller.GetTenant)
 			tenantRoute.PATCH("/:tenant_id", controller.UpdateTenant)
 			tenantRoute.GET("/:tenant_id/members", controller.ListTenantMembers)
+			tenantRoute.GET("/:tenant_id/member-candidates", controller.ListTenantMemberCandidates)
 			tenantRoute.POST("/:tenant_id/members/invitations", controller.UpsertTenantMember)
 			tenantRoute.PATCH("/:tenant_id/members/:user_id", controller.UpdateTenantMember)
 			tenantRoute.DELETE("/:tenant_id/members/:user_id", controller.RemoveTenantMember)

@@ -220,10 +220,10 @@ export function useSidebarData(): SidebarData {
       },
       {
         id: 'partner',
-        title: t('Partner Workspace'),
+        title: t('Partner management'),
         items: [
           {
-            title: t('Tenant settings'),
+            title: t('Partner workspace'),
             url: '/partner-workspace',
             icon: Building2,
             requiredPartner: true,
