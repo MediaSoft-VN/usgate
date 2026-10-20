@@ -67,7 +67,7 @@ export function ProviderWallet() {
   const syncMutation = useMutation({
     mutationFn: startProviderFundingSync,
     onSuccess: () => {
-      toast.success(t('Provider balance sync started'))
+      toast.success(t('Provider credit sync started'))
       void syncQuery.refetch()
     },
   })
@@ -172,11 +172,11 @@ export function ProviderWallet() {
       <SectionPageLayout.Actions>
         <Dialog open={fundingOpen} onOpenChange={setFundingOpen}>
           <DialogTrigger render={<Button />}>
-            {t('Record provider funding')}
+            {t('Record credit')}
           </DialogTrigger>
           <DialogContent className='sm:max-w-2xl'>
             <DialogHeader>
-              <DialogTitle>{t('Record provider funding')}</DialogTitle>
+              <DialogTitle>{t('Record credit')}</DialogTitle>
             </DialogHeader>
             <form
               className='grid gap-3 md:grid-cols-2'
@@ -265,7 +265,7 @@ export function ProviderWallet() {
               </p>
               <DialogFooter className='md:col-span-2'>
                 <Button type='submit' disabled={createMutation.isPending}>
-                  {t('Record provider funding')}
+                  {t('Record credit')}
                 </Button>
               </DialogFooter>
             </form>
@@ -277,8 +277,8 @@ export function ProviderWallet() {
           variant='outline'
         >
           {syncQuery.data?.running
-            ? t('Provider balance sync running')
-            : t('Sync provider balances')}
+            ? t('Provider credit sync running')
+            : t('Sync credit')}
         </Button>
         <Dialog open={allocationOpen} onOpenChange={setAllocationOpen}>
           <DialogTrigger render={<Button variant='outline' />}>
