@@ -571,6 +571,9 @@ func GetSelfUserById(id int) (*User, error) {
 		"CASE WHEN password <> '' THEN 1 ELSE 0 END AS has_password",
 	}).First(&profile, "id = ?", id).Error
 	profile.User.HasPassword = profile.HasPassword
+	if err == nil {
+		err = PopulatePartnerStatus([]*User{&profile.User})
+	}
 	return &profile.User, err
 }
 

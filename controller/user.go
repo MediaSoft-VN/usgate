@@ -501,6 +501,7 @@ func buildSelfUserData(user *model.User) map[string]any {
 		"display_name":      user.DisplayName,
 		"has_password":      user.HasPassword,
 		"role":              user.Role,
+		"is_partner":        user.IsPartner,
 		"status":            user.Status,
 		"email":             user.Email,
 		"github_id":         user.GitHubId,
