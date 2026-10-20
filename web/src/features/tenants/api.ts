@@ -35,6 +35,11 @@ export type TenantDomain = {
   verification_method: string
 }
 
+export type TenantDNSRecord = {
+  type: 'CNAME' | 'A'
+  target: string
+}
+
 export async function getTenants(): Promise<Tenant[]> {
   const response = await api.get('/api/tenants')
   return requireServerSuccess(response.data).data as Tenant[]
@@ -66,6 +71,13 @@ export async function getTenantDomains(
 ): Promise<TenantDomain[]> {
   const response = await api.get(`/api/tenants/${tenantId}/domains`)
   return requireServerSuccess(response.data).data as TenantDomain[]
+}
+
+export async function getTenantDNSRecord(
+  tenantId: number
+): Promise<TenantDNSRecord> {
+  const response = await api.get(`/api/tenants/${tenantId}/domains/dns-record`)
+  return requireServerSuccess(response.data).data as TenantDNSRecord
 }
 
 export async function createTenantDomain(

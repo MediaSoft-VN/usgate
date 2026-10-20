@@ -70,6 +70,7 @@ func SetApiRouter(router *gin.Engine) {
 			tenantRoute.PATCH("/:tenant_id", controller.UpdateTenant)
 			tenantRoute.GET("/:tenant_id/members", controller.ListTenantMembers)
 			tenantRoute.GET("/:tenant_id/domains", controller.ListTenantDomains)
+			tenantRoute.GET("/:tenant_id/domains/dns-record", controller.GetTenantDomainDNSRecord)
 			tenantRoute.POST("/:tenant_id/domains", controller.CreateTenantDomain)
 			tenantRoute.POST("/:tenant_id/domains/:domain_id/verify", controller.VerifyTenantDomain)
 			tenantRoute.DELETE("/:tenant_id/domains/:domain_id", controller.DisableTenantDomain)

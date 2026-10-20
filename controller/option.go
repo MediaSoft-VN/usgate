@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"slices"
 	"sort"
@@ -45,6 +46,27 @@ func isPositiveOptionValue(value string) bool {
 	}
 	floatValue, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 	return err == nil && floatValue > 0
+}
+
+func validateTenantDomainDNSOption(key, value string) error {
+	switch key {
+	case "TenantDomainDNSRecordType":
+		if value != "CNAME" && value != "A" {
+			return errors.New("DNS record type must be CNAME or A")
+		}
+	case "TenantDomainDNSRecordTarget":
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return nil
+		}
+		if net.ParseIP(value) != nil {
+			return nil
+		}
+		if strings.ContainsAny(value, "/: ") || !strings.Contains(value, ".") {
+			return errors.New("DNS record target must be a hostname or IP address")
+		}
+	}
+	return nil
 }
 
 func collectModelNamesFromOptionValue(raw string, modelNames map[string]struct{}) {
@@ -218,6 +240,11 @@ func UpdateOption(c *gin.Context) {
 		}
 	}
 	switch option.Key {
+	case "TenantDomainDNSRecordType", "TenantDomainDNSRecordTarget":
+		if err := validateTenantDomainDNSOption(option.Key, option.Value.(string)); err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "GitHubOAuthEnabled":
 		if option.Value == "true" && common.GitHubClientId == "" {
 			common.ApiErrorT(c, "Cannot enable {{provider}}. Enter the {{provider}} Client ID and Client Secret first.", map[string]any{"provider": "GitHub OAuth"})

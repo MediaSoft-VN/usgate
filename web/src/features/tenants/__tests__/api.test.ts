@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 
 import {
   createTenantDomain,
+  getTenantDNSRecord,
   promoteTenant,
   selectTenant,
 } from '../api'
@@ -53,5 +54,17 @@ describe('tenant management API', () => {
       hostname: 'app.example.com',
     })
     expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('reads the tenant-scoped DNS record without exposing admin settings', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue({
+      data: { success: true, data: { type: 'CNAME', target: 'proxy.example.com' } },
+    })
+
+    await expect(getTenantDNSRecord(7)).resolves.toEqual({
+      type: 'CNAME',
+      target: 'proxy.example.com',
+    })
+    expect(get).toHaveBeenCalledWith('/api/tenants/7/domains/dns-record')
   })
 })

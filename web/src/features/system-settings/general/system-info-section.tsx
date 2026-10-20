@@ -31,6 +31,13 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
@@ -50,6 +57,8 @@ const _systemInfoSchema = z.object({
   SystemName: z.string().min(1),
   ServerAddress: z.string().optional(),
   TaskPublicAddress: z.string().refine(isValidTaskPublicAddress),
+  TenantDomainDNSRecordType: z.enum(['CNAME', 'A']),
+  TenantDomainDNSRecordTarget: z.string(),
   Logo: z.string().url().optional().or(z.literal('')),
   Footer: z.string().optional(),
   About: z.string().optional(),
@@ -82,6 +91,8 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     SystemName: normalizeValue(defaultValues.SystemName),
     ServerAddress: normalizeValue(defaultValues.ServerAddress),
     TaskPublicAddress: normalizeValue(defaultValues.TaskPublicAddress),
+    TenantDomainDNSRecordType: defaultValues.TenantDomainDNSRecordType === 'A' ? 'A' : 'CNAME',
+    TenantDomainDNSRecordTarget: normalizeValue(defaultValues.TenantDomainDNSRecordTarget),
     Logo: normalizeValue(defaultValues.Logo),
     Footer: normalizeValue(defaultValues.Footer),
     About: normalizeValue(defaultValues.About),
@@ -106,6 +117,8 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
           'Enter an absolute HTTP(S) URL without credentials, query parameters, or fragments'
         ),
     }),
+    TenantDomainDNSRecordType: z.enum(['CNAME', 'A']),
+    TenantDomainDNSRecordTarget: z.string(),
     Logo: z.string().url().optional().or(z.literal('')),
     Footer: z.string().optional(),
     About: z.string().optional(),
@@ -228,6 +241,48 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t('URL to your logo image (optional)')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='TenantDomainDNSRecordType'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Tenant domain DNS record type')}</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value='CNAME'>CNAME</SelectItem>
+                        <SelectItem value='A'>A</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {t('The DNS record type partners should configure for custom domains')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='TenantDomainDNSRecordTarget'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Tenant domain DNS record target')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder='proxy.example.com or 203.0.113.10' {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      {t('The hostname or IP address partners should use as the DNS target')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

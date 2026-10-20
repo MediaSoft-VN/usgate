@@ -12,6 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type tenantDNSRecord struct {
+	Type   string `json:"type"`
+	Target string `json:"target"`
+}
+
 type tenantRequest struct {
 	Slug        string `json:"slug"`
 	PartnerCode string `json:"partner_code"`
@@ -121,6 +126,23 @@ func ListTenantDomains(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, domains)
+}
+
+func GetTenantDomainDNSRecord(c *gin.Context) {
+	id, ok := tenantIDParam(c)
+	if !ok || !middleware.RequireTenantAccess(c, id, "read") {
+		return
+	}
+	common.OptionMapRWMutex.RLock()
+	record := tenantDNSRecord{
+		Type:   common.Interface2String(common.OptionMap["TenantDomainDNSRecordType"]),
+		Target: common.Interface2String(common.OptionMap["TenantDomainDNSRecordTarget"]),
+	}
+	common.OptionMapRWMutex.RUnlock()
+	if record.Type != "A" && record.Type != "CNAME" {
+		record.Type = "CNAME"
+	}
+	common.ApiSuccess(c, record)
 }
 
 func CreateTenantDomain(c *gin.Context) {

@@ -167,6 +167,8 @@ export type SiteSettings = {
   HomePageContent: string
   ServerAddress: string
   TaskPublicAddress: string
+  TenantDomainDNSRecordType: 'CNAME' | 'A'
+  TenantDomainDNSRecordTarget: string
   'general_setting.docs_link': string
   'legal.user_agreement': string
   'legal.privacy_policy': string

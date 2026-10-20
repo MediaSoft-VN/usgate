@@ -33,6 +33,7 @@ import { handleServerError } from '@/lib/handle-server-error'
 import {
   createTenantDomain,
   getTenantDomains,
+  getTenantDNSRecord,
   getTenantMembers,
   getTenants,
   disableTenantDomain,
@@ -65,6 +66,11 @@ export function PartnerWorkspace() {
   const domainsQuery = useQuery({
     queryKey: ['tenant-domains', selectedTenantId],
     queryFn: () => getTenantDomains(selectedTenantId as number),
+    enabled: selectedTenantId !== null,
+  })
+  const dnsRecordQuery = useQuery({
+    queryKey: ['tenant-dns-record', selectedTenantId],
+    queryFn: () => getTenantDNSRecord(selectedTenantId as number),
     enabled: selectedTenantId !== null,
   })
 
@@ -258,6 +264,15 @@ export function PartnerWorkspace() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
+                    {dnsRecordQuery.data?.target && (
+                      <div className='bg-muted mb-4 rounded-md p-3 text-sm'>
+                        <p className='font-medium'>{t('DNS record to configure')}</p>
+                        <p className='text-muted-foreground mt-1'>
+                          {dnsRecordQuery.data.type} →{' '}
+                          <code className='font-mono'>{dnsRecordQuery.data.target}</code>
+                        </p>
+                      </div>
+                    )}
                     {domainsQuery.isLoading ? (
                       <LoadingState />
                     ) : (
