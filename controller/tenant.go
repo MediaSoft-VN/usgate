@@ -160,6 +160,29 @@ func CreateTenantDomain(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{"domain": domain, "verification_token": token})
 }
 
+func UpdateTenantDomain(c *gin.Context) {
+	id, ok := tenantIDParam(c)
+	if !ok || !middleware.RequireTenantAccess(c, id, "domain_admin") {
+		return
+	}
+	domainID, err := strconv.Atoi(c.Param("domain_id"))
+	if err != nil || domainID <= 0 {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	var req domainRequest
+	if err = c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	domain, token, err := service.UpdateDomain(domainID, id, req.Hostname)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"domain": domain, "verification_token": token})
+}
+
 func VerifyTenantDomain(c *gin.Context) {
 	id, ok := tenantIDParam(c)
 	if !ok || !middleware.RequireTenantAccess(c, id, "domain_admin") {

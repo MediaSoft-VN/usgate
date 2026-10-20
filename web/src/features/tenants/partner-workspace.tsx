@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Globe, Plus, Users } from 'lucide-react'
+import { Building2, Globe, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -37,6 +37,7 @@ import {
   getTenantMembers,
   getTenants,
   disableTenantDomain,
+  updateTenantDomain,
   verifyTenantDomain,
   type TenantDomain,
 } from './api'
@@ -46,6 +47,7 @@ export function PartnerWorkspace() {
   const queryClient = useQueryClient()
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null)
   const [domainDialogOpen, setDomainDialogOpen] = useState(false)
+  const [editDomain, setEditDomain] = useState<TenantDomain | null>(null)
   const [verifyDomain, setVerifyDomain] = useState<TenantDomain | null>(null)
   const [disableTarget, setDisableTarget] = useState<{
     kind: 'domain'
@@ -108,9 +110,30 @@ export function PartnerWorkspace() {
     },
     onError: (error) => handleServerError(error, t('Failed to verify domain')),
   })
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateTenantDomain(
+        selectedTenantId as number,
+        editDomain?.id as number,
+        hostname
+      ),
+    onSuccess: (result) => {
+      setDomainDialogOpen(false)
+      setEditDomain(null)
+      setHostname('')
+      setVerificationToken(result.verification_token)
+      setToken(result.verification_token)
+      setVerifyDomain(result.domain)
+      void refreshTenant('tenant-domains')
+    },
+    onError: (error) => handleServerError(error, t('Failed to update domain')),
+  })
   const disableMutation = useMutation({
     mutationFn: () =>
-      disableTenantDomain(selectedTenantId as number, disableTarget?.id as number),
+      disableTenantDomain(
+        selectedTenantId as number,
+        disableTarget?.id as number
+      ),
     onSuccess: async () => {
       setDisableTarget(null)
       await refreshTenant('tenant-domains')
@@ -210,12 +233,8 @@ export function PartnerWorkspace() {
                         <TableBody>
                           {membersQuery.data?.map((member) => (
                             <TableRow key={member.id}>
-                              <TableCell>
-                                {`#${member.user_id}`}
-                              </TableCell>
-                              <TableCell>
-                                {member.role_key}
-                              </TableCell>
+                              <TableCell>{`#${member.user_id}`}</TableCell>
+                              <TableCell>{member.role_key}</TableCell>
                               <TableCell>{member.status}</TableCell>
                             </TableRow>
                           ))}
@@ -234,28 +253,46 @@ export function PartnerWorkspace() {
                         open={domainDialogOpen}
                         onOpenChange={setDomainDialogOpen}
                       >
-                        <DialogTrigger render={<Button size='sm' />}>
+                        <DialogTrigger
+                          render={<Button size='sm' />}
+                          onClick={() => {
+                            setEditDomain(null)
+                            setHostname('')
+                          }}
+                        >
                           <Plus className='size-4' aria-hidden='true' />
                           {t('Add domain')}
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>{t('Add domain')}</DialogTitle>
+                            <DialogTitle>
+                              {editDomain ? t('Edit domain') : t('Add domain')}
+                            </DialogTitle>
                           </DialogHeader>
                           <label className='grid gap-1 text-sm'>
                             <Input
                               value={hostname}
-                              onChange={(event) => setHostname(event.target.value)}
+                              onChange={(event) =>
+                                setHostname(event.target.value)
+                              }
                               placeholder='app.example.com'
                             />
                           </label>
                           <DialogFooter>
                             <Button
                               type='button'
-                              onClick={() => domainMutation.mutate()}
-                              disabled={!hostname || domainMutation.isPending}
+                              onClick={() =>
+                                editDomain
+                                  ? updateMutation.mutate()
+                                  : domainMutation.mutate()
+                              }
+                              disabled={
+                                !hostname ||
+                                domainMutation.isPending ||
+                                updateMutation.isPending
+                              }
                             >
-                              {t('Add')}
+                              {editDomain ? t('Save') : t('Add')}
                             </Button>
                           </DialogFooter>
                         </DialogContent>
@@ -265,15 +302,21 @@ export function PartnerWorkspace() {
                   <CardContent>
                     {dnsRecordQuery.data && (
                       <div className='bg-muted mb-4 rounded-md p-3 text-sm'>
-                        <p className='font-medium'>{t('DNS records to configure')}</p>
+                        <p className='font-medium'>
+                          {t('DNS records to configure')}
+                        </p>
                         <div className='text-muted-foreground mt-1 grid gap-1'>
                           <p>
                             <span className='font-medium'>CNAME:</span>{' '}
-                            <code className='font-mono'>{dnsRecordQuery.data.cname_target}</code>
+                            <code className='font-mono'>
+                              {dnsRecordQuery.data.cname_target}
+                            </code>
                           </p>
                           <p>
                             <span className='font-medium'>A:</span>{' '}
-                            <code className='font-mono'>{dnsRecordQuery.data.a_record_ip}</code>
+                            <code className='font-mono'>
+                              {dnsRecordQuery.data.a_record_ip}
+                            </code>
                           </p>
                         </div>
                       </div>
@@ -299,6 +342,22 @@ export function PartnerWorkspace() {
                               </TableCell>
                               <TableCell>{domain.status}</TableCell>
                               <TableCell className='flex justify-end gap-2'>
+                                <Button
+                                  size='sm'
+                                  variant='outline'
+                                  disabled={domain.status === 'disabled'}
+                                  onClick={() => {
+                                    setEditDomain(domain)
+                                    setHostname(domain.hostname)
+                                    setDomainDialogOpen(true)
+                                  }}
+                                >
+                                  <Pencil
+                                    className='size-4'
+                                    aria-hidden='true'
+                                  />
+                                  {t('Edit')}
+                                </Button>
                                 {domain.status === 'pending' && (
                                   <Button
                                     size='sm'
@@ -313,13 +372,17 @@ export function PartnerWorkspace() {
                                   size='sm'
                                   disabled={domain.status === 'disabled'}
                                   onClick={() =>
-                                     setDisableTarget({
+                                    setDisableTarget({
                                       kind: 'domain',
                                       id: domain.id,
                                     })
                                   }
                                 >
-                                  {t('Disable')}
+                                  <Trash2
+                                    className='size-4'
+                                    aria-hidden='true'
+                                  />
+                                  {t('Delete')}
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -373,12 +436,12 @@ export function PartnerWorkspace() {
       <ConfirmDialog
         open={disableTarget !== null}
         onOpenChange={(open) => !open && setDisableTarget(null)}
-        title={t('Disable')}
+        title={t('Delete domain')}
         desc={t('This action cannot be undone.')}
         destructive
         handleConfirm={() => disableMutation.mutate()}
         isLoading={disableMutation.isPending}
-        confirmText={t('Disable')}
+        confirmText={t('Delete')}
       />
     </SectionPageLayout>
   )

@@ -105,6 +105,21 @@ export async function verifyTenantDomain(
   requireServerSuccess(response.data)
 }
 
+export async function updateTenantDomain(
+  tenantId: number,
+  domainId: number,
+  hostname: string
+): Promise<{ domain: TenantDomain; verification_token: string }> {
+  const response = await api.patch(
+    `/api/tenants/${tenantId}/domains/${domainId}`,
+    { hostname }
+  )
+  return requireServerSuccess(response.data).data as {
+    domain: TenantDomain
+    verification_token: string
+  }
+}
+
 export async function disableTenantDomain(
   tenantId: number,
   domainId: number

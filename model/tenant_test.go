@@ -64,6 +64,11 @@ func TestNormalizeTenantHostname(t *testing.T) {
 		{"console.example.com:443", "", false},
 		{"user@example.com", "", false},
 		{"-console.example.com", "", false},
+		{"127.0.0.1", "", false},
+		{"localhost", "", false},
+		{"bad..example.com", "", false},
+		{"example.invalid", "", false},
+		{"bücher.example.com", "xn--bcher-kva.example.com", true},
 	}
 	for _, test := range tests {
 		got, err := NormalizeTenantHostname(test.input)

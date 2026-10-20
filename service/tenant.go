@@ -35,7 +35,7 @@ func PromoteUserPartner(userID int) error {
 				return err
 			}
 			return tx.Model(&model.TenantMembership{}).Where("id = ?", membership.Id).
-			Updates(map[string]any{"status": model.MembershipActive, "updated_at": now}).Error
+				Updates(map[string]any{"status": model.MembershipActive, "updated_at": now}).Error
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -74,17 +74,56 @@ func DemoteUserPartner(userID int) error {
 }
 
 func CreateDomain(tenantID int, hostname string) (*model.TenantDomain, string, error) {
-	normalized, err := model.NormalizeTenantHostname(hostname); if err != nil { return nil, "", err }
-	token, hash, err := model.NewDomainChallenge(); if err != nil { return nil, "", err }
-	domain := &model.TenantDomain{TenantId: tenantID, Hostname: normalized, Status: model.DomainPending, VerificationMethod: "dns_txt", VerificationTokenHash: hash, CreatedAt: common.GetTimestamp(), UpdatedAt: common.GetTimestamp()}
-	if err := model.DB.Create(domain).Error; err != nil { return nil, "", err }
+	normalized, err := model.NormalizeTenantHostname(hostname)
+	if err != nil {
+		return nil, "", err
+	}
+	return savePendingDomain(tenantID, normalized, nil)
+}
+
+func UpdateDomain(domainID, tenantID int, hostname string) (*model.TenantDomain, string, error) {
+	normalized, err := model.NormalizeTenantHostname(hostname)
+	if err != nil {
+		return nil, "", err
+	}
+	var domain model.TenantDomain
+	if err = model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).First(&domain).Error; err != nil {
+		return nil, "", err
+	}
+	return savePendingDomain(tenantID, normalized, &domain)
+}
+
+func savePendingDomain(tenantID int, hostname string, domain *model.TenantDomain) (*model.TenantDomain, string, error) {
+	token, hash, err := model.NewDomainChallenge()
+	if err != nil {
+		return nil, "", err
+	}
+	now := common.GetTimestamp()
+	if domain == nil {
+		domain = &model.TenantDomain{TenantId: tenantID, CreatedAt: now}
+	}
+	domain.Hostname = hostname
+	domain.Status = model.DomainPending
+	domain.VerificationMethod = "dns_txt"
+	domain.VerificationTokenHash = hash
+	domain.VerifiedAt = nil
+	domain.LastCheckedAt = nil
+	domain.UpdatedAt = now
+	if err := model.DB.Save(domain).Error; err != nil {
+		return nil, "", err
+	}
 	return domain, token, nil
 }
 
 func VerifyDomain(domainID, tenantID int, token string) error {
 	var domain model.TenantDomain
-	if err := model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).First(&domain).Error; err != nil { return err }
-	if !model.VerifyTenantDomain(&domain, strings.TrimSpace(token)) { return errors.New("domain verification failed") }
-	now := common.GetTimestamp(); domain.Status, domain.VerifiedAt, domain.LastCheckedAt, domain.UpdatedAt = model.DomainVerified, &now, &now, now
+	if err := model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).First(&domain).Error; err != nil {
+		return err
+	}
+	if !model.VerifyTenantDomain(&domain, strings.TrimSpace(token)) {
+		return errors.New("domain verification failed")
+	}
+	now := common.GetTimestamp()
+	domain.Status, domain.VerifiedAt, domain.LastCheckedAt, domain.UpdatedAt = model.DomainVerified, &now, &now, now
 	return model.DB.Save(&domain).Error
 }

@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"golang.org/x/net/idna"
+	"golang.org/x/net/publicsuffix"
 	"gorm.io/gorm"
 )
 
@@ -121,8 +123,9 @@ func GenerateTenantPartnerCode(name string) (string, error) {
 }
 
 func NormalizeTenantHostname(host string) (string, error) {
-	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
-	if host == "" || strings.ContainsAny(host, "@/?#") {
+	host, err := idna.Lookup.ToASCII(strings.TrimSuffix(strings.TrimSpace(host), "."))
+	host = strings.ToLower(host)
+	if err != nil || host == "" || host == "localhost" || strings.ContainsAny(host, "@/?#\\") {
 		return "", errors.New("invalid hostname")
 	}
 	if parsed := net.ParseIP(host); parsed != nil || strings.Contains(host, ":") {
@@ -140,6 +143,16 @@ func NormalizeTenantHostname(host string) (string, error) {
 				return "", errors.New("invalid hostname")
 			}
 		}
+	}
+	if strings.Count(host, ".") == 0 {
+		return "", errors.New("invalid hostname")
+	}
+	tld := host[strings.LastIndexByte(host, '.')+1:]
+	if tld == "example" || tld == "invalid" || tld == "localhost" || tld == "test" {
+		return "", errors.New("invalid hostname")
+	}
+	if _, err := publicsuffix.EffectiveTLDPlusOne(host); err != nil {
+		return "", errors.New("invalid hostname")
 	}
 	return host, nil
 }

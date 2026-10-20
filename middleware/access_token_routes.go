@@ -88,6 +88,7 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"POST /api/tenants/:tenant_id/members/:user_id/transfer-owner": accessTokenSessionRule,
 	"GET /api/tenants/:tenant_id/domains":                          accessTokenSessionRule,
 	"POST /api/tenants/:tenant_id/domains":                         accessTokenSessionRule,
+	"PATCH /api/tenants/:tenant_id/domains/:domain_id":              accessTokenSessionRule,
 	"POST /api/tenants/:tenant_id/domains/:domain_id/verify":       accessTokenSessionRule,
 	"DELETE /api/tenants/:tenant_id/domains/:domain_id":            accessTokenSessionRule,
 	"GET /api/tenant-context":                                      accessTokenSessionRule,
