@@ -6,6 +6,7 @@ import type { User } from '@/features/users/types'
 export type Tenant = {
   id: number
   slug: string
+  partner_code: string
   name: string
   status: string
   created_by: number
@@ -15,6 +16,7 @@ export type Tenant = {
 
 export type CreateTenantPayload = {
   slug: string
+  partner_code?: string
   name: string
   owner_user_id: number
 }

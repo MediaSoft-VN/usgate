@@ -7385,6 +7385,9 @@
     "Partner name": "合作夥伴名稱",
     "Partner slug": "合作夥伴識別碼",
     "Upgrade": "升級",
-    "Upgrade user to partner": "將使用者升級為合作夥伴"
+    "Upgrade user to partner": "將使用者升級為合作夥伴",
+    "Generated from partner name": "根據合作夥伴名稱產生",
+    "Invalid partner code": "合作夥伴代碼無效",
+    "Partner code already exists": "合作夥伴代碼已存在"
   }
 }

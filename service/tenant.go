@@ -9,11 +9,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func PromoteTenant(slug, name string, userID int) (*model.Tenant, error) {
+func PromoteTenant(slug, name, partnerCode string, userID int) (*model.Tenant, error) {
 	var tenant *model.Tenant
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
 		var err error
-		tenant, err = model.CreateTenantWithOwner(tx, slug, name, userID)
+		tenant, err = model.CreateTenantWithOwnerAndCode(tx, slug, name, partnerCode, userID)
 		return err
 	})
 	return tenant, err

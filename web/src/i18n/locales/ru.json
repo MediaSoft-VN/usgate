@@ -7385,6 +7385,9 @@
     "Partner name": "Название партнёра",
     "Partner slug": "Идентификатор партнёра",
     "Upgrade": "Повысить",
-    "Upgrade user to partner": "Повысить пользователя до партнёра"
+    "Upgrade user to partner": "Повысить пользователя до партнёра",
+    "Generated from partner name": "Создано из названия партнёра",
+    "Invalid partner code": "Недопустимый код партнёра",
+    "Partner code already exists": "Код партнёра уже существует"
   }
 }

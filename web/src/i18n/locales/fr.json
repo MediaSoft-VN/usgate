@@ -7385,6 +7385,9 @@
     "Partner name": "Nom du partenaire",
     "Partner slug": "Identifiant du partenaire",
     "Upgrade": "Convertir",
-    "Upgrade user to partner": "Convertir un utilisateur en partenaire"
+    "Upgrade user to partner": "Convertir un utilisateur en partenaire",
+    "Generated from partner name": "Généré à partir du nom du partenaire",
+    "Invalid partner code": "Code partenaire invalide",
+    "Partner code already exists": "Le code partenaire existe déjà"
   }
 }

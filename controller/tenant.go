@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type tenantRequest struct { Slug string `json:"slug"`; Name string `json:"name"`; OwnerUserID int `json:"owner_user_id"` }
+type tenantRequest struct { Slug string `json:"slug"`; PartnerCode string `json:"partner_code"`; Name string `json:"name"`; OwnerUserID int `json:"owner_user_id"` }
 type membershipRequest struct { UserID int `json:"user_id"`; Role string `json:"role_key"` }
 type domainRequest struct { Hostname string `json:"hostname"` }
 type domainVerifyRequest struct { Token string `json:"token"` }
@@ -34,7 +34,7 @@ func GetTenants(c *gin.Context) {
 func PromoteTenant(c *gin.Context) {
 	var request tenantRequest
 	if err := c.ShouldBindJSON(&request); err != nil || request.OwnerUserID <= 0 { common.ApiErrorT(c, "Invalid parameters"); return }
-	tenant, err := service.PromoteTenant(request.Slug, request.Name, request.OwnerUserID)
+	tenant, err := service.PromoteTenant(request.Slug, request.Name, request.PartnerCode, request.OwnerUserID)
 	if err != nil { common.ApiError(c, err); return }; common.ApiSuccess(c, tenant)
 }
 

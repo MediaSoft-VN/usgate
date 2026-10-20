@@ -7385,6 +7385,9 @@
     "Partner name": "Tên đối tác",
     "Partner slug": "Mã đối tác",
     "Upgrade": "Nâng cấp",
-    "Upgrade user to partner": "Nâng cấp người dùng thành đối tác"
+    "Upgrade user to partner": "Nâng cấp người dùng thành đối tác",
+    "Generated from partner name": "Được tạo từ tên đối tác",
+    "Invalid partner code": "Mã đối tác không hợp lệ",
+    "Partner code already exists": "Mã đối tác đã tồn tại"
   }
 }

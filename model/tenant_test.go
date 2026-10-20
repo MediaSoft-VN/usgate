@@ -24,9 +24,35 @@ func TestCreateTenantWithOwnerRequiresExistingEnabledUser(t *testing.T) {
 	var membership TenantMembership
 	require.NoError(t, db.Where("tenant_id = ? AND user_id = ?", tenant.Id, owner.Id).First(&membership).Error)
 	require.Equal(t, TenantRoleOwner, membership.RoleKey)
+	require.NotNil(t, tenant.PartnerCode)
+	require.Equal(t, "partner-tenant", *tenant.PartnerCode)
 
 	_, err = CreateTenantWithOwner(db, "missing-owner", "Missing Owner", 99999)
 	require.ErrorIs(t, err, ErrInvalidTenantOwner)
+}
+
+func TestCreateTenantPartnerCodeNormalizesAndEnforcesUniqueness(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&User{}, &Tenant{}, &TenantMembership{}))
+	owner := User{Username: "partner-code-owner", Password: "unused", Status: common.UserStatusEnabled}
+	require.NoError(t, db.Create(&owner).Error)
+
+	tenant, err := CreateTenantWithOwnerAndCode(db, "code-tenant", "Code Tenant", "  CUSTOM_CODE ", owner.Id)
+	require.Error(t, err)
+	require.Nil(t, tenant)
+	tenant, err = CreateTenantWithOwnerAndCode(db, "code-tenant", "Code Tenant", " Custom-Code ", owner.Id)
+	require.NoError(t, err)
+	require.Equal(t, "custom-code", *tenant.PartnerCode)
+
+	_, err = CreateTenantWithOwnerAndCode(db, "another-tenant", "Another Tenant", "CUSTOM-CODE", owner.Id)
+	require.ErrorIs(t, err, ErrPartnerCodeTaken)
+}
+
+func TestGenerateTenantPartnerCode(t *testing.T) {
+	code, err := GenerateTenantPartnerCode("Acme & Partners")
+	require.NoError(t, err)
+	require.Equal(t, "acme-partners", code)
 }
 
 func TestNormalizeTenantHostname(t *testing.T) {

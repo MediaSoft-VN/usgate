@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -32,6 +33,7 @@ const (
 type Tenant struct {
 	Id int `json:"id"`
 	Slug string `json:"slug" gorm:"size:64;uniqueIndex"`
+	PartnerCode *string `json:"partner_code" gorm:"size:64;uniqueIndex:idx_tenant_partner_code"`
 	Name string `json:"name" gorm:"size:128"`
 	Status string `json:"status" gorm:"size:16;index"`
 	CreatedBy int `json:"created_by" gorm:"index"`
@@ -68,6 +70,7 @@ var ErrTenantNotFound = errors.New("tenant not found")
 var ErrTenantForbidden = errors.New("tenant access denied")
 var ErrFinalOwner = errors.New("the final active owner cannot be removed or demoted")
 var ErrInvalidTenantOwner = errors.New("tenant owner must be an existing enabled user")
+var ErrPartnerCodeTaken = errors.New("partner code already exists")
 
 func normalizeTenantSlug(slug string) (string, error) {
 	slug = strings.ToLower(strings.TrimSpace(slug))
@@ -80,6 +83,40 @@ func normalizeTenantSlug(slug string) (string, error) {
 		}
 	}
 	return slug, nil
+}
+
+func NormalizeTenantPartnerCode(code string) (string, error) {
+	code = strings.ToLower(strings.TrimSpace(code))
+	if len(code) == 0 || len(code) > 64 || strings.Trim(code, "-") != code {
+		return "", errors.New("invalid partner code")
+	}
+	for _, r := range code {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
+			return "", errors.New("invalid partner code")
+		}
+	}
+	return code, nil
+}
+
+func GenerateTenantPartnerCode(name string) (string, error) {
+	var builder strings.Builder
+	separator := false
+	for _, r := range strings.ToLower(strings.TrimSpace(name)) {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(r)
+			separator = false
+		} else {
+			separator = true
+		}
+	}
+	code := builder.String()
+	if len(code) > 64 {
+		code = strings.TrimRight(code[:64], "-")
+	}
+	return NormalizeTenantPartnerCode(code)
 }
 
 func NormalizeTenantHostname(host string) (string, error) {
@@ -107,18 +144,40 @@ func NormalizeTenantHostname(host string) (string, error) {
 }
 
 func CreateTenantWithOwner(tx *gorm.DB, slug, name string, userID int) (*Tenant, error) {
+	return CreateTenantWithOwnerAndCode(tx, slug, name, "", userID)
+}
+
+func CreateTenantWithOwnerAndCode(tx *gorm.DB, slug, name, partnerCode string, userID int) (*Tenant, error) {
 	var err error
 	slug, err = normalizeTenantSlug(slug)
 	if err != nil || strings.TrimSpace(name) == "" || len(name) > 128 {
 		return nil, errors.New("invalid tenant")
+	}
+	if strings.TrimSpace(partnerCode) == "" {
+		partnerCode, err = GenerateTenantPartnerCode(name)
+	} else {
+		partnerCode, err = NormalizeTenantPartnerCode(partnerCode)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var existing Tenant
+	if err = tx.Where("partner_code = ?", partnerCode).First(&existing).Error; err == nil {
+		return nil, ErrPartnerCodeTaken
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 	var user User
 	if err = tx.Where("id = ? AND status = ?", userID, common.UserStatusEnabled).First(&user).Error; err != nil {
 		return nil, ErrInvalidTenantOwner
 	}
 	now := common.GetTimestamp()
-	tenant := &Tenant{Slug: slug, Name: strings.TrimSpace(name), Status: TenantActive, CreatedBy: userID, CreatedAt: now, UpdatedAt: now}
-	if err = tx.Create(tenant).Error; err != nil { return nil, err }
+	tenant := &Tenant{Slug: slug, PartnerCode: &partnerCode, Name: strings.TrimSpace(name), Status: TenantActive, CreatedBy: userID, CreatedAt: now, UpdatedAt: now}
+	if err = tx.Create(tenant).Error; err != nil {
+		var duplicate Tenant
+		if tx.Where("partner_code = ?", partnerCode).First(&duplicate).Error == nil { return nil, ErrPartnerCodeTaken }
+		return nil, err
+	}
 	membership := &TenantMembership{TenantId: tenant.Id, UserId: userID, RoleKey: TenantRoleOwner, Status: MembershipActive, CreatedAt: now, UpdatedAt: now}
 	if err = tx.Create(membership).Error; err != nil { return nil, err }
 	return tenant, nil
@@ -177,6 +236,20 @@ func ResolveVerifiedTenant(host string, userID int) (*Tenant, error) {
 
 func MigrateTenants() error {
 	if err := DB.AutoMigrate(&Tenant{}, &TenantMembership{}, &TenantDomain{}); err != nil { return err }
+	var tenants []Tenant
+	if err := DB.Where("partner_code IS NULL OR partner_code = ?", "").Order("id").Find(&tenants).Error; err != nil { return err }
+	for i := range tenants {
+		code, err := GenerateTenantPartnerCode(tenants[i].Name)
+		if err != nil { code = "tenant-" + strings.TrimSpace(strings.ToLower(strconv.Itoa(tenants[i].Id))) }
+		base := code
+		for suffix := 2; ; suffix++ {
+			var count int64
+			if err = DB.Model(&Tenant{}).Where("partner_code = ? AND id <> ?", code, tenants[i].Id).Count(&count).Error; err != nil { return err }
+			if count == 0 { break }
+			code = base + "-" + strconv.Itoa(suffix)
+		}
+		if err = DB.Model(&Tenant{}).Where("id = ?", tenants[i].Id).Update("partner_code", code).Error; err != nil { return err }
+	}
 	var tenant Tenant
 	if err := DB.Where("slug = ?", "default").First(&tenant).Error; err == nil {
 		return nil
@@ -187,7 +260,8 @@ func MigrateTenants() error {
 	if err := DB.Where("status = ?", common.UserStatusEnabled).Order("id").Find(&users).Error; err != nil { return err }
 	if len(users) == 0 { return nil }
 	now := common.GetTimestamp()
-	tenant = Tenant{Slug: "default", Name: "Default", Status: TenantActive, CreatedBy: users[0].Id, CreatedAt: now, UpdatedAt: now}
+	partnerCode := "default"
+	tenant = Tenant{Slug: "default", PartnerCode: &partnerCode, Name: "Default", Status: TenantActive, CreatedBy: users[0].Id, CreatedAt: now, UpdatedAt: now}
 	return DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&tenant).Error; err != nil { return err }
 		for i := range users {

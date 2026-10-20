@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, Globe, Plus, Users } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -60,6 +60,13 @@ export function Tenants() {
   const [partnerOwnerId, setPartnerOwnerId] = useState('')
   const [partnerName, setPartnerName] = useState('')
   const [partnerSlug, setPartnerSlug] = useState('')
+  const [partnerCode, setPartnerCode] = useState('')
+  const [partnerCodeManual, setPartnerCodeManual] = useState(false)
+
+  useEffect(() => {
+    if (partnerCodeManual) return
+    setPartnerCode(partnerName.trim().toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-|-$/g, '').slice(0, 64))
+  }, [partnerCodeManual, partnerName])
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
   const ownerCandidatesQuery = useQuery({ queryKey: ['tenant-owner-candidates'], queryFn: getTenantOwnerCandidates })
@@ -94,6 +101,8 @@ export function Tenants() {
       setPartnerOwnerId('')
       setPartnerName('')
       setPartnerSlug('')
+      setPartnerCode('')
+      setPartnerCodeManual(false)
       await queryClient.invalidateQueries({ queryKey: ['tenants'] })
       toast.success(t('Provider partner created'))
     },
@@ -106,6 +115,7 @@ export function Tenants() {
     partnerMutation.mutate({
       name: partnerName.trim(),
       slug: partnerSlug.trim(),
+      partner_code: partnerCode.trim(),
       owner_user_id: Number(partnerOwnerId),
     })
   }
@@ -162,6 +172,10 @@ export function Tenants() {
                       <span>{t('Partner slug')}</span>
                       <Input value={partnerSlug} onChange={(event) => setPartnerSlug(event.target.value)} />
                     </label>
+                    <label className='grid gap-1 text-sm'>
+                      <span>{t('Provider partner code')}</span>
+                      <Input value={partnerCode} onChange={(event) => { setPartnerCode(event.target.value); setPartnerCodeManual(true) }} placeholder={t('Generated from partner name')} />
+                    </label>
                     <DialogFooter><Button type='submit' disabled={!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
                   </form>
                 </DialogContent>
@@ -181,7 +195,7 @@ export function Tenants() {
           {tenantsQuery.isLoading && <LoadingState />}
           {tenantsQuery.isError && <ErrorState onRetry={() => void tenantsQuery.refetch()} />}
           {tenantsQuery.data?.length === 0 && <EmptyState icon={Building2} title={t('No Tenants Found')} />}
-          {tenantsQuery.data && tenantsQuery.data.length > 0 && <div className='overflow-hidden rounded-lg border'><Table><TableHeader><TableRow><TableHead>{t('Name')}</TableHead><TableHead>{t('Slug')}</TableHead><TableHead>{t('Status')}</TableHead><TableHead>{t('ID')}</TableHead></TableRow></TableHeader><TableBody>{tenantsQuery.data.map((item) => <TableRow key={item.id} data-state={item.id === selectedTenantId ? 'selected' : undefined}><TableCell>{item.name}</TableCell><TableCell className='font-mono text-xs'>{item.slug}</TableCell><TableCell>{item.status}</TableCell><TableCell>{item.id}</TableCell></TableRow>)}</TableBody></Table></div>}
+           {tenantsQuery.data && tenantsQuery.data.length > 0 && <div className='overflow-hidden rounded-lg border'><Table><TableHeader><TableRow><TableHead>{t('Name')}</TableHead><TableHead>{t('Partner code')}</TableHead><TableHead>{t('Slug')}</TableHead><TableHead>{t('Status')}</TableHead><TableHead>{t('ID')}</TableHead></TableRow></TableHeader><TableBody>{tenantsQuery.data.map((item) => <TableRow key={item.id} data-state={item.id === selectedTenantId ? 'selected' : undefined}><TableCell>{item.name}</TableCell><TableCell className='font-mono text-xs'>{item.partner_code}</TableCell><TableCell className='font-mono text-xs'>{item.slug}</TableCell><TableCell>{item.status}</TableCell><TableCell>{item.id}</TableCell></TableRow>)}</TableBody></Table></div>}
           {tenant && <Tabs defaultValue='members'><TabsList aria-label={t('Tenant settings')}><TabsTrigger value='members'><Users className='size-4' aria-hidden='true' />{t('Members')}</TabsTrigger><TabsTrigger value='domains'><Globe className='size-4' aria-hidden='true' />{t('Domains')}</TabsTrigger></TabsList>
             <TabsContent value='members'><Card><CardHeader><CardTitle className='flex items-center justify-between'><span>{t('Tenant members')}</span><Button size='sm' onClick={() => setMemberDialogOpen(true)}><Plus className='size-4' aria-hidden='true' />{t('Add member')}</Button></CardTitle></CardHeader><CardContent>{membersQuery.isLoading ? <LoadingState /> : <Table><TableHeader><TableRow><TableHead>{t('User')}</TableHead><TableHead>{t('Role')}</TableHead><TableHead>{t('Status')}</TableHead><TableHead className='text-end'>{t('Actions')}</TableHead></TableRow></TableHeader><TableBody>{membersQuery.data?.map((member) => <TableRow key={member.id}><TableCell>{ownerCandidatesQuery.data?.find((user) => user.id === member.user_id)?.display_name || `#${member.user_id}`}</TableCell><TableCell><NativeSelect aria-label={t('Role for user {{id}}', { id: member.user_id })} value={member.role_key} onChange={(event) => roleMutation.mutate({ userId: member.user_id, role: event.target.value })}>{roles.map((role) => <NativeSelectOption key={role} value={role}>{role}</NativeSelectOption>)}</NativeSelect></TableCell><TableCell>{member.status}</TableCell><TableCell className='text-end'><Button variant='destructive' size='sm' onClick={() => setRemoveTarget({ kind: 'member', id: member.user_id })}>{t('Remove')}</Button></TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card></TabsContent>
             <TabsContent value='domains'><Card><CardHeader><CardTitle className='flex items-center justify-between'><span>{t('Tenant domains')}</span><Button size='sm' onClick={() => setDomainDialogOpen(true)}><Plus className='size-4' aria-hidden='true' />{t('Add domain')}</Button></CardTitle></CardHeader><CardContent>{domainsQuery.isLoading ? <LoadingState /> : <Table><TableHeader><TableRow><TableHead>{t('Hostname')}</TableHead><TableHead>{t('Status')}</TableHead><TableHead className='text-end'>{t('Actions')}</TableHead></TableRow></TableHeader><TableBody>{domainsQuery.data?.map((domain) => <TableRow key={domain.id}><TableCell className='font-mono text-xs'>{domain.hostname}</TableCell><TableCell>{domain.status}</TableCell><TableCell className='flex justify-end gap-2'>{domain.status === 'pending' && <Button size='sm' variant='outline' onClick={() => setVerifyDomain(domain)}>{t('Verify')}</Button>}<Button variant='destructive' size='sm' onClick={() => setRemoveTarget({ kind: 'domain', id: domain.id })}>{t('Remove')}</Button></TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card></TabsContent>

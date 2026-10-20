@@ -7385,6 +7385,9 @@
     "Partner name": "パートナー名",
     "Partner slug": "パートナースラッグ",
     "Upgrade": "アップグレード",
-    "Upgrade user to partner": "ユーザーをパートナーにアップグレード"
+    "Upgrade user to partner": "ユーザーをパートナーにアップグレード",
+    "Generated from partner name": "パートナー名から生成",
+    "Invalid partner code": "パートナーコードが無効です",
+    "Partner code already exists": "パートナーコードは既に存在します"
   }
 }

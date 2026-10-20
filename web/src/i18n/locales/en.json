@@ -7385,6 +7385,9 @@
     "Partner name": "Partner name",
     "Partner slug": "Partner slug",
     "Upgrade": "Upgrade",
-    "Upgrade user to partner": "Upgrade user to partner"
+    "Upgrade user to partner": "Upgrade user to partner",
+    "Generated from partner name": "Generated from partner name",
+    "Invalid partner code": "Invalid partner code",
+    "Partner code already exists": "Partner code already exists"
   }
 }
