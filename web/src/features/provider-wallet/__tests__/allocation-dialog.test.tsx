@@ -29,6 +29,14 @@ vi.mock('../../provider-funding/api', () => ({
   allocateProviderFunding: vi.fn(),
 }))
 
+vi.mock('../../channels/api', () => ({
+  getChannels: vi.fn().mockResolvedValue({
+    data: {
+      items: [{ id: 1, name: 'Provider One', type: 1, balance: 42.5 }],
+    },
+  }),
+}))
+
 vi.mock('../../users/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../users/api')>()
   return {
@@ -86,4 +94,6 @@ it('shows aggregate availability only on the provider total wallet card', async 
   expect(await screen.findByText('Provider One')).toBeInTheDocument()
   expect(screen.getAllByText('Available')).toHaveLength(1)
   expect(screen.getAllByText('Total funded')).toHaveLength(2)
+  expect(screen.getByText('Current Balance')).toBeInTheDocument()
+  expect(screen.getByText(/42\.5 USD/)).toBeInTheDocument()
 })

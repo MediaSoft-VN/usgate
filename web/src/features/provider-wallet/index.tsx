@@ -97,13 +97,30 @@ export function ProviderWallet() {
   })
   const wallets = walletQuery.data?.wallets ?? []
   const providerWallets = walletQuery.data?.provider_wallets ?? []
+  const channels = channelsQuery.data ?? []
   const channelNames = new Map(
-    (channelsQuery.data ?? []).map((channel) => [
+    channels.map((channel) => [
       channel.id,
-      channel.name || channel.type,
+      channel.name || String(channel.type),
     ])
   )
-  const hasWalletData = wallets.length > 0 || providerWallets.length > 0
+  const channelFunding = new Map<number, typeof providerWallets>()
+  for (const funding of providerWallets) {
+    const summaries = channelFunding.get(funding.channel_id) ?? []
+    summaries.push(funding)
+    channelFunding.set(funding.channel_id, summaries)
+  }
+  const providerChannels =
+    channels.length > 0
+      ? channels
+      : providerWallets.map((wallet) => ({
+          id: wallet.channel_id,
+          name: wallet.channel_name,
+          type: 0,
+          balance: undefined,
+        }))
+  const hasWalletData =
+    wallets.length > 0 || providerWallets.length > 0 || channels.length > 0
 
   return (
     <SectionPageLayout fixedContent>
@@ -226,69 +243,96 @@ export function ProviderWallet() {
         {hasWalletData && (
           <div className='space-y-6'>
             {wallets.length > 0 && (
-              <Card className='border-primary bg-primary/5 shadow-md'>
-                <CardHeader>
+              <Card className='border-primary/30 bg-primary/5 shadow-sm'>
+                <CardHeader className='border-b'>
                   <CardTitle className='text-primary text-xl'>
                     {t('Provider total wallet')}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className='grid gap-6 sm:grid-cols-2'>
+                <CardContent className='grid gap-4 pt-1 sm:grid-cols-3'>
                   {wallets.map((wallet) => (
-                    <div key={wallet.currency}>
-                      <p className='text-muted-foreground text-sm'>
-                        {t('Currency')}: {wallet.currency}
+                    <div key={wallet.currency} className='space-y-1'>
+                      <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
+                        {wallet.currency}
                       </p>
-                      <div className='mt-2 grid gap-4 sm:grid-cols-2'>
-                        <div>
-                          <p className='text-muted-foreground text-sm'>
-                            {t('Total funded')}
-                          </p>
-                          <p className='text-3xl font-bold tabular-nums'>
-                            {formatNumber(wallet.amount_minor / 100)}{' '}
-                            {wallet.currency}
-                          </p>
-                        </div>
-                        <div>
-                          <p className='text-muted-foreground text-sm'>
-                            {t('Available')}
-                          </p>
-                          <p className='text-3xl font-bold tabular-nums'>
-                            {formatNumber(wallet.available_minor / 100)}{' '}
-                            {wallet.currency}
-                          </p>
-                        </div>
+                      <div>
+                        <p className='text-muted-foreground text-sm'>
+                          {t('Total funded')}
+                        </p>
+                        <p className='text-2xl font-bold tabular-nums'>
+                          {formatNumber(wallet.amount_minor / 100)}{' '}
+                          {wallet.currency}
+                        </p>
+                      </div>
+                      <div className='border-border/60 border-t pt-2'>
+                        <p className='text-muted-foreground text-sm'>
+                          {t('Available')}
+                        </p>
+                        <p className='text-2xl font-bold tabular-nums'>
+                          {formatNumber(wallet.available_minor / 100)}{' '}
+                          {wallet.currency}
+                        </p>
                       </div>
                     </div>
                   ))}
                 </CardContent>
               </Card>
             )}
-            {providerWallets.length > 0 && (
-              <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
-                {providerWallets.map((wallet) => (
-                  <Card key={`${wallet.channel_id}-${wallet.currency}`}>
-                    <CardHeader>
-                      <CardTitle>
-                        {wallet.channel_name ||
-                          channelNames.get(wallet.channel_id) ||
-                          t('Unknown')}
-                      </CardTitle>
-                      <p className='text-muted-foreground text-sm'>
-                        {t('Currency')}: {wallet.currency}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <p className='text-muted-foreground text-sm'>
-                        {t('Total funded')}
-                      </p>
-                      <p className='text-2xl font-semibold tabular-nums'>
-                        {formatNumber(wallet.amount_minor / 100)}{' '}
-                        {wallet.currency}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+            {providerChannels.length > 0 && (
+              <section className='space-y-3'>
+                <div>
+                  <h3 className='text-lg font-semibold'>{t('Channels')}</h3>
+                </div>
+                <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
+                  {providerChannels.map((channel) => {
+                    const funding = channelFunding.get(channel.id) ?? []
+                    return (
+                      <Card key={channel.id} size='sm' className='h-full'>
+                        <CardHeader className='border-b'>
+                          <CardTitle>
+                            {channel.name ||
+                              channelNames.get(channel.id) ||
+                              t('Unknown')}
+                          </CardTitle>
+                          <p className='text-muted-foreground text-sm'>
+                            {t('Channel')} #{channel.id}
+                          </p>
+                        </CardHeader>
+                        <CardContent className='grid gap-4 sm:grid-cols-2'>
+                          <div>
+                            <p className='text-muted-foreground text-sm'>
+                              {t('Current Balance')}
+                            </p>
+                            <p className='text-2xl font-semibold tabular-nums'>
+                              {channel.balance == null
+                                ? '—'
+                                : `${formatNumber(channel.balance)} USD`}
+                            </p>
+                          </div>
+                          {funding.length > 0 && (
+                            <div>
+                              <p className='text-muted-foreground text-sm'>
+                                {t('Total funded')}
+                              </p>
+                              <div className='space-y-1'>
+                                {funding.map((wallet) => (
+                                  <p
+                                    key={`${wallet.channel_id}-${wallet.currency}`}
+                                    className='text-lg font-semibold tabular-nums'
+                                  >
+                                    {formatNumber(wallet.amount_minor / 100)}{' '}
+                                    {wallet.currency}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </section>
             )}
           </div>
         )}
