@@ -1,31 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Info, WalletCards } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { WalletCards } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -34,21 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { formatNumber, formatTimestampToDate } from '@/lib/format'
 import { createServerError } from '@/lib/server-error-message'
 
 import { getChannels } from '../channels/api'
 import {
-  createProviderFunding,
-  getProviderFundingSyncStatus,
   getProviderFundings,
-  startProviderFundingSync,
   type ProviderCashFlow,
   type ProviderFunding,
   type ProviderFundingAllocation,
@@ -124,7 +97,9 @@ function mapProviderCashFlows(
     direction: flow.direction,
     type: flow.type,
     counterparty:
-      flow.counterparty_name || channelNames.get(flow.channel_id) || unknownLabel,
+      flow.counterparty_name ||
+      channelNames.get(flow.channel_id) ||
+      unknownLabel,
     amountMinor: flow.amount_minor,
     currency: flow.currency,
     reference: flow.reference,
@@ -135,13 +110,7 @@ function mapProviderCashFlows(
 
 export function ProviderFunding() {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [channelID, setChannelID] = useState('')
-  const [reference, setReference] = useState('')
-  const [amountMinor, setAmountMinor] = useState('')
-  const [currency, setCurrency] = useState('USD')
-  const [fundingOpen, setFundingOpen] = useState(false)
   const channelsQuery = useQuery({
     queryKey: ['provider-funding-channels'],
     queryFn: async () => {
@@ -157,41 +126,9 @@ export function ProviderFunding() {
       return response.data?.items ?? []
     },
   })
-  const syncQuery = useQuery({
-    queryKey: ['provider-funding-sync-status'],
-    queryFn: getProviderFundingSyncStatus,
-    refetchInterval: (query) => (query.state.data?.running ? 2000 : false),
-  })
-  const syncMutation = useMutation({
-    mutationFn: startProviderFundingSync,
-    onSuccess: () => {
-      toast.success(t('Provider balance sync started'))
-      void syncQuery.refetch()
-    },
-  })
   const fundingsQuery = useQuery({
     queryKey: ['provider-funding', page],
     queryFn: () => getProviderFundings(page, PAGE_SIZE),
-  })
-  const selectedChannel = channelsQuery.data?.find(
-    (channel) => String(channel.id) === channelID
-  )
-  const createMutation = useMutation({
-    mutationFn: () =>
-      createProviderFunding({
-        channel_id: Number(channelID),
-        reference: reference.trim(),
-        amount_minor: Math.round(Number(amountMinor) * 100),
-        currency: currency.trim(),
-        source: 'manual',
-      }),
-    onSuccess: () => {
-      toast.success(t('Provider funding recorded'))
-      setReference('')
-      setAmountMinor('')
-      setFundingOpen(false)
-      void queryClient.invalidateQueries({ queryKey: ['provider-funding'] })
-    },
   })
   const data = fundingsQuery.data
   const channelNames = new Map(
@@ -205,140 +142,18 @@ export function ProviderFunding() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const cashFlowRows = data?.cash_flows
     ? mapProviderCashFlows(data.cash_flows, channelNames, t('Unknown'))
-    : createCashFlowRows(items, data?.allocations ?? [], channelNames, t('Unknown'))
+    : createCashFlowRows(
+        items,
+        data?.allocations ?? [],
+        channelNames,
+        t('Unknown')
+      )
 
   return (
     <SectionPageLayout fixedContent>
       <SectionPageLayout.Title>
-        <span className='inline-flex items-center gap-2'>
-          {t('Cash flow history')}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                aria-label={t('Provider funding guide')}
-                className='text-primary hover:text-primary/80 inline-flex rounded-full focus-visible:ring-2 focus-visible:outline-none'
-              >
-                <Info className='size-5' strokeWidth={2.5} aria-hidden='true' />
-              </TooltipTrigger>
-              <TooltipContent className='max-w-sm whitespace-pre-line'>
-                {t('Provider funding guide')}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </span>
+        {t('Cash flow history')}
       </SectionPageLayout.Title>
-      <SectionPageLayout.Actions>
-        <Dialog open={fundingOpen} onOpenChange={setFundingOpen}>
-          <DialogTrigger render={<Button />}>
-            {t('Record provider funding')}
-          </DialogTrigger>
-          <DialogContent className='sm:max-w-2xl'>
-            <DialogHeader>
-              <DialogTitle>{t('Record provider funding')}</DialogTitle>
-            </DialogHeader>
-            <form
-              className='grid gap-3 md:grid-cols-2'
-              onSubmit={(event) => {
-                event.preventDefault()
-                const amount = Number(amountMinor)
-                if (
-                  !selectedChannel ||
-                  !reference.trim() ||
-                  !Number.isFinite(amount) ||
-                  amount <= 0 ||
-                  !Number.isSafeInteger(Math.round(amount * 100)) ||
-                  !currency.trim()
-                ) {
-                  return
-                }
-                createMutation.mutate()
-              }}
-            >
-              <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-channel' required>
-                  {t('Channel')}
-                </Label>
-                <Select
-                  value={channelID}
-                  itemToStringValue={(value) =>
-                    channelsQuery.data?.find(
-                      (channel) => String(channel.id) === value
-                    )?.name ?? ''
-                  }
-                  onValueChange={(value) => setChannelID(value ?? '')}
-                >
-                  <SelectTrigger
-                    id='provider-funding-channel'
-                    className='w-full'
-                  >
-                    <SelectValue placeholder={t('Select channel')}>
-                      {selectedChannel?.name || selectedChannel?.type}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(channelsQuery.data ?? []).map((channel) => (
-                      <SelectItem key={channel.id} value={String(channel.id)}>
-                        {channel.name || channel.type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-reference' required>
-                  {t('Reference')}
-                </Label>
-                <Input
-                  id='provider-funding-reference'
-                  value={reference}
-                  onChange={(event) => setReference(event.target.value)}
-                />
-              </div>
-              <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-amount' required>
-                  {t('Amount')}
-                </Label>
-                <Input
-                  id='provider-funding-amount'
-                  type='number'
-                  min={1}
-                  value={amountMinor}
-                  onChange={(event) => setAmountMinor(event.target.value)}
-                />
-              </div>
-              <div className='grid gap-2'>
-                <Label htmlFor='provider-funding-currency' required>
-                  {t('Currency')}
-                </Label>
-                <Input
-                  id='provider-funding-currency'
-                  value={currency}
-                  onChange={(event) =>
-                    setCurrency(event.target.value.toUpperCase())
-                  }
-                />
-              </div>
-              <p className='text-muted-foreground text-sm italic md:col-span-2'>
-                {t('Provider funding guide')}
-              </p>
-              <DialogFooter className='md:col-span-2'>
-                <Button type='submit' disabled={createMutation.isPending}>
-                  {t('Record provider funding')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-        <Button
-          disabled={syncMutation.isPending || syncQuery.data?.running === true}
-          onClick={() => syncMutation.mutate()}
-          variant='outline'
-        >
-          {syncQuery.data?.running
-            ? t('Provider balance sync running')
-            : t('Sync provider balances')}
-        </Button>
-      </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         {fundingsQuery.isLoading && <LoadingState />}
         {fundingsQuery.isError && (

@@ -8,6 +8,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { ProviderWallet } from '../index'
 
 vi.mock('../../provider-funding/api', () => ({
+  createProviderFunding: vi.fn(),
   getProviderFundings: vi.fn().mockResolvedValue({
     wallets: [
       {
@@ -27,6 +28,8 @@ vi.mock('../../provider-funding/api', () => ({
     ],
   }),
   allocateProviderFunding: vi.fn(),
+  getProviderFundingSyncStatus: vi.fn().mockResolvedValue({ running: false }),
+  startProviderFundingSync: vi.fn(),
 }))
 
 vi.mock('../../users/api', async (importOriginal) => {
@@ -36,6 +39,13 @@ vi.mock('../../users/api', async (importOriginal) => {
     getUsers: vi.fn().mockResolvedValue({ data: { items: [] } }),
   }
 })
+
+vi.mock('../../channels/api', () => ({
+  getChannels: vi.fn().mockResolvedValue({
+    success: true,
+    data: { items: [{ id: 1, name: 'Provider One', type: 'openai' }] },
+  }),
+}))
 
 const i18n = createInstance()
 await i18n.init({
@@ -89,6 +99,9 @@ it('shows provider funding without using the channel upstream balance', async ()
   expect(await screen.findByText('Provider One')).toBeInTheDocument()
   expect(screen.getAllByText('Available')).toHaveLength(1)
   expect(screen.getByText('Total funded')).toBeInTheDocument()
+  expect(
+    screen.getAllByRole('button', { name: 'Sync provider balances' })
+  ).toHaveLength(1)
   expect(screen.getByText(/100 USD/)).toBeInTheDocument()
   expect(screen.getByText(/75 USD/)).toBeInTheDocument()
   expect(screen.queryByText(/42\.5 USD/)).not.toBeInTheDocument()
