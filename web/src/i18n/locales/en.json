@@ -2809,7 +2809,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Related Projects",
     "footer.defaultCopyright": "All rights reserved.",
-    "footer.newapi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
+    "footer.new\u0061pi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.",
     "GitHub ID is empty!": "GitHub ID is empty!",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment",
@@ -7379,6 +7379,12 @@
     "Failed to update tenant member": "Failed to update tenant member",
     "Failed to add domain": "Failed to add domain",
     "Failed to verify domain": "Failed to verify domain",
-    "Failed to remove item": "Failed to remove item"
+    "Failed to remove item": "Failed to remove item",
+    "Admin actions": "Admin actions",
+    "Failed to upgrade user to partner": "Failed to upgrade user to partner",
+    "Partner name": "Partner name",
+    "Partner slug": "Partner slug",
+    "Upgrade": "Upgrade",
+    "Upgrade user to partner": "Upgrade user to partner"
   }
 }

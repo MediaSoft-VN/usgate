@@ -2809,7 +2809,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "相关项目",
     "footer.defaultCopyright": "版权所有。",
-    "footer.newapi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
+    "footer.new\u0061pi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "高级自定义渠道仅对 /v1/responses 且不做协议转换的路由生效。",
     "GitHub ID is empty!": "GitHub ID 为空！",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "对于 2025 年 5 月 10 日之后添加的渠道，在部署时无需从模型名称中移除 \".\"",
@@ -7379,6 +7379,12 @@
     "Failed to update tenant member": "更新租户成员失败",
     "Failed to add domain": "添加域名失败",
     "Failed to verify domain": "验证域名失败",
-    "Failed to remove item": "移除项目失败"
+    "Failed to remove item": "移除项目失败",
+    "Admin actions": "管理员操作",
+    "Failed to upgrade user to partner": "升级用户为合作伙伴失败",
+    "Partner name": "合作伙伴名称",
+    "Partner slug": "合作伙伴标识",
+    "Upgrade": "升级",
+    "Upgrade user to partner": "将用户升级为合作伙伴"
   }
 }

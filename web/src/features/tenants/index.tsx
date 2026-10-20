@@ -29,6 +29,7 @@ import {
   getTenantMembers,
   getTenantOwnerCandidates,
   getTenants,
+  promoteTenant,
   removeTenantDomain,
   removeTenantMember,
   selectTenant,
@@ -45,6 +46,7 @@ export function Tenants() {
   const queryClient = useQueryClient()
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null)
   const [memberDialogOpen, setMemberDialogOpen] = useState(false)
+  const [partnerDialogOpen, setPartnerDialogOpen] = useState(false)
   const [domainDialogOpen, setDomainDialogOpen] = useState(false)
   const [verifyDomain, setVerifyDomain] = useState<TenantDomain | null>(null)
   const [removeTarget, setRemoveTarget] = useState<{ kind: 'member' | 'domain'; id: number } | null>(null)
@@ -53,6 +55,9 @@ export function Tenants() {
   const [hostname, setHostname] = useState('')
   const [token, setToken] = useState('')
   const [verificationToken, setVerificationToken] = useState('')
+  const [partnerOwnerId, setPartnerOwnerId] = useState('')
+  const [partnerName, setPartnerName] = useState('')
+  const [partnerSlug, setPartnerSlug] = useState('')
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
   const ownerCandidatesQuery = useQuery({ queryKey: ['tenant-owner-candidates'], queryFn: getTenantOwnerCandidates })
@@ -79,6 +84,21 @@ export function Tenants() {
     mutationFn: () => upsertTenantMember(selectedTenantId as number, { user_id: Number(memberUserId), role_key: memberRole }),
     onSuccess: async () => { setMemberDialogOpen(false); setMemberUserId(''); await refreshTenant('tenant-members') },
     onError: (error) => handleServerError(error, t('Failed to update tenant member')),
+  })
+  const partnerMutation = useMutation({
+    mutationFn: () => promoteTenant({
+      name: partnerName.trim(),
+      slug: partnerSlug.trim(),
+      owner_user_id: Number(partnerOwnerId),
+    }),
+    onSuccess: async () => {
+      setPartnerDialogOpen(false)
+      setPartnerOwnerId('')
+      setPartnerName('')
+      setPartnerSlug('')
+      await queryClient.invalidateQueries({ queryKey: ['tenants'] })
+    },
+    onError: (error) => handleServerError(error, t('Failed to upgrade user to partner')),
   })
   const roleMutation = useMutation({
     mutationFn: (values: { userId: number; role: string }) => updateTenantMember(selectedTenantId as number, values.userId, values.role),
@@ -109,6 +129,14 @@ export function Tenants() {
       <SectionPageLayout.Content>
         <div className='flex min-h-0 flex-col gap-4'>
           <Card>
+            <CardHeader><CardTitle>{t('Admin actions')}</CardTitle></CardHeader>
+            <CardContent>
+              <Button onClick={() => setPartnerDialogOpen(true)}>
+                {t('Upgrade user to partner')}
+              </Button>
+            </CardContent>
+          </Card>
+          <Card>
             <CardHeader><CardTitle className='flex items-center gap-2'><Building2 className='size-4' aria-hidden='true' />{t('Select tenant')}</CardTitle></CardHeader>
             <CardContent className='flex flex-col gap-3 sm:flex-row'>
               <NativeSelect className='sm:max-w-md' value={selectedTenantId ?? ''} onChange={(event) => setSelectedTenantId(Number(event.target.value) || null)}>
@@ -128,6 +156,29 @@ export function Tenants() {
           </Tabs>}
         </div>
       </SectionPageLayout.Content>
+      <Dialog open={partnerDialogOpen} onOpenChange={setPartnerDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t('Upgrade user to partner')}</DialogTitle></DialogHeader>
+          <div className='grid gap-3'>
+            <label className='grid gap-1 text-sm'>
+              <span>{t('Partner owner')}</span>
+              <NativeSelect value={partnerOwnerId} onChange={(event) => setPartnerOwnerId(event.target.value)}>
+                <NativeSelectOption value=''>{t('Select an existing user')}</NativeSelectOption>
+                {ownerCandidatesQuery.data?.map((user) => <NativeSelectOption key={user.id} value={user.id}>{user.display_name || user.username} ({user.username})</NativeSelectOption>)}
+              </NativeSelect>
+            </label>
+            <label className='grid gap-1 text-sm'>
+              <span>{t('Partner name')}</span>
+              <Input value={partnerName} onChange={(event) => setPartnerName(event.target.value)} />
+            </label>
+            <label className='grid gap-1 text-sm'>
+              <span>{t('Partner slug')}</span>
+              <Input value={partnerSlug} onChange={(event) => setPartnerSlug(event.target.value)} />
+            </label>
+          </div>
+          <DialogFooter><Button onClick={() => partnerMutation.mutate()} disabled={!partnerOwnerId || !partnerName.trim() || !partnerSlug.trim() || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}><DialogContent><DialogHeader><DialogTitle>{t('Add member')}</DialogTitle></DialogHeader><div className='grid gap-3'><label className='grid gap-1 text-sm'><span>{t('User')}</span><NativeSelect value={memberUserId} onChange={(event) => setMemberUserId(event.target.value)}><NativeSelectOption value=''>{t('Select an existing user')}</NativeSelectOption>{ownerCandidatesQuery.data?.map((user) => <NativeSelectOption key={user.id} value={user.id}>{user.display_name || user.username} ({user.username})</NativeSelectOption>)}</NativeSelect></label><label className='grid gap-1 text-sm'><span>{t('Role')}</span><NativeSelect value={memberRole} onChange={(event) => setMemberRole(event.target.value)}>{roles.map((role) => <NativeSelectOption key={role} value={role}>{role}</NativeSelectOption>)}</NativeSelect></label></div><DialogFooter><Button onClick={() => memberMutation.mutate()} disabled={!memberUserId || memberMutation.isPending}>{t('Add')}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={domainDialogOpen} onOpenChange={setDomainDialogOpen}><DialogContent><DialogHeader><DialogTitle>{t('Add domain')}</DialogTitle></DialogHeader><label className='grid gap-1 text-sm'><span>{t('Hostname')}</span><Input value={hostname} onChange={(event) => setHostname(event.target.value)} placeholder='app.example.com' /></label><DialogFooter><Button onClick={() => domainMutation.mutate()} disabled={!hostname || domainMutation.isPending}>{t('Add')}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={verifyDomain !== null} onOpenChange={(open) => !open && setVerifyDomain(null)}><DialogContent><DialogHeader><DialogTitle>{t('Verify domain')}</DialogTitle></DialogHeader><p className='text-muted-foreground text-sm'>{verifyDomain?.hostname}</p>{verificationToken && <p className='text-sm'><span>{t('Verification token')}: </span><code className='break-all rounded bg-muted px-1'>{verificationToken}</code></p>}<label className='grid gap-1 text-sm'><span>{t('Verification token')}</span><Input value={token} onChange={(event) => setToken(event.target.value)} /></label><DialogFooter><Button onClick={() => verifyMutation.mutate()} disabled={!token || verifyMutation.isPending}>{t('Verify')}</Button></DialogFooter></DialogContent></Dialog>

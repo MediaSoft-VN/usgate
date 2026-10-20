@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 
 import {
   createTenantDomain,
+  promoteTenant,
   removeTenantMember,
   selectTenant,
   upsertTenantMember,
@@ -18,6 +19,18 @@ describe('tenant management API', () => {
 
     await expect(selectTenant(7)).resolves.toEqual(response)
     expect(post).toHaveBeenCalledWith('/api/tenant-context/select', { tenant_id: 7 })
+  })
+
+  it('promotes an enabled user through the admin tenant endpoint', async () => {
+    const response = { id: 8, slug: 'acme', name: 'Acme', status: 'active' }
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { success: true, data: response } })
+
+    await expect(promoteTenant({ slug: 'acme', name: 'Acme', owner_user_id: 4 })).resolves.toEqual(response)
+    expect(post).toHaveBeenCalledWith('/api/tenants', {
+      slug: 'acme',
+      name: 'Acme',
+      owner_user_id: 4,
+    })
   })
 
   it('uses the M1 member and domain endpoints with tenant-scoped paths', async () => {
