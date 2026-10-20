@@ -46,7 +46,8 @@ export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
               className={cn(
                 '@container/content',
                 'h-[calc(100svh-var(--app-header-height,0px))]',
-                'min-h-0 overflow-hidden',
+                'min-h-0 overflow-hidden bg-background/70',
+                'rounded-tl-2xl border border-b-0 border-e-0 border-border/50 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--primary)_4%,transparent)]',
                 'peer-data-[variant=inset]:h-[calc(100svh-var(--app-header-height,0px)-(var(--spacing)*4))]'
               )}
             >

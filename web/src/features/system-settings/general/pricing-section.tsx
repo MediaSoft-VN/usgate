@@ -17,10 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState, type ReactNode } from 'react'
 import type { Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import * as z from 'zod'
 
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -40,8 +44,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { handleServerError } from '@/lib/handle-server-error'
 import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
+import { getExchangeRates, syncExchangeRates } from '../api'
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
 import {
@@ -55,6 +61,21 @@ import { useSettingsForm } from '../hooks/use-settings-form'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { safeNumberFieldProps } from '../utils/numeric-field'
 
+function isValidManualRates(value: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(value || '{}')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return false
+    }
+    return Object.values(parsed as Record<string, unknown>).every((rate) => {
+      const numeric = typeof rate === 'number' ? rate : Number(rate)
+      return Number.isFinite(numeric) && numeric > 0
+    })
+  } catch {
+    return false
+  }
+}
+
 const createPricingSchema = (t: (key: string) => string) =>
   z
     .object({
@@ -67,10 +88,14 @@ const createPricingSchema = (t: (key: string) => string) =>
       general_setting: z.object({
         quota_display_type: z.enum(['USD', 'CNY', 'TOKENS', 'CUSTOM']),
         custom_currency_symbol: z.string().max(8).optional(),
+        custom_currency_code: z.string().max(8).optional(),
         custom_currency_exchange_rate: z.coerce
           .number()
           .min(0.0001, t('Exchange rate must be greater than 0'))
           .optional(),
+        exchange_rate_source: z.enum(['vietcombank', 'manual']),
+        exchange_rate_type: z.enum(['cash', 'transfer', 'sell']),
+        manual_exchange_rates: z.string(),
       }),
     })
     .superRefine((data, ctx) => {
@@ -85,6 +110,14 @@ const createPricingSchema = (t: (key: string) => string) =>
           })
         }
 
+        if (!data.general_setting.custom_currency_code?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['general_setting', 'custom_currency_code'],
+            message: t('Custom currency code is required'),
+          })
+        }
+
         if (data.general_setting.custom_currency_exchange_rate == null) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -92,6 +125,17 @@ const createPricingSchema = (t: (key: string) => string) =>
             message: t('Exchange rate is required'),
           })
         }
+      }
+
+      if (
+        data.general_setting.exchange_rate_source === 'manual' &&
+        !isValidManualRates(data.general_setting.manual_exchange_rates)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['general_setting', 'manual_exchange_rates'],
+          message: t('Enter valid JSON rates, for example {"USD":"26100"}'),
+        })
       }
     })
 
@@ -104,6 +148,40 @@ type PricingSectionProps = {
 export function PricingSection({ defaultValues }: PricingSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
+  const queryClient = useQueryClient()
+  const [syncingRates, setSyncingRates] = useState(false)
+  const ratesQuery = useQuery({
+    queryKey: ['exchange-rates'],
+    queryFn: getExchangeRates,
+  })
+  const rateRows = ratesQuery.data?.data?.rates ?? []
+
+  let rateTableContent: ReactNode
+  if (ratesQuery.isLoading) {
+    rateTableContent = (
+      <tr>
+        <td colSpan={3} className='text-muted-foreground px-3 py-4 text-center'>
+          {t('Loading')}
+        </td>
+      </tr>
+    )
+  } else if (rateRows.length === 0) {
+    rateTableContent = (
+      <tr>
+        <td colSpan={3} className='text-muted-foreground px-3 py-4 text-center'>
+          {t('No exchange rates yet')}
+        </td>
+      </tr>
+    )
+  } else {
+    rateTableContent = rateRows.map((row) => (
+      <tr key={row.quote_currency} className='border-b last:border-0'>
+        <td className='px-3 py-2 font-medium'>{row.quote_currency}</td>
+        <td className='px-3 py-2'>{row.rate}</td>
+        <td className='px-3 py-2'>{row.effective_date || '—'}</td>
+      </tr>
+    ))
+  }
 
   const pricingSchema = createPricingSchema(t)
 
@@ -137,7 +215,22 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
     })
 
   const displayType = form.watch('general_setting.quota_display_type') ?? 'USD'
+  const exchangeRateSource =
+    form.watch('general_setting.exchange_rate_source') ?? 'vietcombank'
   const displayInCurrencyEnabled = form.watch('DisplayInCurrencyEnabled')
+
+  const handleSyncRates = async () => {
+    setSyncingRates(true)
+    try {
+      await syncExchangeRates()
+      await queryClient.invalidateQueries({ queryKey: ['exchange-rates'] })
+      toast.success(t('Exchange rates updated successfully'))
+    } catch (error) {
+      handleServerError(error, t('Failed to update exchange rates'))
+    } finally {
+      setSyncingRates(false)
+    }
+  }
   const showTokensOnlyOption = displayType === 'TOKENS'
   const showQuotaPerUnit =
     displayType === 'TOKENS' ||
@@ -238,9 +331,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                     <FormLabel>
                       {displayType === 'CNY'
                         ? t('CNY per USD')
-                        : displayType === 'USD'
-                          ? t('USD Exchange Rate')
-                          : t('USD Exchange Rate')}
+                        : t('USD Exchange Rate')}
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -261,7 +352,34 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
             )}
 
             {displayType === 'CUSTOM' && (
-              <div className='grid gap-4 sm:grid-cols-2'>
+              <div className='grid gap-4 sm:grid-cols-3'>
+                <FormField
+                  control={form.control}
+                  name='general_setting.custom_currency_code'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Custom Currency Code')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type='text'
+                          value={field.value ?? ''}
+                          onChange={(e) =>
+                            field.onChange(e.target.value.toUpperCase())
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          maxLength={8}
+                          placeholder={t('e.g. VND')}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('ISO code used by financial wallets')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name='general_setting.custom_currency_symbol'
@@ -347,6 +465,164 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                 )}
               />
             )}
+
+            <div className='space-y-4 rounded-lg border p-4'>
+              <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+                <div>
+                  <h3 className='text-sm font-medium'>
+                    {t('VND Exchange Rates')}
+                  </h3>
+                  <p className='text-muted-foreground text-sm'>
+                    {t(
+                      'Vietcombank daily rates or manually entered rates for SePay settlement'
+                    )}
+                  </p>
+                </div>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  disabled={syncingRates}
+                  onClick={handleSyncRates}
+                >
+                  {syncingRates ? t('Syncing...') : t('Sync Vietcombank rates')}
+                </Button>
+              </div>
+              <div className='grid gap-4 sm:grid-cols-2'>
+                <FormField
+                  control={form.control}
+                  name='general_setting.exchange_rate_source'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Rate Source')}</FormLabel>
+                      <Select
+                        items={[
+                          {
+                            value: 'vietcombank',
+                            label: t('Vietcombank'),
+                          },
+                          { value: 'manual', label: t('Manual Rates') },
+                        ]}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={t('Select rate source')}
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            <SelectItem value='vietcombank'>
+                              {t('Vietcombank')}
+                            </SelectItem>
+                            <SelectItem value='manual'>
+                              {t('Manual Rates')}
+                            </SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {t(
+                          'Payments snapshot the active rate when an order is created'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='general_setting.exchange_rate_type'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Bank Rate Type')}</FormLabel>
+                      <Select
+                        items={[
+                          { value: 'cash', label: t('Cash') },
+                          { value: 'transfer', label: t('Transfer') },
+                          { value: 'sell', label: t('Sell') },
+                        ]}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('Select rate type')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            <SelectItem value='cash'>{t('Cash')}</SelectItem>
+                            <SelectItem value='transfer'>
+                              {t('Transfer')}
+                            </SelectItem>
+                            <SelectItem value='sell'>{t('Sell')}</SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {t('Sell is recommended for customer payments')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              {exchangeRateSource === 'manual' && (
+                <FormField
+                  control={form.control}
+                  name='general_setting.manual_exchange_rates'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Manual Rates JSON')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type='text'
+                          value={field.value ?? '{}'}
+                          onChange={field.onChange}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          placeholder={t(
+                            'Enter valid JSON rates, for example {"USD":"26100"}'
+                          )}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('VND per one unit of foreign currency')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              <div>
+                <h4 className='mb-2 text-sm font-medium'>
+                  {t('Current VND rates')}
+                </h4>
+                <div className='overflow-x-auto rounded-md border'>
+                  <table className='w-full text-sm'>
+                    <thead>
+                      <tr className='text-muted-foreground border-b text-left'>
+                        <th className='px-3 py-2 font-medium'>
+                          {t('Currency')}
+                        </th>
+                        <th className='px-3 py-2 font-medium'>
+                          {t('Rate (VND)')}
+                        </th>
+                        <th className='px-3 py-2 font-medium'>
+                          {t('Effective date')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>{rateTableContent}</tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
 
             <FormField
               control={form.control}

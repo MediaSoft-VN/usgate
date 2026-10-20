@@ -224,7 +224,13 @@ type SubscriptionOrder struct {
 	CreateTime      int64  `json:"create_time"`
 	CompleteTime    int64  `json:"complete_time"`
 
-	ProviderPayload string `json:"provider_payload" gorm:"type:text"`
+	ProviderPayload    string `json:"provider_payload" gorm:"type:text"`
+	Currency           string `json:"currency" gorm:"type:varchar(3)"`
+	ProviderCurrency   string `json:"provider_currency" gorm:"type:varchar(3)"`
+	ExchangeRate       string `json:"exchange_rate" gorm:"type:varchar(64)"`
+	ExchangeRateSource string `json:"exchange_rate_source" gorm:"type:varchar(32)"`
+	ExchangeRateType   string `json:"exchange_rate_type" gorm:"type:varchar(16)"`
+	ExchangeRateDate   string `json:"exchange_rate_date" gorm:"type:varchar(10)"`
 }
 
 func (o *SubscriptionOrder) Insert() error {
