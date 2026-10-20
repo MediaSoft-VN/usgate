@@ -1,4 +1,3 @@
-import type { User } from '@/features/users/types'
 import { api } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
@@ -48,13 +47,6 @@ export async function promoteTenant(
   return requireServerSuccess(response.data).data as Tenant
 }
 
-export async function getTenantMemberCandidates(
-  tenantId: number
-): Promise<User[]> {
-  const response = await api.get(`/api/tenants/${tenantId}/member-candidates`)
-  return requireServerSuccess(response.data).data as User[]
-}
-
 export async function selectTenant(tenantId: number): Promise<Tenant> {
   const response = await api.post('/api/tenant-context/select', {
     tenant_id: tenantId,
@@ -67,41 +59,6 @@ export async function getTenantMembers(
 ): Promise<TenantMember[]> {
   const response = await api.get(`/api/tenants/${tenantId}/members`)
   return requireServerSuccess(response.data).data as TenantMember[]
-}
-
-export async function upsertTenantMember(
-  tenantId: number,
-  payload: { user_id: number; role_key: string }
-): Promise<TenantMember> {
-  const response = await api.post(
-    `/api/tenants/${tenantId}/members/invitations`,
-    payload
-  )
-  return requireServerSuccess(response.data).data as TenantMember
-}
-
-export async function updateTenantMember(
-  tenantId: number,
-  userId: number,
-  roleKey: string
-): Promise<TenantMember> {
-  const response = await api.patch(
-    `/api/tenants/${tenantId}/members/${userId}`,
-    {
-      role_key: roleKey,
-    }
-  )
-  return requireServerSuccess(response.data).data as TenantMember
-}
-
-export async function removeTenantMember(
-  tenantId: number,
-  userId: number
-): Promise<void> {
-  const response = await api.delete(
-    `/api/tenants/${tenantId}/members/${userId}`
-  )
-  requireServerSuccess(response.data)
 }
 
 export async function getTenantDomains(
@@ -136,7 +93,7 @@ export async function verifyTenantDomain(
   requireServerSuccess(response.data)
 }
 
-export async function removeTenantDomain(
+export async function disableTenantDomain(
   tenantId: number,
   domainId: number
 ): Promise<void> {

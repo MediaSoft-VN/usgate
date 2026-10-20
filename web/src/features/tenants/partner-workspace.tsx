@@ -18,7 +18,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import {
   Table,
   TableBody,
@@ -34,41 +33,27 @@ import {
   createTenantDomain,
   getTenantDomains,
   getTenantMembers,
-  getTenantMemberCandidates,
   getTenants,
-  removeTenantDomain,
-  removeTenantMember,
-  updateTenantMember,
-  upsertTenantMember,
+  disableTenantDomain,
   verifyTenantDomain,
   type TenantDomain,
 } from './api'
-
-const roles = ['owner', 'admin', 'member', 'viewer']
 
 export function PartnerWorkspace() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null)
-  const [memberDialogOpen, setMemberDialogOpen] = useState(false)
   const [domainDialogOpen, setDomainDialogOpen] = useState(false)
   const [verifyDomain, setVerifyDomain] = useState<TenantDomain | null>(null)
-  const [removeTarget, setRemoveTarget] = useState<{
-    kind: 'member' | 'domain'
+  const [disableTarget, setDisableTarget] = useState<{
+    kind: 'domain'
     id: number
   } | null>(null)
-  const [memberUserId, setMemberUserId] = useState('')
-  const [memberRole, setMemberRole] = useState('member')
   const [hostname, setHostname] = useState('')
   const [token, setToken] = useState('')
   const [verificationToken, setVerificationToken] = useState('')
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
-  const ownerCandidatesQuery = useQuery({
-    queryKey: ['tenant-member-candidates', selectedTenantId],
-    queryFn: () => getTenantMemberCandidates(selectedTenantId as number),
-    enabled: selectedTenantId !== null,
-  })
   const tenant =
     tenantsQuery.data?.find((item) => item.id === selectedTenantId) ?? null
   const membersQuery = useQuery({
@@ -90,31 +75,6 @@ export function PartnerWorkspace() {
       setSelectedTenantId(tenantsQuery.data[0].id)
     }
   }, [selectedTenantId, tenantsQuery.data])
-  const memberMutation = useMutation({
-    mutationFn: () =>
-      upsertTenantMember(selectedTenantId as number, {
-        user_id: Number(memberUserId),
-        role_key: memberRole,
-      }),
-    onSuccess: async () => {
-      setMemberDialogOpen(false)
-      setMemberUserId('')
-      await refreshTenant('tenant-members')
-    },
-    onError: (error) =>
-      handleServerError(error, t('Failed to update tenant member')),
-  })
-  const roleMutation = useMutation({
-    mutationFn: (values: { userId: number; role: string }) =>
-      updateTenantMember(
-        selectedTenantId as number,
-        values.userId,
-        values.role
-      ),
-    onSuccess: () => void refreshTenant('tenant-members'),
-    onError: (error) =>
-      handleServerError(error, t('Failed to update tenant member')),
-  })
   const domainMutation = useMutation({
     mutationFn: () => createTenantDomain(selectedTenantId as number, hostname),
     onSuccess: (result) => {
@@ -141,19 +101,12 @@ export function PartnerWorkspace() {
     },
     onError: (error) => handleServerError(error, t('Failed to verify domain')),
   })
-  const removeMutation = useMutation({
+  const disableMutation = useMutation({
     mutationFn: () =>
-      removeTarget?.kind === 'member'
-        ? removeTenantMember(selectedTenantId as number, removeTarget.id)
-        : removeTenantDomain(
-            selectedTenantId as number,
-            removeTarget?.id as number
-          ),
+      disableTenantDomain(selectedTenantId as number, disableTarget?.id as number),
     onSuccess: async () => {
-      setRemoveTarget(null)
-      await refreshTenant(
-        removeTarget?.kind === 'member' ? 'tenant-members' : 'tenant-domains'
-      )
+      setDisableTarget(null)
+      await refreshTenant('tenant-domains')
     },
     onError: (error) => handleServerError(error, t('Failed to remove item')),
   })
@@ -233,13 +186,6 @@ export function PartnerWorkspace() {
                   <CardHeader>
                     <CardTitle className='flex items-center justify-between'>
                       <span>{t('Tenant members')}</span>
-                      <Button
-                        size='sm'
-                        onClick={() => setMemberDialogOpen(true)}
-                      >
-                        <Plus className='size-4' aria-hidden='true' />
-                        {t('Add member')}
-                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -252,54 +198,18 @@ export function PartnerWorkspace() {
                             <TableHead>{t('User')}</TableHead>
                             <TableHead>{t('Role')}</TableHead>
                             <TableHead>{t('Status')}</TableHead>
-                            <TableHead className='text-end'>
-                              {t('Actions')}
-                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {membersQuery.data?.map((member) => (
                             <TableRow key={member.id}>
                               <TableCell>
-                                {ownerCandidatesQuery.data?.find(
-                                  (user) => user.id === member.user_id
-                                )?.display_name || `#${member.user_id}`}
+                                {`#${member.user_id}`}
                               </TableCell>
                               <TableCell>
-                                <NativeSelect
-                                  aria-label={t('Role for user {{id}}', {
-                                    id: member.user_id,
-                                  })}
-                                  value={member.role_key}
-                                  onChange={(event) =>
-                                    roleMutation.mutate({
-                                      userId: member.user_id,
-                                      role: event.target.value,
-                                    })
-                                  }
-                                >
-                                  {roles.map((role) => (
-                                    <NativeSelectOption key={role} value={role}>
-                                      {role}
-                                    </NativeSelectOption>
-                                  ))}
-                                </NativeSelect>
+                                {member.role_key}
                               </TableCell>
                               <TableCell>{member.status}</TableCell>
-                              <TableCell className='text-end'>
-                                <Button
-                                  variant='destructive'
-                                  size='sm'
-                                  onClick={() =>
-                                    setRemoveTarget({
-                                      kind: 'member',
-                                      id: member.user_id,
-                                    })
-                                  }
-                                >
-                                  {t('Remove')}
-                                </Button>
-                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -356,14 +266,15 @@ export function PartnerWorkspace() {
                                 <Button
                                   variant='destructive'
                                   size='sm'
+                                  disabled={domain.status === 'disabled'}
                                   onClick={() =>
-                                    setRemoveTarget({
+                                     setDisableTarget({
                                       kind: 'domain',
                                       id: domain.id,
                                     })
                                   }
                                 >
-                                  {t('Remove')}
+                                  {t('Disable')}
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -378,52 +289,6 @@ export function PartnerWorkspace() {
           )}
         </div>
       </SectionPageLayout.Content>
-      <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('Add member')}</DialogTitle>
-          </DialogHeader>
-          <div className='grid gap-3'>
-            <label className='grid gap-1 text-sm'>
-              <span>{t('User')}</span>
-              <NativeSelect
-                value={memberUserId}
-                onChange={(event) => setMemberUserId(event.target.value)}
-              >
-                <NativeSelectOption value=''>
-                  {t('Select an existing user')}
-                </NativeSelectOption>
-                {ownerCandidatesQuery.data?.map((user) => (
-                  <NativeSelectOption key={user.id} value={user.id}>
-                    {user.display_name || user.username} ({user.username})
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </label>
-            <label className='grid gap-1 text-sm'>
-              <span>{t('Role')}</span>
-              <NativeSelect
-                value={memberRole}
-                onChange={(event) => setMemberRole(event.target.value)}
-              >
-                {roles.map((role) => (
-                  <NativeSelectOption key={role} value={role}>
-                    {role}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </label>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() => memberMutation.mutate()}
-              disabled={!memberUserId || memberMutation.isPending}
-            >
-              {t('Add')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={domainDialogOpen} onOpenChange={setDomainDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -484,14 +349,14 @@ export function PartnerWorkspace() {
         </DialogContent>
       </Dialog>
       <ConfirmDialog
-        open={removeTarget !== null}
-        onOpenChange={(open) => !open && setRemoveTarget(null)}
-        title={t('Remove item')}
+        open={disableTarget !== null}
+        onOpenChange={(open) => !open && setDisableTarget(null)}
+        title={t('Disable')}
         desc={t('This action cannot be undone.')}
         destructive
-        handleConfirm={() => removeMutation.mutate()}
-        isLoading={removeMutation.isPending}
-        confirmText={t('Remove')}
+        handleConfirm={() => disableMutation.mutate()}
+        isLoading={disableMutation.isPending}
+        confirmText={t('Disable')}
       />
     </SectionPageLayout>
   )

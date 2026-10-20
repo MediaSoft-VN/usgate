@@ -10,7 +10,6 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type tenantRequest struct {
@@ -19,20 +18,11 @@ type tenantRequest struct {
 	Name        string `json:"name"`
 	OwnerUserID int    `json:"owner_user_id"`
 }
-type membershipRequest struct {
-	UserID int    `json:"user_id"`
-	Role   string `json:"role_key"`
-}
 type domainRequest struct {
 	Hostname string `json:"hostname"`
 }
 type domainVerifyRequest struct {
 	Token string `json:"token"`
-}
-type tenantMemberCandidate struct {
-	Id          int    `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
 }
 
 func tenantIDParam(c *gin.Context) (int, bool) {
@@ -118,111 +108,6 @@ func ListTenantMembers(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, members)
-}
-
-func ListTenantMemberCandidates(c *gin.Context) {
-	id, ok := tenantIDParam(c)
-	if !ok || !middleware.RequireTenantAccess(c, id, "member_admin") {
-		return
-	}
-	var candidates []tenantMemberCandidate
-	if err := model.DB.Model(&model.User{}).
-		Select("id, username, display_name").
-		Where("status = ?", common.UserStatusEnabled).
-		Order("username").Find(&candidates).Error; err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	common.ApiSuccess(c, candidates)
-}
-
-func UpsertTenantMember(c *gin.Context) {
-	id, ok := tenantIDParam(c)
-	if !ok || !middleware.RequireTenantAccess(c, id, "member_admin") {
-		return
-	}
-	var request membershipRequest
-	if err := c.ShouldBindJSON(&request); err != nil || request.UserID <= 0 {
-		common.ApiErrorT(c, "Invalid parameters")
-		return
-	}
-	if request.Role == "" {
-		request.Role = model.TenantRoleMember
-	}
-	if !model.ValidTenantRole(request.Role) {
-		common.ApiErrorT(c, "Invalid parameters")
-		return
-	}
-	var user model.User
-	if err := model.DB.Select("id").Where("id = ? AND status = ?", request.UserID, common.UserStatusEnabled).First(&user).Error; err != nil {
-		common.ApiError(c, model.ErrInvalidTenantMember)
-		return
-	}
-	var existing model.TenantMembership
-	err := model.DB.Where("tenant_id = ? AND user_id = ?", id, request.UserID).First(&existing).Error
-	if err == nil {
-		if err = model.ChangeMembership(model.DB, id, request.UserID, request.Role, model.MembershipActive); err != nil {
-			common.ApiError(c, err)
-			return
-		}
-		common.ApiSuccess(c, gin.H{"tenant_id": id, "user_id": request.UserID, "role_key": request.Role, "status": model.MembershipActive})
-		return
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		common.ApiError(c, err)
-		return
-	}
-	membership := model.TenantMembership{TenantId: id, UserId: request.UserID, RoleKey: request.Role, Status: model.MembershipActive, CreatedAt: common.GetTimestamp(), UpdatedAt: common.GetTimestamp()}
-	err = model.DB.Create(&membership).Error
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	common.ApiSuccess(c, membership)
-}
-
-func UpdateTenantMember(c *gin.Context) {
-	id, ok := tenantIDParam(c)
-	if !ok || !middleware.RequireTenantAccess(c, id, "member_admin") {
-		return
-	}
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		common.ApiErrorT(c, "Invalid parameters")
-		return
-	}
-	var req membershipRequest
-	if err = c.ShouldBindJSON(&req); err != nil || !model.ValidTenantRole(req.Role) {
-		common.ApiErrorT(c, "Invalid parameters")
-		return
-	}
-	if err = model.ChangeMembership(model.DB, id, userID, req.Role, model.MembershipActive); err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	common.ApiSuccess(c, gin.H{"tenant_id": id, "user_id": userID, "role_key": req.Role})
-}
-
-func RemoveTenantMember(c *gin.Context) {
-	id, ok := tenantIDParam(c)
-	if !ok || !middleware.RequireTenantAccess(c, id, "member_admin") {
-		return
-	}
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		common.ApiErrorT(c, "Invalid parameters")
-		return
-	}
-	if err = model.ChangeMembership(model.DB, id, userID, model.TenantRoleMember, model.MembershipRemoved); err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	common.ApiSuccess(c, nil)
-}
-
-func TransferTenantOwner(c *gin.Context) {
-	common.ApiErrorT(c, "Ownership transfer requires recent authentication")
-	c.Abort()
 }
 
 func ListTenantDomains(c *gin.Context) {

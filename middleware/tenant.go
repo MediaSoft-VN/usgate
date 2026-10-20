@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -42,13 +41,6 @@ func TenantID(c *gin.Context) (int, bool) {
 
 func RequireTenantAccess(c *gin.Context, tenantID int, action string) bool {
 	userID := c.GetInt("id")
-	if strings.Contains(c.Request.Host, ".") {
-		resolved, err := model.ResolveVerifiedTenant(c.Request.Host, userID)
-		if err != nil || resolved.Id != tenantID {
-			common.ApiErrorT(c, "Tenant access denied")
-			return false
-		}
-	}
 	membership, err := model.ActiveMembership(tenantID, userID)
 	if err != nil || !model.TenantPermission(membership.RoleKey, action) {
 		common.ApiErrorT(c, "Unauthorized, insufficient tenant privileges")
