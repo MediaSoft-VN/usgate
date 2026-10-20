@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, Globe, Plus, Users } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState } from '@/components/empty-state'
@@ -17,7 +16,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
@@ -31,7 +29,6 @@ import {
   getTenantMembers,
   getTenantOwnerCandidates,
   getTenants,
-  promoteTenant,
   removeTenantDomain,
   removeTenantMember,
   selectTenant,
@@ -48,7 +45,6 @@ export function Tenants() {
   const queryClient = useQueryClient()
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null)
   const [memberDialogOpen, setMemberDialogOpen] = useState(false)
-  const [partnerDialogOpen, setPartnerDialogOpen] = useState(false)
   const [domainDialogOpen, setDomainDialogOpen] = useState(false)
   const [verifyDomain, setVerifyDomain] = useState<TenantDomain | null>(null)
   const [removeTarget, setRemoveTarget] = useState<{ kind: 'member' | 'domain'; id: number } | null>(null)
@@ -57,7 +53,6 @@ export function Tenants() {
   const [hostname, setHostname] = useState('')
   const [token, setToken] = useState('')
   const [verificationToken, setVerificationToken] = useState('')
-  const [partnerOwnerId, setPartnerOwnerId] = useState('')
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
   const ownerCandidatesQuery = useQuery({ queryKey: ['tenant-owner-candidates'], queryFn: getTenantOwnerCandidates })
@@ -85,31 +80,6 @@ export function Tenants() {
     onSuccess: async () => { setMemberDialogOpen(false); setMemberUserId(''); await refreshTenant('tenant-members') },
     onError: (error) => handleServerError(error, t('Failed to update tenant member')),
   })
-  const partnerMutation = useMutation({
-    mutationFn: promoteTenant,
-    onSuccess: async () => {
-      setPartnerDialogOpen(false)
-      setPartnerOwnerId('')
-      await queryClient.invalidateQueries({ queryKey: ['tenants'] })
-      toast.success(t('Provider partner created'))
-    },
-    onError: (error) => handleServerError(error, t('Failed to upgrade user to partner')),
-  })
-  const submitPartnerUpgrade = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!partnerOwnerId || partnerMutation.isPending) return
-
-    const owner = ownerCandidatesQuery.data?.find((user) => user.id === Number(partnerOwnerId))
-    if (!owner) return
-    const name = owner.display_name?.trim() || owner.username
-    const slug = owner.username.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-|-$/g, '').slice(0, 64) || `partner-${owner.id}`
-
-    partnerMutation.mutate({
-      name,
-      slug,
-      owner_user_id: Number(partnerOwnerId),
-    })
-  }
   const roleMutation = useMutation({
     mutationFn: (values: { userId: number; role: string }) => updateTenantMember(selectedTenantId as number, values.userId, values.role),
     onSuccess: () => void refreshTenant('tenant-members'),
@@ -138,29 +108,6 @@ export function Tenants() {
       <SectionPageLayout.Title>{t('Tenant Management')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='flex min-h-0 flex-col gap-4'>
-          <Card>
-            <CardHeader><CardTitle>{t('Admin actions')}</CardTitle></CardHeader>
-            <CardContent>
-              <Dialog open={partnerDialogOpen} onOpenChange={setPartnerDialogOpen}>
-                <DialogTrigger render={<Button />}>
-                  {t('Upgrade user to partner')}
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>{t('Upgrade user to partner')}</DialogTitle></DialogHeader>
-                  <form className='grid gap-3' onSubmit={submitPartnerUpgrade}>
-                    <label className='grid gap-1 text-sm'>
-                      <span>{t('Partner owner')}</span>
-                      <NativeSelect value={partnerOwnerId} onChange={(event) => setPartnerOwnerId(event.target.value)}>
-                        <NativeSelectOption value=''>{t('Select an existing user')}</NativeSelectOption>
-                        {ownerCandidatesQuery.data?.map((user) => <NativeSelectOption key={user.id} value={user.id}>{user.display_name || user.username} ({user.username})</NativeSelectOption>)}
-                      </NativeSelect>
-                    </label>
-                    <DialogFooter><Button type='submit' disabled={!partnerOwnerId || partnerMutation.isPending}>{t('Upgrade')}</Button></DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
           <Card>
             <CardHeader><CardTitle className='flex items-center gap-2'><Building2 className='size-4' aria-hidden='true' />{t('Select tenant')}</CardTitle></CardHeader>
             <CardContent className='flex flex-col gap-3 sm:flex-row'>

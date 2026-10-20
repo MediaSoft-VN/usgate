@@ -68,6 +68,8 @@ const MANAGE_ACTION_TITLES: Record<AdminUserManageAction, string> = {
   enable: 'Verify to enable user',
   promote: 'Verify to promote user',
   demote: 'Verify to demote user',
+  partner_promote: 'Verify to upgrade user to partner',
+  partner_demote: 'Verify to downgrade partner',
 }
 
 interface DataTableRowActionsProps {
@@ -245,6 +247,22 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         {!isAdmin && (
           <DropdownMenuItem onClick={() => handleManage('promote')}>
             {t('Promote')}
+            <DropdownMenuShortcut>
+              <ArrowUp size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        )}
+
+        {user.is_partner ? (
+          <DropdownMenuItem onClick={() => handleManage('partner_demote')}>
+            {t('Downgrade partner')}
+            <DropdownMenuShortcut>
+              <ArrowDown size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem onClick={() => handleManage('partner_promote')}>
+            {t('Upgrade to partner')}
             <DropdownMenuShortcut>
               <ArrowUp size={16} />
             </DropdownMenuShortcut>

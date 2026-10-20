@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -17,6 +18,59 @@ func PromoteTenant(slug, name, partnerCode string, userID int) (*model.Tenant, e
 		return err
 	})
 	return tenant, err
+}
+
+// PromoteUserPartner creates or re-enables the tenant owned by a user. Tenant
+// metadata is deliberately generated here so the admin action never accepts
+// or displays partner identifiers.
+func PromoteUserPartner(userID int) error {
+	return model.DB.Transaction(func(tx *gorm.DB) error {
+		var membership model.TenantMembership
+		err := tx.Where("user_id = ? AND role_key = ?", userID, model.TenantRoleOwner).
+			Order("id DESC").First(&membership).Error
+		if err == nil {
+			now := common.GetTimestamp()
+			if err = tx.Model(&model.Tenant{}).Where("id = ?", membership.TenantId).
+				Updates(map[string]any{"status": model.TenantActive, "updated_at": now}).Error; err != nil {
+				return err
+			}
+			return tx.Model(&model.TenantMembership{}).Where("id = ?", membership.Id).
+			Updates(map[string]any{"status": model.MembershipActive, "updated_at": now}).Error
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		name := "Partner " + strconv.Itoa(userID)
+		slug := "partner-" + strconv.Itoa(userID)
+		_, err = model.CreateTenantWithOwnerAndCode(tx, slug, name, "", userID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// DemoteUserPartner disables all partner tenants owned by a user and removes
+// the active owner memberships while retaining tenant data for auditability.
+func DemoteUserPartner(userID int) error {
+	return model.DB.Transaction(func(tx *gorm.DB) error {
+		var memberships []model.TenantMembership
+		if err := tx.Where("user_id = ? AND role_key = ? AND status = ?", userID, model.TenantRoleOwner, model.MembershipActive).Find(&memberships).Error; err != nil {
+			return err
+		}
+		now := common.GetTimestamp()
+		for _, membership := range memberships {
+			if err := tx.Model(&model.Tenant{}).Where("id = ?", membership.TenantId).
+				Updates(map[string]any{"status": "disabled", "updated_at": now}).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&model.TenantMembership{}).Where("id = ?", membership.Id).
+				Updates(map[string]any{"status": model.MembershipRemoved, "updated_at": now}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func CreateDomain(tenantID int, hostname string) (*model.TenantDomain, string, error) {

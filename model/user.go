@@ -112,6 +112,7 @@ type User struct {
 	LastLoginAt          int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
 	AuthVersion          int64                      `json:"-" gorm:"type:bigint;not null;default:1;column:auth_version"`
 	AdminPermissions     map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
+	IsPartner            bool                       `json:"is_partner" gorm:"-:all"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -432,6 +433,9 @@ func GetAllUsers(pageInfo *common.PageInfo, sortOptions ...UserSortOptions) (use
 		return nil, 0, err
 	}
 
+	if err = PopulatePartnerStatus(users); err != nil {
+		return nil, 0, err
+	}
 	return users, total, nil
 }
 
@@ -501,7 +505,37 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 		return nil, 0, err
 	}
 
+	if err = PopulatePartnerStatus(users); err != nil {
+		return nil, 0, err
+	}
 	return users, total, nil
+}
+
+// PopulatePartnerStatus annotates dashboard user rows without exposing tenant
+// identifiers or partner metadata. A partner is an enabled tenant owner.
+func PopulatePartnerStatus(users []*User) error {
+	if len(users) == 0 {
+		return nil
+	}
+	ids := make([]int, 0, len(users))
+	for _, user := range users {
+		ids = append(ids, user.Id)
+		user.IsPartner = false
+	}
+	var partnerIDs []int
+	if err := DB.Model(&TenantMembership{}).
+		Where("user_id IN ? AND role_key = ? AND status = ?", ids, TenantRoleOwner, MembershipActive).
+		Pluck("user_id", &partnerIDs).Error; err != nil {
+		return err
+	}
+	partnerSet := make(map[int]struct{}, len(partnerIDs))
+	for _, id := range partnerIDs {
+		partnerSet[id] = struct{}{}
+	}
+	for _, user := range users {
+		_, user.IsPartner = partnerSet[user.Id]
+	}
+	return nil
 }
 
 func GetUserById(id int, selectAll bool) (*User, error) {

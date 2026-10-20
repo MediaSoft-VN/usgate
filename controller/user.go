@@ -1175,6 +1175,11 @@ func ManageUser(c *gin.Context) {
 			return
 		}
 		user.Role = common.RoleCommonUser
+	case "partner_promote", "partner_demote":
+		if user.Status != common.UserStatusEnabled {
+			common.ApiErrorT(c, "User is disabled")
+			return
+		}
 	default:
 		common.ApiErrorT(c, "Invalid parameters")
 		return
@@ -1182,6 +1187,26 @@ func ManageUser(c *gin.Context) {
 
 	authorization := requireAdminUserProof(c, service.VerificationScopeAdminUserManage, service.AdminUserManageContext{UserID: user.Id, Action: req.Action})
 	if authorization == nil {
+		return
+	}
+	if req.Action == "partner_promote" || req.Action == "partner_demote" {
+		var partnerErr error
+		if req.Action == "partner_promote" {
+			partnerErr = service.PromoteUserPartner(user.Id)
+		} else {
+			partnerErr = service.DemoteUserPartner(user.Id)
+		}
+		if partnerErr != nil {
+			common.ApiError(c, partnerErr)
+			return
+		}
+		recordManageAuditFor(c, user.Id, "user.partner.manage", map[string]any{
+			"action":              req.Action,
+			"username":            user.Username,
+			"id":                  user.Id,
+			"verification_method": authorization.Method,
+		})
+		common.ApiSuccess(c, gin.H{"is_partner": req.Action == "partner_promote"})
 		return
 	}
 	if req.Action == "demote" {
