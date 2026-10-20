@@ -252,7 +252,7 @@ export function ProviderWallet() {
                         </CardHeader>
                         <CardContent>
                           <p className='text-muted-foreground text-sm'>
-                            {t('Current Balance')}
+                            {t('Total funded')}
                           </p>
                           <p className='text-2xl font-semibold tabular-nums'>
                             {formatNumber(wallet.amount_minor / 100)}{' '}

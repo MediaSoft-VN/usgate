@@ -55,6 +55,49 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	assert.Equal(t, ProviderCashFlowTypeFunding, flows[0].Type)
 }
 
+func TestProviderFundingWalletUsesNetLedgerBalancePerCurrency(t *testing.T) {
+	require.NoError(t, DB.AutoMigrate(&Channel{}, &ProviderCashFlow{}))
+	channel := &Channel{Name: "provider wallet ledger test", Type: 1, Key: "provider-wallet-ledger-test-key"}
+	require.NoError(t, DB.Create(channel).Error)
+	flows := []ProviderCashFlow{
+		{ChannelID: channel.Id, Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: "wallet-ledger-in-1", AmountMinor: 10000, Currency: "usd", Source: ProviderFundingSourceManual},
+		{ChannelID: channel.Id, Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: "wallet-ledger-in-2", AmountMinor: 5000, Currency: "USD", Source: ProviderFundingSourceManual},
+		{UserID: 1, Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation, Reference: "wallet-ledger-out-1", AmountMinor: 2500, Currency: "USD", Source: "allocation"},
+		{ChannelID: channel.Id, Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: "wallet-ledger-eur", AmountMinor: 700, Currency: "eur", Source: ProviderFundingSourceManual},
+	}
+	for i := range flows {
+		require.NoError(t, DB.Create(&flows[i]).Error)
+	}
+	t.Cleanup(func() {
+		DB.Where("reference LIKE ?", "wallet-ledger-%").Delete(&ProviderCashFlow{})
+		DB.Delete(&Channel{}, channel.Id)
+	})
+
+	wallets, err := SummarizeProviderFundingWallets()
+	require.NoError(t, err)
+	require.Len(t, wallets, 2)
+	assert.Equal(t, "EUR", wallets[0].Currency)
+	assert.Equal(t, int64(700), wallets[0].AmountMinor)
+	assert.Equal(t, int64(0), wallets[0].AllocatedMinor)
+	assert.Equal(t, int64(700), wallets[0].AvailableMinor)
+	assert.Equal(t, "USD", wallets[1].Currency)
+	assert.Equal(t, int64(12500), wallets[1].AmountMinor)
+	assert.Equal(t, int64(2500), wallets[1].AllocatedMinor)
+	assert.Equal(t, int64(12500), wallets[1].AvailableMinor)
+
+	channelWallets, err := SummarizeProviderFundingByChannel()
+	require.NoError(t, err)
+	var usdChannelWallet *ProviderFundingChannelSummary
+	for i := range channelWallets {
+		if channelWallets[i].ChannelID == channel.Id && channelWallets[i].Currency == "USD" {
+			usdChannelWallet = &channelWallets[i]
+			break
+		}
+	}
+	require.NotNil(t, usdChannelWallet)
+	assert.Equal(t, int64(15000), usdChannelWallet.AmountMinor)
+}
+
 func TestListProviderFundingAllocationHistoryIncludesCounterpartyName(t *testing.T) {
 	require.NoError(t, DB.AutoMigrate(&ProviderFundingAllocation{}, &User{}))
 	user := &User{Username: "cashflow-counterparty", DisplayName: "Cash Flow Recipient", Password: "test-password"}

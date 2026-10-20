@@ -160,6 +160,24 @@ func migrateProviderCashFlows() error {
 				}
 			}
 		}
+		// Legacy rows were not normalized before the cash-flow table became the
+		// source of truth. Normalize both backfilled and already migrated rows so
+		// currencies cannot be split into separate wallets by letter case.
+		if tx.Migrator().HasTable(&ProviderCashFlow{}) {
+			var flows []ProviderCashFlow
+			if err := tx.Find(&flows).Error; err != nil {
+				return err
+			}
+			for i := range flows {
+				currency := normalizeProviderFundingCurrency(flows[i].Currency)
+				if currency == flows[i].Currency {
+					continue
+				}
+				if err := tx.Model(&ProviderCashFlow{}).Where("id = ?", flows[i].ID).Update("currency", currency).Error; err != nil {
+					return err
+				}
+			}
+		}
 		if tx.Migrator().HasTable(&ProviderFunding{}) {
 			if err := tx.Migrator().DropTable(&ProviderFunding{}); err != nil {
 				return err
@@ -206,7 +224,7 @@ func providerCashFlowTotals(currency string) (int64, int64, error) {
 		return 0, 0, err
 	}
 	var incoming, outgoing int64
-	query := DB.Model(&ProviderCashFlow{}).Where("currency = ?", currency)
+	query := DB.Model(&ProviderCashFlow{}).Where("currency = ?", normalizeProviderFundingCurrency(currency))
 	if err := query.Where("direction = ?", ProviderCashFlowDirectionIncoming).Select("COALESCE(SUM(amount_minor), 0)").Scan(&incoming).Error; err != nil {
 		return 0, 0, err
 	}
@@ -322,18 +340,10 @@ func SummarizeProviderFundingWallets() ([]ProviderFundingWalletSummary, error) {
 		return nil, err
 	}
 	err := DB.Model(&ProviderCashFlow{}).
-		Select("0 AS channel_id, currency, SUM(CASE WHEN direction = ? THEN amount_minor ELSE 0 END) AS amount_minor", ProviderCashFlowDirectionIncoming).
+		Select("0 AS channel_id, currency, SUM(CASE WHEN direction = ? THEN amount_minor ELSE -amount_minor END) AS amount_minor, SUM(CASE WHEN direction = ? THEN amount_minor ELSE 0 END) AS allocated_minor, SUM(CASE WHEN direction = ? THEN amount_minor ELSE -amount_minor END) AS available_minor", ProviderCashFlowDirectionIncoming, ProviderCashFlowDirectionOutgoing, ProviderCashFlowDirectionIncoming).
 		Group("currency").Order("currency ASC").Scan(&wallets).Error
 	if err != nil {
 		return nil, err
-	}
-	for i := range wallets {
-		var allocated int64
-		if err := DB.Model(&ProviderCashFlow{}).Where("currency = ? AND direction = ?", wallets[i].Currency, ProviderCashFlowDirectionOutgoing).Select("COALESCE(SUM(amount_minor), 0)").Scan(&allocated).Error; err != nil {
-			return nil, err
-		}
-		wallets[i].AllocatedMinor = allocated
-		wallets[i].AvailableMinor = wallets[i].AmountMinor - allocated
 	}
 	return wallets, nil
 }
