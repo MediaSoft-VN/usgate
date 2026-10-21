@@ -63,6 +63,7 @@ func TestResolveTenantContextAllowsLocalhostOnlyWhenExplicitlyEnabled(t *testing
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })
 	t.Setenv("TENANT_ALLOW_LOCALHOST", "true")
+	t.Setenv("TENANT_LOCALHOST_PORT", "5555")
 
 	owner := model.User{Username: "localhost-owner", Password: "unused", Status: common.UserStatusEnabled}
 	require.NoError(t, db.Create(&owner).Error)
@@ -78,4 +79,9 @@ func TestResolveTenantContextAllowsLocalhostOnlyWhenExplicitlyEnabled(t *testing
 	selectedID, ok := TenantID(c)
 	require.True(t, ok)
 	require.Equal(t, tenant.Id, selectedID)
+
+	mainContext := request("localhost:5173", owner.Id)
+	require.NoError(t, ResolveTenantContext(mainContext))
+	_, ok = mainContext.Get(string(constant.ContextKeyTenantID))
+	require.False(t, ok)
 }

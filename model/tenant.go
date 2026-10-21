@@ -307,7 +307,13 @@ func ResolveVerifiedTenantForHost(host string) (*Tenant, error) {
 // keeping NormalizeTenantHostname strict for stored/configured hostnames.
 func normalizeTenantRequestHost(host string) (string, error) {
 	host = strings.TrimSpace(host)
-	if parsed, _, err := net.SplitHostPort(host); err == nil {
+	if parsed, port, err := net.SplitHostPort(host); err == nil {
+		if parsed == "localhost" && common.GetEnvOrDefaultBool("TENANT_ALLOW_LOCALHOST", false) {
+			configuredPort := common.GetEnvOrDefaultString("TENANT_LOCALHOST_PORT", "")
+			if configuredPort != "" && port != configuredPort {
+				return "", errors.New("localhost tenant port mismatch")
+			}
+		}
 		host = parsed
 	}
 	if host == "localhost" && common.GetEnvOrDefaultBool("TENANT_ALLOW_LOCALHOST", false) {
