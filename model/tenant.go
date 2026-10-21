@@ -266,7 +266,7 @@ func ResolveVerifiedTenant(host string, userID int) (*Tenant, error) {
 // tenant resolver, it does not require membership because registration creates
 // that membership as part of the same operation.
 func ResolveVerifiedTenantForRegistration(host string) (*Tenant, error) {
-	normalized, err := NormalizeTenantHostname(host)
+	normalized, err := normalizeTenantRequestHost(host)
 	if err != nil {
 		return nil, ErrTenantNotFound
 	}
@@ -279,6 +279,38 @@ func ResolveVerifiedTenantForRegistration(host string) (*Tenant, error) {
 		return nil, ErrTenantNotFound
 	}
 	return &tenant, nil
+}
+
+// ResolveVerifiedTenantForHost distinguishes an unknown host from a verified
+// host whose tenant is no longer active. The distinction lets request
+// middleware fail closed instead of falling back to the platform application.
+func ResolveVerifiedTenantForHost(host string) (*Tenant, error) {
+	normalized, err := normalizeTenantRequestHost(host)
+	if err != nil {
+		return nil, ErrTenantNotFound
+	}
+	var domain TenantDomain
+	if err = DB.Where("hostname = ? AND status = ?", normalized, DomainVerified).First(&domain).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTenantNotFound
+		}
+		return nil, err
+	}
+	var tenant Tenant
+	if err = DB.Where("id = ? AND status = ? AND deleted_at IS NULL", domain.TenantId, TenantActive).First(&tenant).Error; err != nil {
+		return nil, ErrTenantForbidden
+	}
+	return &tenant, nil
+}
+
+// normalizeTenantRequestHost accepts the host form supplied by net/http while
+// keeping NormalizeTenantHostname strict for stored/configured hostnames.
+func normalizeTenantRequestHost(host string) (string, error) {
+	host = strings.TrimSpace(host)
+	if parsed, _, err := net.SplitHostPort(host); err == nil {
+		host = parsed
+	}
+	return NormalizeTenantHostname(host)
 }
 
 // EnsureActiveTenantMembership makes a user an active member of a tenant. It

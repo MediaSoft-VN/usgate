@@ -12,6 +12,11 @@ export type Tenant = {
   updated_at: number
 }
 
+export async function getTenantContext(): Promise<Tenant | null> {
+  const response = await api.get('/api/tenant-context')
+  return requireServerSuccess(response.data).data as Tenant | null
+}
+
 export type CreateTenantPayload = {
   slug: string
   partner_code?: string

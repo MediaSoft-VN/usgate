@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/QuantumNous/new-api/common"
@@ -13,22 +14,37 @@ import (
 // are deliberately ignored; deployments must terminate TLS and set Request.Host.
 func TenantContext() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID := c.GetInt("id")
-		tenant, err := model.ResolveVerifiedTenant(c.Request.Host, userID)
-		if err != nil {
+		if err := ResolveTenantContext(c); err != nil {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"success": false, "message": "tenant access denied"})
 			return
 		}
-		membership, err := model.ActiveMembership(tenant.Id, userID)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"success": false, "message": "tenant access denied"})
-			return
-		}
-		c.Set(string(constant.ContextKeyTenant), tenant)
-		c.Set(string(constant.ContextKeyTenantID), tenant.Id)
-		c.Set(string(constant.ContextKeyTenantRole), membership.RoleKey)
 		c.Next()
 	}
+}
+
+// ResolveTenantContext is optional on the platform host and mandatory when a
+// verified tenant domain is used. It never reads tenant identity from a
+// request header, query parameter, or client state.
+func ResolveTenantContext(c *gin.Context) error {
+	tenant, err := model.ResolveVerifiedTenantForHost(c.Request.Host)
+	if errors.Is(err, model.ErrTenantNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	userID := c.GetInt("id")
+	if userID <= 0 {
+		return model.ErrTenantForbidden
+	}
+	membership, err := model.ActiveMembership(tenant.Id, userID)
+	if err != nil {
+		return model.ErrTenantForbidden
+	}
+	c.Set(string(constant.ContextKeyTenant), tenant)
+	c.Set(string(constant.ContextKeyTenantID), tenant.Id)
+	c.Set(string(constant.ContextKeyTenantRole), membership.RoleKey)
+	return nil
 }
 
 func TenantID(c *gin.Context) (int, bool) {
