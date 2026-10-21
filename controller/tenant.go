@@ -104,8 +104,21 @@ func ListTenantMembers(c *gin.Context) {
 	if !ok || !middleware.RequireTenantAccess(c, id, "read") {
 		return
 	}
-	var members []model.TenantMembership
-	if err := model.DB.Where("tenant_id = ?", id).Find(&members).Error; err != nil {
+	type tenantMemberResponse struct {
+		Id          int    `json:"id"`
+		TenantId    int    `json:"tenant_id"`
+		UserId      int    `json:"user_id"`
+		Username    string `json:"username"`
+		DisplayName string `json:"display_name"`
+		RoleKey     string `json:"role_key"`
+		Status      string `json:"status"`
+	}
+	var members []tenantMemberResponse
+	if err := model.DB.Model(&model.TenantMembership{}).
+		Select("tenant_memberships.id, tenant_memberships.tenant_id, tenant_memberships.user_id, users.username, users.display_name, tenant_memberships.role_key, tenant_memberships.status").
+		Joins("JOIN users ON users.id = tenant_memberships.user_id").
+		Where("tenant_memberships.tenant_id = ?", id).
+		Find(&members).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}

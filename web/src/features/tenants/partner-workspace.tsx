@@ -207,7 +207,7 @@ export function PartnerWorkspace() {
                 <Card>
                   <CardHeader>
                     <CardTitle className='flex items-center justify-between'>
-                      <span>{t('Tenant members')}</span>
+                      <span>{t('Members')}</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -225,7 +225,7 @@ export function PartnerWorkspace() {
                         <TableBody>
                           {membersQuery.data?.map((member) => (
                             <TableRow key={member.id}>
-                              <TableCell>{`#${member.user_id}`}</TableCell>
+                              <TableCell>{member.display_name || member.username}</TableCell>
                               <TableCell>{member.role_key}</TableCell>
                               <TableCell>{member.status}</TableCell>
                             </TableRow>

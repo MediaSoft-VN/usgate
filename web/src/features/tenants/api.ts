@@ -23,6 +23,8 @@ export type TenantMember = {
   id: number
   tenant_id: number
   user_id: number
+  username: string
+  display_name: string
   role_key: string
   status: string
 }
