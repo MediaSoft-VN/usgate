@@ -74,6 +74,7 @@ var ErrFinalOwner = errors.New("the final active owner cannot be removed or demo
 var ErrInvalidTenantOwner = errors.New("tenant owner must be an existing enabled user")
 var ErrInvalidTenantMember = errors.New("tenant member must be an existing enabled user")
 var ErrPartnerCodeTaken = errors.New("partner code already exists")
+var ErrTenantDomainAlreadyAssigned = errors.New("domain is already assigned to this tenant")
 var ErrTenantDomainTaken = errors.New("domain is already assigned to another tenant")
 
 func normalizeTenantSlug(slug string) (string, error) {

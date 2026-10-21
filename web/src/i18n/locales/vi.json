@@ -2048,6 +2048,7 @@
     "Domain": "Miền",
     "Domain Filter Mode": "Chế độ lọc miền",
     "domain is already assigned to another tenant": "Tên miền đã được gán cho đối tác khác",
+    "domain is already assigned to this tenant": "Tên miền đã được gán cho đối tác này",
     "Domains": "Tên miền",
     "Don't have an account?": "Chưa có tài khoản?",
     "Done": "Xong",

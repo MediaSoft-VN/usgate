@@ -2048,6 +2048,7 @@
     "Domain": "Domaine",
     "Domain Filter Mode": "Mode de filtre de domaine",
     "domain is already assigned to another tenant": "Le domaine est déjà attribué à un autre tenant",
+    "domain is already assigned to this tenant": "Le domaine est déjà attribué à ce tenant",
     "Domains": "Domaines",
     "Don't have an account?": "Vous n'avez pas de compte ?",
     "Done": "Terminé",
