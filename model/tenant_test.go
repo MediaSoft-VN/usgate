@@ -81,16 +81,6 @@ func TestNormalizeTenantHostname(t *testing.T) {
 	}
 }
 
-func TestVerifyTenantDomainRequiresPendingMatchingToken(t *testing.T) {
-	token, hash, err := NewDomainChallenge()
-	require.NoError(t, err)
-	domain := TenantDomain{Status: DomainPending, VerificationTokenHash: hash}
-	require.True(t, VerifyTenantDomain(&domain, token))
-	require.False(t, VerifyTenantDomain(&domain, "wrong-token"))
-	domain.Status = DomainDisabled
-	require.False(t, VerifyTenantDomain(&domain, token))
-}
-
 func TestRegistrationTenantResolutionAndMembershipAreHostBoundAndIdempotent(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)

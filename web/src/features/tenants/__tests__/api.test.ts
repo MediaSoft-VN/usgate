@@ -93,13 +93,12 @@ describe('tenant management API', () => {
     const patch = vi.spyOn(api, 'patch').mockResolvedValue({
       data: {
         success: true,
-        data: { domain: { id: 3 }, verification_token: 'token' },
+        data: { domain: { id: 3 } },
       },
     })
 
     await expect(updateTenantDomain(7, 3, 'new.example.com')).resolves.toEqual({
       domain: { id: 3 },
-      verification_token: 'token',
     })
     expect(patch).toHaveBeenCalledWith('/api/tenants/7/domains/3', {
       hostname: 'new.example.com',

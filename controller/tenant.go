@@ -26,9 +26,6 @@ type tenantRequest struct {
 type domainRequest struct {
 	Hostname string `json:"hostname"`
 }
-type domainVerifyRequest struct {
-	Token string `json:"token"`
-}
 
 func tenantIDParam(c *gin.Context) (int, bool) {
 	id, err := strconv.Atoi(c.Param("tenant_id"))
@@ -152,12 +149,12 @@ func CreateTenantDomain(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	domain, token, err := service.CreateDomain(id, req.Hostname)
+	domain, err := service.CreateDomain(id, req.Hostname)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, gin.H{"domain": domain, "verification_token": token})
+	common.ApiSuccess(c, gin.H{"domain": domain})
 }
 
 func UpdateTenantDomain(c *gin.Context) {
@@ -175,12 +172,12 @@ func UpdateTenantDomain(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	domain, token, err := service.UpdateDomain(domainID, id, req.Hostname)
+	domain, err := service.UpdateDomain(domainID, id, req.Hostname)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, gin.H{"domain": domain, "verification_token": token})
+	common.ApiSuccess(c, gin.H{"domain": domain})
 }
 
 func VerifyTenantDomain(c *gin.Context) {
@@ -193,13 +190,8 @@ func VerifyTenantDomain(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	var req domainVerifyRequest
-	if err = c.ShouldBindJSON(&req); err != nil {
-		common.ApiErrorT(c, "Invalid parameters")
-		return
-	}
-	if err = service.VerifyDomain(domainID, id, req.Token); err != nil {
-		common.ApiError(c, err)
+	if err = service.VerifyDomain(domainID, id); err != nil {
+		common.ApiErrorT(c, "Domain verification failed")
 		return
 	}
 	common.ApiSuccess(c, nil)

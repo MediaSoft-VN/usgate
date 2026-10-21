@@ -90,16 +90,12 @@ test('clicking Verify opens the dialog and verifies the selected domain', async 
   const dialog = await screen.findByRole('dialog', { name: 'Verify domain' })
   expect(dialog).toHaveTextContent(domain.hostname)
 
-  await userEvent.type(
-    within(dialog).getByRole('textbox'),
-    'verification-token'
-  )
   await userEvent.click(within(dialog).getByRole('button', { name: 'Verify' }))
 
   await waitFor(() =>
     expect(post).toHaveBeenCalledWith(
       `/api/tenants/${tenant.id}/domains/${domain.id}/verify`,
-      { token: 'verification-token' }
+      {}
     )
   )
   await waitFor(() =>

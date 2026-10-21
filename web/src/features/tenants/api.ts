@@ -83,24 +83,20 @@ export async function getTenantDNSRecord(
 export async function createTenantDomain(
   tenantId: number,
   hostname: string
-): Promise<{ domain: TenantDomain; verification_token: string }> {
+): Promise<{ domain: TenantDomain }> {
   const response = await api.post(`/api/tenants/${tenantId}/domains`, {
     hostname,
   })
-  return requireServerSuccess(response.data).data as {
-    domain: TenantDomain
-    verification_token: string
-  }
+  return requireServerSuccess(response.data).data as { domain: TenantDomain }
 }
 
 export async function verifyTenantDomain(
   tenantId: number,
-  domainId: number,
-  token: string
+  domainId: number
 ): Promise<void> {
   const response = await api.post(
     `/api/tenants/${tenantId}/domains/${domainId}/verify`,
-    { token }
+    {}
   )
   requireServerSuccess(response.data)
 }
@@ -109,15 +105,12 @@ export async function updateTenantDomain(
   tenantId: number,
   domainId: number,
   hostname: string
-): Promise<{ domain: TenantDomain; verification_token: string }> {
+): Promise<{ domain: TenantDomain }> {
   const response = await api.patch(
     `/api/tenants/${tenantId}/domains/${domainId}`,
     { hostname }
   )
-  return requireServerSuccess(response.data).data as {
-    domain: TenantDomain
-    verification_token: string
-  }
+  return requireServerSuccess(response.data).data as { domain: TenantDomain }
 }
 
 export async function deleteTenantDomain(

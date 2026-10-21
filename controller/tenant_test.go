@@ -1,25 +1,52 @@
 package controller
 
 import (
+	"context"
+	"net"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
+type tenantControllerDNSResolver struct{}
+
+func (tenantControllerDNSResolver) LookupIP(context.Context, string, string) ([]net.IP, error) {
+	return []net.IP{net.ParseIP("203.0.113.10")}, nil
+}
+
+func (tenantControllerDNSResolver) LookupCNAME(context.Context, string) (string, error) {
+	return "", nil
+}
+
 func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
 	previousDB := model.DB
+	previousResolver := service.TenantDomainDNSResolver
 	model.DB = db
+	service.TenantDomainDNSResolver = tenantControllerDNSResolver{}
+	common.OptionMapRWMutex.Lock()
+	if common.OptionMap == nil {
+		common.OptionMap = map[string]string{}
+	}
+	common.OptionMap["TenantDomainDNSRecordA"] = "203.0.113.10"
+	common.OptionMapRWMutex.Unlock()
 	t.Cleanup(func() { model.DB = previousDB })
+	t.Cleanup(func() {
+		service.TenantDomainDNSResolver = previousResolver
+		common.OptionMapRWMutex.Lock()
+		common.OptionMap["TenantDomainDNSRecordA"] = ""
+		common.OptionMapRWMutex.Unlock()
+	})
 
 	owner := model.User{Username: "domain-owner", Password: "owner-secret", AffCode: "domain-owner-code", Status: common.UserStatusEnabled}
 	other := model.User{Username: "other-owner", Password: "other-secret", AffCode: "other-owner-code", Status: common.UserStatusEnabled}
@@ -43,15 +70,13 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	var createResponse struct {
 		Data struct {
 			Domain model.TenantDomain `json:"domain"`
-			Token  string             `json:"verification_token"`
 		} `json:"data"`
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &createResponse))
-	require.NotEmpty(t, createResponse.Data.Token)
 
 	verifyRecorder := httptest.NewRecorder()
 	verifyContext, _ := gin.CreateTestContext(verifyRecorder)
-	verifyContext.Request = httptest.NewRequest("POST", "/api/tenants/1/domains/1/verify", strings.NewReader(`{"token":"`+createResponse.Data.Token+`"}`))
+	verifyContext.Request = httptest.NewRequest("POST", "/api/tenants/1/domains/1/verify", strings.NewReader(`{}`))
 	verifyContext.Request.Host = "gateway.example.com"
 	verifyContext.Params = gin.Params{{Key: "tenant_id", Value: "1"}, {Key: "domain_id", Value: "1"}}
 	verifyContext.Set("id", owner.Id)

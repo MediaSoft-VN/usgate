@@ -54,8 +54,6 @@ export function PartnerWorkspace() {
     id: number
   } | null>(null)
   const [hostname, setHostname] = useState('')
-  const [token, setToken] = useState('')
-  const [verificationToken, setVerificationToken] = useState('')
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
   const tenant =
@@ -89,9 +87,7 @@ export function PartnerWorkspace() {
     onSuccess: (result) => {
       setDomainDialogOpen(false)
       setHostname('')
-      setVerificationToken(result.verification_token)
-      setToken(result.verification_token)
-      setVerifyDomain(result.domain)
+       setVerifyDomain(result.domain)
       void refreshTenant('tenant-domains')
     },
     onError: (error) => handleServerError(error, t('Failed to add domain')),
@@ -100,12 +96,10 @@ export function PartnerWorkspace() {
     mutationFn: () =>
       verifyTenantDomain(
         selectedTenantId as number,
-        verifyDomain?.id as number,
-        token
+        verifyDomain?.id as number
       ),
     onSuccess: () => {
       setVerifyDomain(null)
-      setToken('')
       void refreshTenant('tenant-domains')
     },
     onError: (error) => handleServerError(error, t('Failed to verify domain')),
@@ -121,9 +115,7 @@ export function PartnerWorkspace() {
       setDomainDialogOpen(false)
       setEditDomain(null)
       setHostname('')
-      setVerificationToken(result.verification_token)
-      setToken(result.verification_token)
-      setVerifyDomain(result.domain)
+       setVerifyDomain(result.domain)
       void refreshTenant('tenant-domains')
     },
     onError: (error) => handleServerError(error, t('Failed to update domain')),
@@ -405,25 +397,13 @@ export function PartnerWorkspace() {
             <p className='text-muted-foreground text-sm'>
               {verifyDomain?.hostname}
             </p>
-            {verificationToken && (
-              <p className='text-sm'>
-                <span>{t('Verification token')}: </span>
-                <code className='bg-muted rounded px-1 break-all'>
-                  {verificationToken}
-                </code>
-              </p>
-            )}
-            <label className='grid gap-1 text-sm'>
-              <span>{t('Verification token')}</span>
-              <Input
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-              />
-            </label>
+            <p className='text-muted-foreground text-sm'>
+              {t('We will check the domain DNS records against the configured target.')}
+            </p>
             <DialogFooter>
               <Button
                 onClick={() => verifyMutation.mutate()}
-                disabled={!token || verifyMutation.isPending}
+                disabled={verifyMutation.isPending}
               >
                 {t('Verify')}
               </Button>

@@ -1,9 +1,6 @@
 package model
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"net"
 	"strconv"
@@ -56,16 +53,15 @@ type TenantMembership struct {
 }
 
 type TenantDomain struct {
-	Id                    int    `json:"id"`
-	TenantId              int    `json:"tenant_id" gorm:"index"`
-	Hostname              string `json:"hostname" gorm:"size:253;uniqueIndex"`
-	Status                string `json:"status" gorm:"size:16;index"`
-	VerificationMethod    string `json:"verification_method" gorm:"size:16"`
-	VerificationTokenHash string `json:"-" gorm:"size:64"`
-	VerifiedAt            *int64 `json:"verified_at"`
-	LastCheckedAt         *int64 `json:"last_checked_at"`
-	CreatedAt             int64  `json:"created_at"`
-	UpdatedAt             int64  `json:"updated_at"`
+	Id                 int    `json:"id"`
+	TenantId           int    `json:"tenant_id" gorm:"index"`
+	Hostname           string `json:"hostname" gorm:"size:253;uniqueIndex"`
+	Status             string `json:"status" gorm:"size:16;index"`
+	VerificationMethod string `json:"verification_method" gorm:"size:16"`
+	VerifiedAt         *int64 `json:"verified_at"`
+	LastCheckedAt      *int64 `json:"last_checked_at"`
+	CreatedAt          int64  `json:"created_at"`
+	UpdatedAt          int64  `json:"updated_at"`
 }
 
 var ErrTenantNotFound = errors.New("tenant not found")
@@ -250,21 +246,6 @@ func ChangeMembership(tx *gorm.DB, tenantID, userID int, role, status string) er
 	}
 	membership.RoleKey, membership.Status, membership.UpdatedAt = role, status, common.GetTimestamp()
 	return tx.Save(&membership).Error
-}
-
-func NewDomainChallenge() (string, string, error) {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", "", err
-	}
-	token := hex.EncodeToString(buf)
-	sum := sha256.Sum256([]byte(token))
-	return token, hex.EncodeToString(sum[:]), nil
-}
-
-func VerifyTenantDomain(domain *TenantDomain, token string) bool {
-	sum := sha256.Sum256([]byte(token))
-	return domain.Status == DomainPending && hex.EncodeToString(sum[:]) == domain.VerificationTokenHash
 }
 
 func ResolveVerifiedTenant(host string, userID int) (*Tenant, error) {
