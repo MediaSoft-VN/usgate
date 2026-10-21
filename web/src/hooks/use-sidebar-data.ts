@@ -224,7 +224,8 @@ export function useSidebarData(): SidebarData {
         items: [
           {
             title: t('Partner workspace'),
-            url: '/partner-workspace',
+            url: '/partner-workspace/overview',
+            activeUrls: ['/partner-workspace'],
             icon: Building2,
             requiredPartner: true,
           },
