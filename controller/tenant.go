@@ -144,7 +144,7 @@ func ListTenantFunding(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	wallet, err := model.GetOrCreateWalletAccount(model.FinancialOwnerOrganization, int64(id), model.FinancialDefaultCurrency)
+	wallet, err := model.GetTenantFundingWallet(id, model.FinancialDefaultCurrency)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -171,7 +171,9 @@ func FundTenantMember(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, model.ErrTenantFundingInsufficient):
-			common.ApiErrorT(c, "Insufficient tenant wallet balance")
+			common.ApiErrorT(c, "Insufficient partner owner platform wallet balance")
+		case errors.Is(err, model.ErrTenantFundingSelf):
+			common.ApiErrorT(c, "The partner owner cannot fund their own account")
 		case errors.Is(err, model.ErrTenantFundingForbidden):
 			common.ApiErrorT(c, "Tenant member is not active")
 		case errors.Is(err, model.ErrTenantFundingConflict):

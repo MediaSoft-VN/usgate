@@ -53,6 +53,8 @@ export type TenantFunding = {
 }
 
 export type TenantWallet = {
+  owner_user_id: number
+  available_quota: number
   available_minor: number
   reserved_minor: number
   currency: string
