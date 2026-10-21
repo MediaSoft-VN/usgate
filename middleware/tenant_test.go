@@ -54,3 +54,28 @@ func TestResolveTenantContextUsesVerifiedHostAndActiveMembership(t *testing.T) {
 	_, ok = mainContext.Get(string(constant.ContextKeyTenantID))
 	require.False(t, ok)
 }
+
+func TestResolveTenantContextAllowsLocalhostOnlyWhenExplicitlyEnabled(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
+	previousDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = previousDB })
+	t.Setenv("TENANT_ALLOW_LOCALHOST", "true")
+
+	owner := model.User{Username: "localhost-owner", Password: "unused", Status: common.UserStatusEnabled}
+	require.NoError(t, db.Create(&owner).Error)
+	tenant, err := model.CreateTenantWithOwner(db, "localhost-tenant", "Localhost Tenant", owner.Id)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.TenantDomain{TenantId: tenant.Id, Hostname: "localhost", Status: model.DomainVerified}).Error)
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("GET", "/api/user/self", nil)
+	c.Request.Host = "localhost:5555"
+	c.Set("id", owner.Id)
+	require.NoError(t, ResolveTenantContext(c))
+	selectedID, ok := TenantID(c)
+	require.True(t, ok)
+	require.Equal(t, tenant.Id, selectedID)
+}

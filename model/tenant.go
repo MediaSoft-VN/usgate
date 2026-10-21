@@ -310,6 +310,9 @@ func normalizeTenantRequestHost(host string) (string, error) {
 	if parsed, _, err := net.SplitHostPort(host); err == nil {
 		host = parsed
 	}
+	if host == "localhost" && common.GetEnvOrDefaultBool("TENANT_ALLOW_LOCALHOST", false) {
+		return host, nil
+	}
 	return NormalizeTenantHostname(host)
 }
 
