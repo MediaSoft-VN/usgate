@@ -47,8 +47,8 @@ type TenantFundingWallet struct {
 
 type TenantFundingHistory struct {
 	TenantFunding
-	Username    string `json:"username" gorm:"-"`
-	DisplayName string `json:"display_name" gorm:"-"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
 }
 
 // FundTenantMember atomically debits the partner owner's quota, credits the
