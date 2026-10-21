@@ -94,6 +94,16 @@ func UpdateDomain(domainID, tenantID int, hostname string) (*model.TenantDomain,
 }
 
 func savePendingDomain(tenantID int, hostname string, domain *model.TenantDomain) (*model.TenantDomain, string, error) {
+	var existing model.TenantDomain
+	query := model.DB.Where("hostname = ?", hostname)
+	if domain != nil {
+		query = query.Where("id <> ?", domain.Id)
+	}
+	if err := query.First(&existing).Error; err == nil {
+		return nil, "", model.ErrTenantDomainTaken
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, "", err
+	}
 	token, hash, err := model.NewDomainChallenge()
 	if err != nil {
 		return nil, "", err
