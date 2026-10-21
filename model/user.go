@@ -413,8 +413,10 @@ func GetAllUsers(pageInfo *common.PageInfo, sortOptions ...UserSortOptions) (use
 		}
 	}()
 
-	// Get total count within transaction
-	err = tx.Unscoped().Model(&User{}).Count(&total).Error
+	// Platform user management excludes users owned by a tenant. Tenant users
+	// are funded and managed from the Partner Workspace instead.
+	platformUsers := platformUserQuery(tx.Unscoped().Model(&User{}))
+	err = platformUsers.Count(&total).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
@@ -422,7 +424,7 @@ func GetAllUsers(pageInfo *common.PageInfo, sortOptions ...UserSortOptions) (use
 
 	// Get paginated users within same transaction
 	order := resolveUserSortOptions(sortOptions)
-	err = order.Apply(tx.Unscoped()).Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Omit("password", "access_token").Find(&users).Error
+	err = order.Apply(platformUserQuery(tx.Unscoped().Model(&User{}))).Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Omit("password", "access_token").Find(&users).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
@@ -437,6 +439,15 @@ func GetAllUsers(pageInfo *common.PageInfo, sortOptions ...UserSortOptions) (use
 		return nil, 0, err
 	}
 	return users, total, nil
+}
+
+func platformUserQuery(tx *gorm.DB) *gorm.DB {
+	return tx.Where(`NOT EXISTS (
+		SELECT 1 FROM tenant_memberships
+		WHERE tenant_memberships.user_id = users.id
+		  AND tenant_memberships.status = ?
+		  AND tenant_memberships.role_key <> ?
+	)`, MembershipActive, TenantRoleOwner)
 }
 
 func SearchUsers(keyword string, group string, role *int, status *int, startIdx int, num int, sortOptions ...UserSortOptions) ([]*User, int64, error) {
@@ -456,7 +467,7 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	}()
 
 	// 构建基础查询
-	query := tx.Unscoped().Model(&User{})
+	query := platformUserQuery(tx.Unscoped().Model(&User{}))
 
 	// 构建搜索条件
 	likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
