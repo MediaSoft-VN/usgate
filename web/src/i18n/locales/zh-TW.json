@@ -2049,6 +2049,7 @@
     "Domain Filter Mode": "域名過濾模式",
     "domain is already assigned to another tenant": "網域已分配給其他租戶",
     "domain is already assigned to this tenant": "網域已分配給目前租戶",
+    "domain is already pointed to the system": "網域已指向系統",
     "Domains": "網域",
     "Don't have an account?": "沒有賬號？",
     "Done": "完成",

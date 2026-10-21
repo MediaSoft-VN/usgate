@@ -2049,6 +2049,7 @@
     "Domain Filter Mode": "Domain Filter Mode",
     "domain is already assigned to another tenant": "Domain is already assigned to another tenant",
     "domain is already assigned to this tenant": "Domain is already assigned to this tenant",
+    "domain is already pointed to the system": "Domain is already pointed to the system",
     "Domains": "Domains",
     "Don't have an account?": "Don't have an account?",
     "Done": "Done",

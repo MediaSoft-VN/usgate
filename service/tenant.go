@@ -100,9 +100,6 @@ func savePendingDomain(tenantID int, hostname string, domain *model.TenantDomain
 		query = query.Where("id <> ?", domain.Id)
 	}
 	if err := query.First(&existing).Error; err == nil {
-		if existing.TenantId == tenantID {
-			return nil, "", model.ErrTenantDomainAlreadyAssigned
-		}
 		return nil, "", model.ErrTenantDomainTaken
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, "", err

@@ -2049,6 +2049,7 @@
     "Domain Filter Mode": "Режим фильтра домена",
     "domain is already assigned to another tenant": "Домен уже назначен другому тенанту",
     "domain is already assigned to this tenant": "Домен уже назначен этому тенанту",
+    "domain is already pointed to the system": "Домен уже указывает на систему",
     "Domains": "Домены",
     "Don't have an account?": "У вас нет аккаунта?",
     "Done": "Готово",

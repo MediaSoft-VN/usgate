@@ -2049,6 +2049,7 @@
     "Domain Filter Mode": "域名过滤模式",
     "domain is already assigned to another tenant": "域名已分配给其他租户",
     "domain is already assigned to this tenant": "域名已分配给当前租户",
+    "domain is already pointed to the system": "域名已指向系统",
     "Domains": "域名",
     "Don't have an account?": "没有账号？",
     "Done": "完成",

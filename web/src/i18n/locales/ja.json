@@ -2049,6 +2049,7 @@
     "Domain Filter Mode": "ドメインフィルターモード",
     "domain is already assigned to another tenant": "ドメインはすでに別のテナントに割り当てられています",
     "domain is already assigned to this tenant": "ドメインはすでにこのテナントに割り当てられています",
+    "domain is already pointed to the system": "ドメインはすでにシステムを指しています",
     "Domains": "ドメイン",
     "Don't have an account?": "アカウントをお持ちでないですか？",
     "Done": "完了",
