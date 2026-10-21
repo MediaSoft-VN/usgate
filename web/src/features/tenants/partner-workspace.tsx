@@ -396,53 +396,53 @@ export function PartnerWorkspace() {
             </Tabs>
           )}
         </div>
-      </SectionPageLayout.Content>
-      <Dialog
-        open={verifyDomain !== null}
-        onOpenChange={(open) => !open && setVerifyDomain(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('Verify domain')}</DialogTitle>
-          </DialogHeader>
-          <p className='text-muted-foreground text-sm'>
-            {verifyDomain?.hostname}
-          </p>
-          {verificationToken && (
-            <p className='text-sm'>
-              <span>{t('Verification token')}: </span>
-              <code className='bg-muted rounded px-1 break-all'>
-                {verificationToken}
-              </code>
+        <Dialog
+          open={verifyDomain !== null}
+          onOpenChange={(open) => !open && setVerifyDomain(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('Verify domain')}</DialogTitle>
+            </DialogHeader>
+            <p className='text-muted-foreground text-sm'>
+              {verifyDomain?.hostname}
             </p>
-          )}
-          <label className='grid gap-1 text-sm'>
-            <span>{t('Verification token')}</span>
-            <Input
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-            />
-          </label>
-          <DialogFooter>
-            <Button
-              onClick={() => verifyMutation.mutate()}
-              disabled={!token || verifyMutation.isPending}
-            >
-              {t('Verify')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <ConfirmDialog
-        open={disableTarget !== null}
-        onOpenChange={(open) => !open && setDisableTarget(null)}
-        title={t('Delete domain')}
-        desc={t('This action cannot be undone.')}
-        destructive
-        handleConfirm={() => disableMutation.mutate()}
-        isLoading={disableMutation.isPending}
-        confirmText={t('Delete')}
-      />
+            {verificationToken && (
+              <p className='text-sm'>
+                <span>{t('Verification token')}: </span>
+                <code className='bg-muted rounded px-1 break-all'>
+                  {verificationToken}
+                </code>
+              </p>
+            )}
+            <label className='grid gap-1 text-sm'>
+              <span>{t('Verification token')}</span>
+              <Input
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+              />
+            </label>
+            <DialogFooter>
+              <Button
+                onClick={() => verifyMutation.mutate()}
+                disabled={!token || verifyMutation.isPending}
+              >
+                {t('Verify')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <ConfirmDialog
+          open={disableTarget !== null}
+          onOpenChange={(open) => !open && setDisableTarget(null)}
+          title={t('Delete domain')}
+          desc={t('This action cannot be undone.')}
+          destructive
+          handleConfirm={() => disableMutation.mutate()}
+          isLoading={disableMutation.isPending}
+          confirmText={t('Delete')}
+        />
+      </SectionPageLayout.Content>
     </SectionPageLayout>
   )
 }
