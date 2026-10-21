@@ -3408,6 +3408,7 @@
     "Jimeng": "Jimeng",
     "Jina": "Jina",
     "Join the same priority tier": "同じ優先度に設定",
+    "Joined at": "参加日時",
     "JSON": "JSON",
     "JSON array of group identifiers. When enabled below, new tokens rotate through this list.": "グループ識別子のJSON配列。以下で有効にすると、新しいトークンはこのリストをローテーションします。",
     "JSON Editor": "JSON編集",

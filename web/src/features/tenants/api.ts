@@ -27,6 +27,7 @@ export type TenantMember = {
   display_name: string
   role_key: string
   status: string
+  created_at: number
 }
 
 export type TenantDomain = {

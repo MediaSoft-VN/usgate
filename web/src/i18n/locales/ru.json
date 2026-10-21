@@ -3408,6 +3408,7 @@
     "Jimeng": "Jimeng",
     "Jina": "Jina",
     "Join the same priority tier": "Присоединиться к тому же уровню приоритета",
+    "Joined at": "Дата вступления",
     "JSON": "JSON",
     "JSON array of group identifiers. When enabled below, new tokens rotate through this list.": "Массив JSON идентификаторов групп. Если включено ниже, новые токены будут циклически перебираться по этому списку.",
     "JSON Editor": "Редактирование JSON",

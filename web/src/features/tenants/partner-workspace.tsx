@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { handleServerError } from '@/lib/handle-server-error'
+import { formatTimestampToDate } from '@/lib/format'
 
 import {
   createTenantDomain,
@@ -220,6 +221,7 @@ export function PartnerWorkspace() {
                             <TableHead>{t('User')}</TableHead>
                             <TableHead>{t('Role')}</TableHead>
                             <TableHead>{t('Status')}</TableHead>
+                            <TableHead>{t('Joined at')}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -228,6 +230,7 @@ export function PartnerWorkspace() {
                               <TableCell>{member.display_name || member.username}</TableCell>
                               <TableCell>{member.role_key}</TableCell>
                               <TableCell>{member.status}</TableCell>
+                              <TableCell>{formatTimestampToDate(member.created_at)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

@@ -112,10 +112,11 @@ func ListTenantMembers(c *gin.Context) {
 		DisplayName string `json:"display_name"`
 		RoleKey     string `json:"role_key"`
 		Status      string `json:"status"`
+		CreatedAt   int64  `json:"created_at"`
 	}
 	var members []tenantMemberResponse
 	if err := model.DB.Model(&model.TenantMembership{}).
-		Select("tenant_memberships.id, tenant_memberships.tenant_id, tenant_memberships.user_id, users.username, users.display_name, tenant_memberships.role_key, tenant_memberships.status").
+		Select("tenant_memberships.id, tenant_memberships.tenant_id, tenant_memberships.user_id, users.username, users.display_name, tenant_memberships.role_key, tenant_memberships.status, tenant_memberships.created_at").
 		Joins("JOIN users ON users.id = tenant_memberships.user_id").
 		Where("tenant_memberships.tenant_id = ?", id).
 		Find(&members).Error; err != nil {
