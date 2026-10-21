@@ -19,7 +19,9 @@ export default defineConfig(({ envMode }) => {
   const devProxy = Object.fromEntries(
     (['/api', '/v1', '/mj', '/pg'] as const).map((key) => [
       key,
-      { target: serverUrl, changeOrigin: true },
+      // Preserve the browser Host so local tenant ports (5173/5555) and
+      // verified custom domains remain distinguishable by the backend.
+      { target: serverUrl, changeOrigin: false },
     ])
   ) as Record<string, { target: string; changeOrigin: boolean }>
 
