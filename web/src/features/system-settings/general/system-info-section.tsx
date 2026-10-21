@@ -48,7 +48,8 @@ import { isValidTaskPublicAddress } from './task-public-address'
 
 function isValidCnameTarget(value: string): boolean {
   const target = value.trim()
-  if (!target || target.length > 253) return false
+  if (!target) return true
+  if (target.length > 253) return false
   return target.split('.').every((label) =>
     /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label)
   )
@@ -56,7 +57,7 @@ function isValidCnameTarget(value: string): boolean {
 
 function isValidIpAddress(value: string): boolean {
   const target = value.trim()
-  if (!target) return false
+  if (!target) return true
   const parts = target.includes(':') ? target.split(':') : target.split('.')
   if (target.includes(':')) {
     return (
