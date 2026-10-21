@@ -23,6 +23,7 @@ import {
   applyAuthRotation,
   clearAuthentication,
   getFreshAuthHeaders,
+  isLogoutInProgress,
   refreshAuthentication,
 } from '@/lib/auth-session'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -96,7 +97,7 @@ api.interceptors.response.use(
     const skipErrorHandler = config?.skipErrorHandler
     const status = error?.response?.status
 
-    if (status === 401) {
+    if (status === 401 && !isLogoutInProgress()) {
       if (config && !config.skipAuthRefresh && !config.authRetry) {
         config.authRetry = true
         const outcome = await refreshAuthentication()
