@@ -51,7 +51,7 @@ func isPositiveOptionValue(value string) bool {
 func validateTenantDomainDNSOption(key, value string) error {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return errors.New("DNS record value is required")
+		return nil
 	}
 
 	switch key {

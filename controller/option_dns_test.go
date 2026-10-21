@@ -19,7 +19,7 @@ func TestValidateTenantDomainDNSOption(t *testing.T) {
 		{name: "cname rejects ip", key: "TenantDomainDNSRecordCNAME", value: "203.0.113.10", wantErr: "CNAME target"},
 		{name: "cname rejects url", key: "TenantDomainDNSRecordCNAME", value: "https://proxy.example.com", wantErr: "CNAME target"},
 		{name: "a record rejects hostname", key: "TenantDomainDNSRecordA", value: "proxy.example.com", wantErr: "A record IP"},
-		{name: "empty values are rejected", key: "TenantDomainDNSRecordA", value: " ", wantErr: "required"},
+		{name: "empty values are allowed", key: "TenantDomainDNSRecordA", value: " "},
 	}
 
 	for _, tt := range tests {
