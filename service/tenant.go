@@ -137,3 +137,14 @@ func VerifyDomain(domainID, tenantID int, token string) error {
 	domain.Status, domain.VerifiedAt, domain.LastCheckedAt, domain.UpdatedAt = model.DomainVerified, &now, &now, now
 	return model.DB.Save(&domain).Error
 }
+
+func DeleteDomain(domainID, tenantID int) error {
+	result := model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).Delete(&model.TenantDomain{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}

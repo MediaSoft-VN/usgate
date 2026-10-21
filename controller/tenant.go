@@ -205,7 +205,7 @@ func VerifyTenantDomain(c *gin.Context) {
 	common.ApiSuccess(c, nil)
 }
 
-func DisableTenantDomain(c *gin.Context) {
+func DeleteTenantDomain(c *gin.Context) {
 	id, ok := tenantIDParam(c)
 	if !ok || !middleware.RequireTenantAccess(c, id, "domain_admin") {
 		return
@@ -215,8 +215,7 @@ func DisableTenantDomain(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	result := model.DB.Model(&model.TenantDomain{}).Where("id = ? AND tenant_id = ?", domainID, id).Updates(map[string]any{"status": model.DomainDisabled, "updated_at": common.GetTimestamp()})
-	if result.Error != nil || result.RowsAffected != 1 {
+	if err = service.DeleteDomain(domainID, id); err != nil {
 		common.ApiError(c, errors.New("domain not found"))
 		return
 	}

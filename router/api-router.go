@@ -74,7 +74,7 @@ func SetApiRouter(router *gin.Engine) {
 			tenantRoute.POST("/:tenant_id/domains", controller.CreateTenantDomain)
 			tenantRoute.PATCH("/:tenant_id/domains/:domain_id", controller.UpdateTenantDomain)
 			tenantRoute.POST("/:tenant_id/domains/:domain_id/verify", controller.VerifyTenantDomain)
-			tenantRoute.DELETE("/:tenant_id/domains/:domain_id", controller.DisableTenantDomain)
+			tenantRoute.DELETE("/:tenant_id/domains/:domain_id", controller.DeleteTenantDomain)
 		}
 		apiRouter.GET("/tenant-context", middleware.UserAuth(), controller.TenantContextInfo)
 		apiRouter.POST("/tenant-context/select", middleware.UserAuth(), controller.SelectTenantContext)

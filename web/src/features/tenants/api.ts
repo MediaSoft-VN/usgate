@@ -120,7 +120,7 @@ export async function updateTenantDomain(
   }
 }
 
-export async function disableTenantDomain(
+export async function deleteTenantDomain(
   tenantId: number,
   domainId: number
 ): Promise<void> {

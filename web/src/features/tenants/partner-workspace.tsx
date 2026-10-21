@@ -36,7 +36,7 @@ import {
   getTenantDNSRecord,
   getTenantMembers,
   getTenants,
-  disableTenantDomain,
+  deleteTenantDomain,
   updateTenantDomain,
   verifyTenantDomain,
   type TenantDomain,
@@ -49,7 +49,7 @@ export function PartnerWorkspace() {
   const [domainDialogOpen, setDomainDialogOpen] = useState(false)
   const [editDomain, setEditDomain] = useState<TenantDomain | null>(null)
   const [verifyDomain, setVerifyDomain] = useState<TenantDomain | null>(null)
-  const [disableTarget, setDisableTarget] = useState<{
+  const [deleteTarget, setDeleteTarget] = useState<{
     kind: 'domain'
     id: number
   } | null>(null)
@@ -128,17 +128,17 @@ export function PartnerWorkspace() {
     },
     onError: (error) => handleServerError(error, t('Failed to update domain')),
   })
-  const disableMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: () =>
-      disableTenantDomain(
+      deleteTenantDomain(
         selectedTenantId as number,
-        disableTarget?.id as number
+        deleteTarget?.id as number
       ),
     onSuccess: async () => {
-      setDisableTarget(null)
+      setDeleteTarget(null)
       await refreshTenant('tenant-domains')
     },
-    onError: (error) => handleServerError(error, t('Failed to remove item')),
+    onError: (error) => handleServerError(error, t('Failed to delete domain')),
   })
 
   return (
@@ -345,7 +345,6 @@ export function PartnerWorkspace() {
                                 <Button
                                   size='sm'
                                   variant='outline'
-                                  disabled={domain.status === 'disabled'}
                                   onClick={() => {
                                     setEditDomain(domain)
                                     setHostname(domain.hostname)
@@ -370,9 +369,8 @@ export function PartnerWorkspace() {
                                 <Button
                                   variant='destructive'
                                   size='sm'
-                                  disabled={domain.status === 'disabled'}
                                   onClick={() =>
-                                    setDisableTarget({
+                                    setDeleteTarget({
                                       kind: 'domain',
                                       id: domain.id,
                                     })
@@ -433,13 +431,15 @@ export function PartnerWorkspace() {
           </DialogContent>
         </Dialog>
         <ConfirmDialog
-          open={disableTarget !== null}
-          onOpenChange={(open) => !open && setDisableTarget(null)}
+          open={deleteTarget !== null}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
           title={t('Delete domain')}
-          desc={t('This action cannot be undone.')}
+          desc={t(
+            'This permanently deletes the domain. It can be added again later.'
+          )}
           destructive
-          handleConfirm={() => disableMutation.mutate()}
-          isLoading={disableMutation.isPending}
+          handleConfirm={() => deleteMutation.mutate()}
+          isLoading={deleteMutation.isPending}
           confirmText={t('Delete')}
         />
       </SectionPageLayout.Content>

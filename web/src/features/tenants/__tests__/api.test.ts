@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 
 import {
   createTenantDomain,
-  disableTenantDomain,
+  deleteTenantDomain,
   getTenantDNSRecord,
   promoteTenant,
   selectTenant,
@@ -111,7 +111,7 @@ describe('tenant management API', () => {
       data: { success: true },
     })
 
-    await expect(disableTenantDomain(7, 3)).resolves.toBeUndefined()
+    await expect(deleteTenantDomain(7, 3)).resolves.toBeUndefined()
     expect(remove).toHaveBeenCalledWith('/api/tenants/7/domains/3')
   })
 })

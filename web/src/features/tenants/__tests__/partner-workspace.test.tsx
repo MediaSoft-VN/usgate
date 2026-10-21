@@ -111,7 +111,7 @@ test('clicking Verify opens the dialog and verifies the selected domain', async 
   )
 })
 
-test('clicking Delete opens confirmation and disables the selected domain', async () => {
+test('clicking Delete opens permanent deletion confirmation for the selected domain', async () => {
   const get = mockTenantRequests()
   const remove = vi
     .spyOn(api, 'delete')
@@ -122,7 +122,9 @@ test('clicking Delete opens confirmation and disables the selected domain', asyn
   const dialog = await screen.findByRole('alertdialog', {
     name: 'Delete domain',
   })
-  expect(dialog).toHaveTextContent('This action cannot be undone.')
+  expect(dialog).toHaveTextContent(
+    'This permanently deletes the domain. It can be added again later.'
+  )
 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 

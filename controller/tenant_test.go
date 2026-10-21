@@ -58,14 +58,23 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	VerifyTenantDomain(verifyContext)
 	require.Equal(t, 200, verifyRecorder.Code)
 
-	disableRecorder := httptest.NewRecorder()
-	disableContext, _ := gin.CreateTestContext(disableRecorder)
-	disableContext.Request = httptest.NewRequest("DELETE", "/api/tenants/1/domains/1", nil)
-	disableContext.Request.Host = "gateway.example.com"
-	disableContext.Params = gin.Params{{Key: "tenant_id", Value: "1"}, {Key: "domain_id", Value: "1"}}
-	disableContext.Set("id", owner.Id)
-	DisableTenantDomain(disableContext)
-	require.Equal(t, 200, disableRecorder.Code)
+	deniedDeleteRecorder := httptest.NewRecorder()
+	deniedDeleteContext, _ := gin.CreateTestContext(deniedDeleteRecorder)
+	deniedDeleteContext.Request = httptest.NewRequest("DELETE", "/api/tenants/1/domains/1", nil)
+	deniedDeleteContext.Request.Host = "gateway.example.com"
+	deniedDeleteContext.Params = gin.Params{{Key: "tenant_id", Value: "1"}, {Key: "domain_id", Value: "1"}}
+	deniedDeleteContext.Set("id", other.Id)
+	DeleteTenantDomain(deniedDeleteContext)
+	require.Contains(t, deniedDeleteRecorder.Body.String(), "Unauthorized, insufficient tenant privileges")
+
+	deleteRecorder := httptest.NewRecorder()
+	deleteContext, _ := gin.CreateTestContext(deleteRecorder)
+	deleteContext.Request = httptest.NewRequest("DELETE", "/api/tenants/1/domains/1", nil)
+	deleteContext.Request.Host = "gateway.example.com"
+	deleteContext.Params = gin.Params{{Key: "tenant_id", Value: "1"}, {Key: "domain_id", Value: "1"}}
+	deleteContext.Set("id", owner.Id)
+	DeleteTenantDomain(deleteContext)
+	require.Equal(t, 200, deleteRecorder.Code)
 
 	forbiddenRecorder := httptest.NewRecorder()
 	forbiddenContext, _ := gin.CreateTestContext(forbiddenRecorder)
@@ -77,8 +86,17 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	require.Contains(t, forbiddenRecorder.Body.String(), "Unauthorized, insufficient tenant privileges")
 
 	var domain model.TenantDomain
-	require.NoError(t, db.Where("tenant_id = ?", tenant.Id).First(&domain).Error)
-	require.Equal(t, model.DomainDisabled, domain.Status)
+	require.ErrorIs(t, db.Where("tenant_id = ?", tenant.Id).First(&domain).Error, gorm.ErrRecordNotFound)
+
+	// Hard deletion releases the unique hostname so it can be added again.
+	readdRecorder := httptest.NewRecorder()
+	readdContext, _ := gin.CreateTestContext(readdRecorder)
+	readdContext.Request = httptest.NewRequest("POST", "/api/tenants/1/domains", strings.NewReader(`{"hostname":"app.example.com"}`))
+	readdContext.Request.Host = "gateway.example.com"
+	readdContext.Params = gin.Params{{Key: "tenant_id", Value: "1"}}
+	readdContext.Set("id", owner.Id)
+	CreateTenantDomain(readdContext)
+	require.Equal(t, 200, readdRecorder.Code)
 	var otherDomains []model.TenantDomain
 	require.NoError(t, db.Where("tenant_id = ?", otherTenant.Id).Find(&otherDomains).Error)
 	require.Empty(t, otherDomains)
