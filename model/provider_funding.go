@@ -14,8 +14,8 @@ const (
 )
 
 var (
-	ErrInvalidProviderFunding  = errors.New("invalid provider funding")
-	ErrProviderFundingConflict = errors.New("provider funding reference conflict")
+	ErrInvalidProviderFunding      = errors.New("invalid provider funding")
+	ErrProviderFundingConflict     = errors.New("provider funding reference conflict")
 	ErrProviderFundingInsufficient = errors.New("insufficient provider funding")
 )
 
@@ -49,9 +49,9 @@ type ProviderCashFlow struct {
 
 type ProviderCashFlowHistory struct {
 	ProviderCashFlow
-	UserName         string `json:"user_name" gorm:"-"`
-	UserDisplayName  string `json:"user_display_name" gorm:"-"`
-	CounterpartyName string `json:"counterparty_name" gorm:"-"`
+	UserName         string `json:"user_name"`
+	UserDisplayName  string `json:"user_display_name"`
+	CounterpartyName string `json:"counterparty_name"`
 }
 
 // ProviderFunding is an immutable record of money deposited into a provider
@@ -83,11 +83,11 @@ type ProviderFundingSummary struct {
 }
 
 type ProviderFundingWalletSummary struct {
-	ChannelID   int    `json:"channel_id"`
-	Currency    string `json:"currency"`
-	AmountMinor int64  `json:"amount_minor"`
-	AllocatedMinor int64 `json:"allocated_minor"`
-	AvailableMinor int64 `json:"available_minor"`
+	ChannelID      int    `json:"channel_id"`
+	Currency       string `json:"currency"`
+	AmountMinor    int64  `json:"amount_minor"`
+	AllocatedMinor int64  `json:"allocated_minor"`
+	AvailableMinor int64  `json:"available_minor"`
 }
 
 type ProviderFundingChannelSummary struct {
@@ -101,33 +101,33 @@ type ProviderFundingChannelSummary struct {
 // pool. It intentionally has no channel ID: provider money is fungible across
 // all channels.
 type ProviderFundingAllocation struct {
-	ID          int64  `json:"id" gorm:"primaryKey"`
-	UserID      int    `json:"user_id" gorm:"not null;index"`
-	Reference   string `json:"reference" gorm:"type:varchar(255);not null;uniqueIndex"`
-	AmountMinor int64  `json:"amount_minor" gorm:"not null"`
-	Currency    string `json:"currency" gorm:"type:varchar(16);not null;index"`
-	Quota       int    `json:"quota" gorm:"not null"`
+	ID           int64  `json:"id" gorm:"primaryKey"`
+	UserID       int    `json:"user_id" gorm:"not null;index"`
+	Reference    string `json:"reference" gorm:"type:varchar(255);not null;uniqueIndex"`
+	AmountMinor  int64  `json:"amount_minor" gorm:"not null"`
+	Currency     string `json:"currency" gorm:"type:varchar(16);not null;index"`
+	Quota        int    `json:"quota" gorm:"not null"`
 	ExchangeRate string `json:"exchange_rate" gorm:"type:varchar(64);not null"`
-	CreatedAt   int64  `json:"created_at" gorm:"not null;index"`
-	CreatedBy   string `json:"created_by" gorm:"type:varchar(255);index"`
+	CreatedAt    int64  `json:"created_at" gorm:"not null;index"`
+	CreatedBy    string `json:"created_by" gorm:"type:varchar(255);index"`
 }
 
 // ProviderFundingAllocationHistory is the read model used by the provider
 // wallet UI. Allocation rows are only created after the quota credit succeeds,
 // so each row represents a completed debit from the provider balance.
 type ProviderFundingAllocationHistory struct {
-	ID                int64  `json:"id"`
-	UserID            int    `json:"user_id"`
-	UserName          string `json:"user_name"`
-	UserDisplayName   string `json:"user_display_name"`
-	CounterpartyName  string `json:"counterparty_name"`
-	Reference         string `json:"reference"`
-	AmountMinor       int64  `json:"amount_minor"`
-	Currency          string `json:"currency"`
-	Quota             int    `json:"quota"`
-	ExchangeRate      string `json:"exchange_rate"`
-	CreatedAt         int64  `json:"created_at"`
-	CreatedBy         string `json:"created_by"`
+	ID               int64  `json:"id"`
+	UserID           int    `json:"user_id"`
+	UserName         string `json:"user_name"`
+	UserDisplayName  string `json:"user_display_name"`
+	CounterpartyName string `json:"counterparty_name"`
+	Reference        string `json:"reference"`
+	AmountMinor      int64  `json:"amount_minor"`
+	Currency         string `json:"currency"`
+	Quota            int    `json:"quota"`
+	ExchangeRate     string `json:"exchange_rate"`
+	CreatedAt        int64  `json:"created_at"`
+	CreatedBy        string `json:"created_by"`
 }
 
 func normalizeProviderFundingCurrency(currency string) string {
