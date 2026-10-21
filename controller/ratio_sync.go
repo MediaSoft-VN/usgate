@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 
 	"github.com/QuantumNous/new-api/model"
@@ -245,11 +244,6 @@ func FetchUpstreamRatios(c *gin.Context) {
 			return
 		}
 		for _, ch := range dbChannels {
-			if ch.Type == constant.ChannelTypeOllama {
-				// Ollama exposes model discovery but no pricing endpoint. It
-				// must not make a multi-channel pricing sync fail with 404.
-				continue
-			}
 			if base := ch.GetBaseURL(); strings.HasPrefix(base, "http") {
 				upstreams = append(upstreams, dto.UpstreamDTO{
 					ID:       ch.Id,
@@ -1122,9 +1116,6 @@ func GetSyncableChannels(c *gin.Context) {
 
 	var syncableChannels []dto.SyncableChannel
 	for _, channel := range channels {
-		if channel.Type == constant.ChannelTypeOllama {
-			continue
-		}
 		if channel.GetBaseURL() != "" {
 			syncableChannels = append(syncableChannels, dto.SyncableChannel{
 				ID:      channel.Id,
