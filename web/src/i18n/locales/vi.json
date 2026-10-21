@@ -2047,6 +2047,7 @@
     "does not exist or might have been removed.": "không tồn tại hoặc có thể đã bị xóa.",
     "Domain": "Miền",
     "Domain Filter Mode": "Chế độ lọc miền",
+    "domain is already assigned to another tenant": "Tên miền đã được gán cho đối tác khác",
     "Domains": "Tên miền",
     "Don't have an account?": "Chưa có tài khoản?",
     "Done": "Xong",

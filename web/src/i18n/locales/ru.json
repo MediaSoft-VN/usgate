@@ -2047,6 +2047,7 @@
     "does not exist or might have been removed.": "не существует или, возможно, был удален.",
     "Domain": "Домен",
     "Domain Filter Mode": "Режим фильтра домена",
+    "domain is already assigned to another tenant": "Домен уже назначен другому тенанту",
     "Domains": "Домены",
     "Don't have an account?": "У вас нет аккаунта?",
     "Done": "Готово",

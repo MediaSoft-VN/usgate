@@ -2047,6 +2047,7 @@
     "does not exist or might have been removed.": "n'existe pas ou a peut-être été supprimé.",
     "Domain": "Domaine",
     "Domain Filter Mode": "Mode de filtre de domaine",
+    "domain is already assigned to another tenant": "Le domaine est déjà attribué à un autre tenant",
     "Domains": "Domaines",
     "Don't have an account?": "Vous n'avez pas de compte ?",
     "Done": "Terminé",

@@ -2047,6 +2047,7 @@
     "does not exist or might have been removed.": "存在しないか、削除された可能性があります。",
     "Domain": "ドメイン",
     "Domain Filter Mode": "ドメインフィルターモード",
+    "domain is already assigned to another tenant": "ドメインはすでに別のテナントに割り当てられています",
     "Domains": "ドメイン",
     "Don't have an account?": "アカウントをお持ちでないですか？",
     "Done": "完了",

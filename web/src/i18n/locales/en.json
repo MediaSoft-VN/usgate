@@ -2047,6 +2047,7 @@
     "does not exist or might have been removed.": "does not exist or might have been removed.",
     "Domain": "Domain",
     "Domain Filter Mode": "Domain Filter Mode",
+    "domain is already assigned to another tenant": "Domain is already assigned to another tenant",
     "Domains": "Domains",
     "Don't have an account?": "Don't have an account?",
     "Done": "Done",
