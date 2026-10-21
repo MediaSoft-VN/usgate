@@ -149,11 +149,6 @@ export function useSidebarData(): SidebarData {
             icon: Users,
           },
           {
-            title: t('Tenants'),
-            url: '/tenants',
-            icon: Building2,
-          },
-          {
             title: t('Wallet'),
             url: '/customer-wallet',
             icon: Wallet,
