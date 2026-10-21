@@ -81,6 +81,8 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"GET /api/tenants/:tenant_id":                                  accessTokenSessionRule,
 	"PATCH /api/tenants/:tenant_id":                                accessTokenSessionRule,
 	"GET /api/tenants/:tenant_id/members":                          accessTokenSessionRule,
+	"GET /api/tenants/:tenant_id/funding":                          accessTokenSessionRule,
+	"POST /api/tenants/:tenant_id/funding":                         accessTokenSessionRule,
 	"GET /api/tenants/:tenant_id/member-candidates":                accessTokenSessionRule,
 	"POST /api/tenants/:tenant_id/members/invitations":             accessTokenSessionRule,
 	"PATCH /api/tenants/:tenant_id/members/:user_id":               accessTokenSessionRule,

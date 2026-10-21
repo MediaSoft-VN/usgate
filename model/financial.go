@@ -77,6 +77,7 @@ const (
 	FinancialTransactionRelease    = "release"
 	FinancialTransactionRefund     = "refund"
 	FinancialTransactionAdjustment = "adjustment"
+	FinancialTransactionTransfer   = "transfer"
 )
 
 const (

@@ -20,6 +20,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,7 +36,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { handleServerError } from '@/lib/handle-server-error'
-import { formatTimestampToDate } from '@/lib/format'
+import { formatNumber, formatTimestampToDate } from '@/lib/format'
 
 import {
   createTenantDomain,
@@ -40,6 +47,9 @@ import {
   deleteTenantDomain,
   updateTenantDomain,
   verifyTenantDomain,
+  fundTenantMember,
+  getTenantFunding,
+  type TenantFunding,
   type TenantDomain,
 } from './api'
 
@@ -55,6 +65,10 @@ export function PartnerWorkspace() {
     id: number
   } | null>(null)
   const [hostname, setHostname] = useState('')
+  const [fundingOpen, setFundingOpen] = useState(false)
+  const [fundingMember, setFundingMember] = useState('')
+  const [fundingAmount, setFundingAmount] = useState('')
+  const [fundingReference, setFundingReference] = useState('')
 
   const tenantsQuery = useQuery({ queryKey: ['tenants'], queryFn: getTenants })
   const tenant =
@@ -72,6 +86,11 @@ export function PartnerWorkspace() {
   const dnsRecordQuery = useQuery({
     queryKey: ['tenant-dns-record', selectedTenantId],
     queryFn: () => getTenantDNSRecord(selectedTenantId as number),
+    enabled: selectedTenantId !== null,
+  })
+  const fundingQuery = useQuery({
+    queryKey: ['tenant-funding', selectedTenantId],
+    queryFn: () => getTenantFunding(selectedTenantId as number),
     enabled: selectedTenantId !== null,
   })
 
@@ -132,6 +151,23 @@ export function PartnerWorkspace() {
       await refreshTenant('tenant-domains')
     },
     onError: (error) => handleServerError(error, t('Failed to delete domain')),
+  })
+  const fundingMutation = useMutation({
+    mutationFn: () => fundTenantMember(selectedTenantId as number, {
+      user_id: Number(fundingMember),
+      reference: fundingReference.trim(),
+      amount_minor: Math.round(Number(fundingAmount) * 100),
+      currency: fundingQuery.data?.wallet.currency ?? 'USD',
+    }),
+    onSuccess: () => {
+      setFundingOpen(false)
+      setFundingMember('')
+      setFundingAmount('')
+      setFundingReference('')
+      void fundingQuery.refetch()
+      void membersQuery.refetch()
+    },
+    onError: (error) => handleServerError(error, t('Failed to fund member')),
   })
 
   return (
@@ -195,6 +231,9 @@ export function PartnerWorkspace() {
           {tenant && (
             <Tabs defaultValue='domains'>
               <TabsList aria-label={t('Tenant settings')}>
+                <TabsTrigger value='funding'>
+                  {t('Funding')}
+                </TabsTrigger>
                 <TabsTrigger value='members'>
                   <Users className='size-4' aria-hidden='true' />
                   {t('Members')}
@@ -204,6 +243,43 @@ export function PartnerWorkspace() {
                   {t('Domains')}
                 </TabsTrigger>
               </TabsList>
+              <TabsContent value='funding'>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className='flex items-center justify-between'>
+                      <span>{t('Tenant wallet')}</span>
+                      <Dialog open={fundingOpen} onOpenChange={setFundingOpen}>
+                        <DialogTrigger render={<Button size='sm' />}>
+                          <Plus className='size-4' aria-hidden='true' />
+                          {t('Fund member')}
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>{t('Fund member')}</DialogTitle></DialogHeader>
+                          <div className='grid gap-3'>
+                            <label className='grid gap-1 text-sm'>
+                              {t('Member')}
+                              <Select value={fundingMember} onValueChange={(value) => setFundingMember(value ?? '')}>
+                                <SelectTrigger className='w-full'><SelectValue placeholder={t('Select member')} /></SelectTrigger>
+                                <SelectContent>{(membersQuery.data ?? []).filter((member) => member.status === 'active').map((member) => <SelectItem key={member.user_id} value={String(member.user_id)}>{member.display_name || member.username}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </label>
+                            <label className='grid gap-1 text-sm'>{t('Amount')} ({fundingQuery.data?.wallet.currency ?? 'USD'})<Input type='number' min='0.01' step='0.01' value={fundingAmount} onChange={(event) => setFundingAmount(event.target.value)} /></label>
+                            <label className='grid gap-1 text-sm'>{t('Reference')}<Input value={fundingReference} onChange={(event) => setFundingReference(event.target.value)} /></label>
+                          </div>
+                          <DialogFooter><Button disabled={fundingMutation.isPending || !fundingMember || !fundingReference.trim() || Number(fundingAmount) <= 0} onClick={() => fundingMutation.mutate()}>{t('Fund member')}</Button></DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <p className='text-2xl font-bold'>{formatNumber((fundingQuery.data?.wallet.available_minor ?? 0) / 100)} {fundingQuery.data?.wallet.currency ?? 'USD'} <span className='text-muted-foreground text-sm font-normal'>{t('Available')}</span></p>
+                    <Table>
+                      <TableHeader><TableRow><TableHead>{t('Member')}</TableHead><TableHead>{t('Amount')}</TableHead><TableHead>{t('Reference')}</TableHead></TableRow></TableHeader>
+                      <TableBody>{(fundingQuery.data?.items ?? []).map((item: TenantFunding) => <TableRow key={item.id}><TableCell>{item.display_name || item.username}</TableCell><TableCell>{formatNumber(item.amount_minor / 100)} {item.currency}</TableCell><TableCell className='font-mono text-xs'>{item.reference}</TableCell></TableRow>)}</TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
               <TabsContent value='members'>
                 <Card>
                   <CardHeader>

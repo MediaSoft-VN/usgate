@@ -215,6 +215,8 @@ func TenantPermission(role, action string) bool {
 		return role == TenantRoleAdmin || role == TenantRoleMember || role == TenantRoleViewer
 	case "member_admin", "domain_admin":
 		return role == TenantRoleAdmin
+	case "funding":
+		return role == TenantRoleAdmin
 	default:
 		return false
 	}

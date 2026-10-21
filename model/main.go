@@ -385,6 +385,7 @@ func migrateDB() error {
 		&Tenant{},
 		&TenantMembership{},
 		&TenantDomain{},
+		&TenantFunding{},
 	)
 	if err != nil {
 		return err

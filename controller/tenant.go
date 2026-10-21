@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -11,6 +12,13 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 )
+
+type tenantFundingRequest struct {
+	UserID      int    `json:"user_id" binding:"required,gt=0"`
+	Reference   string `json:"reference" binding:"required,max=255"`
+	AmountMinor int64  `json:"amount_minor" binding:"required,gt=0"`
+	Currency    string `json:"currency" binding:"required,max=16"`
+}
 
 type tenantDNSRecord struct {
 	CNAMETarget string `json:"cname_target"`
@@ -124,6 +132,59 @@ func ListTenantMembers(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, members)
+}
+
+func ListTenantFunding(c *gin.Context) {
+	id, ok := tenantIDParam(c)
+	if !ok || !middleware.RequireTenantAccess(c, id, "read") {
+		return
+	}
+	rows, err := model.ListTenantFunding(id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	wallet, err := model.GetOrCreateWalletAccount(model.FinancialOwnerOrganization, int64(id), model.FinancialDefaultCurrency)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"wallet": wallet, "items": rows})
+}
+
+func FundTenantMember(c *gin.Context) {
+	id, ok := tenantIDParam(c)
+	if !ok || !middleware.RequireTenantAccess(c, id, "funding") {
+		return
+	}
+	var req tenantFundingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorT(c, "Invalid tenant funding")
+		return
+	}
+	quota, rate, err := service.ProviderFundingQuota(req.AmountMinor, strings.ToUpper(strings.TrimSpace(req.Currency)))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	funding, replay, err := model.FundTenantMember(id, req.UserID, req.Reference, req.Currency, req.AmountMinor, quota, rate, c.GetString("username"))
+	if err != nil {
+		switch {
+		case errors.Is(err, model.ErrTenantFundingInsufficient):
+			common.ApiErrorT(c, "Insufficient tenant wallet balance")
+		case errors.Is(err, model.ErrTenantFundingForbidden):
+			common.ApiErrorT(c, "Tenant member is not active")
+		case errors.Is(err, model.ErrTenantFundingConflict):
+			common.ApiErrorT(c, "Tenant funding reference already exists with different details")
+		case errors.Is(err, model.ErrWalletQuotaLimitExceeded):
+			common.ApiErrorT(c, "User quota exceeds the supported range")
+		default:
+			common.ApiError(c, err)
+		}
+		return
+	}
+	recordManageAuditFor(c, req.UserID, "tenant.funding", model.AuditFields{"tenant_id": id, "reference": funding.Reference, "amount_minor": funding.AmountMinor, "currency": funding.Currency, "quota": funding.Quota, "replay": replay})
+	common.ApiSuccess(c, gin.H{"funding": funding, "replay": replay})
 }
 
 func ListTenantDomains(c *gin.Context) {

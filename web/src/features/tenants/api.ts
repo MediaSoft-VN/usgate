@@ -38,6 +38,26 @@ export type TenantDomain = {
   verification_method: string
 }
 
+export type TenantFunding = {
+  id: number
+  tenant_id: number
+  user_id: number
+  reference: string
+  amount_minor: number
+  currency: string
+  quota: number
+  created_at: number
+  created_by: string
+  username: string
+  display_name: string
+}
+
+export type TenantWallet = {
+  available_minor: number
+  reserved_minor: number
+  currency: string
+}
+
 export type TenantDNSRecord = {
   cname_target: string
   a_record_ip: string
@@ -123,5 +143,29 @@ export async function deleteTenantDomain(
   const response = await api.delete(
     `/api/tenants/${tenantId}/domains/${domainId}`
   )
+  requireServerSuccess(response.data)
+}
+
+export async function getTenantFunding(tenantId: number): Promise<{
+  wallet: TenantWallet
+  items: TenantFunding[]
+}> {
+  const response = await api.get(`/api/tenants/${tenantId}/funding`)
+  return requireServerSuccess(response.data).data as {
+    wallet: TenantWallet
+    items: TenantFunding[]
+  }
+}
+
+export async function fundTenantMember(
+  tenantId: number,
+  payload: {
+    user_id: number
+    reference: string
+    amount_minor: number
+    currency: string
+  }
+): Promise<void> {
+  const response = await api.post(`/api/tenants/${tenantId}/funding`, payload)
   requireServerSuccess(response.data)
 }
