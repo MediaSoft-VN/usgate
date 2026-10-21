@@ -16,14 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { resolveSidebarView } from '@/components/layout/lib/sidebar-view-registry'
 import type { NavGroup, ResolvedSidebarView } from '@/components/layout/types'
-import { getTenantContext } from '@/features/tenants/api'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -51,15 +49,6 @@ export function useSidebarView(): ResolvedSidebarView {
   const pathname = useLocation({ select: (l) => l.pathname })
   const userRole = useAuthStore((s) => s.auth.user?.role)
   const isPartner = useAuthStore((s) => s.auth.user?.is_partner === true)
-  const tenantContextQuery = useQuery({
-    queryKey: ['tenant-context'],
-    queryFn: getTenantContext,
-    enabled: isPartner,
-    staleTime: 60_000,
-  })
-  const isTenantDomain =
-    tenantContextQuery.isError ||
-    (tenantContextQuery.data !== null && tenantContextQuery.data !== undefined)
   const rootSidebarData = useSidebarData()
   const configFilteredRoot = useSidebarConfig(rootSidebarData.navGroups)
 
@@ -69,18 +58,18 @@ export function useSidebarView(): ResolvedSidebarView {
     return configFilteredRoot
       .filter((group) => {
         if (group.id === 'admin') return isAdmin
-        if (group.id === 'partner') return isPartner && !isTenantDomain
+        if (group.id === 'partner') return isPartner
         return true
       })
       .map((group) => {
         const items = group.items.filter(
           (item) =>
             (item.requiredRole === undefined || role >= item.requiredRole) &&
-            (item.requiredPartner !== true || (isPartner && !isTenantDomain))
+            (item.requiredPartner !== true || isPartner)
         )
         return items.length === group.items.length ? group : { ...group, items }
       })
-  }, [configFilteredRoot, isPartner, isTenantDomain, userRole])
+  }, [configFilteredRoot, isPartner, userRole])
 
   const view = resolveSidebarView(pathname)
 

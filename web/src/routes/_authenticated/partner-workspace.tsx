@@ -8,13 +8,14 @@ export const Route = createFileRoute('/_authenticated/partner-workspace')({
   beforeLoad: async ({ location }) => {
     const { auth } = useAuthStore.getState()
     if (!canViewPartnerWorkspace(auth.user)) throw redirect({ to: '/403' })
-    let tenantContext: Awaited<ReturnType<typeof getTenantContext>>
     try {
-      tenantContext = await getTenantContext()
+      await getTenantContext()
     } catch {
       throw redirect({ to: '/403' })
     }
-    if (tenantContext) throw redirect({ to: '/dashboard' })
+    // Partner owners/admins may manage their tenant from both the platform
+    // domain and the tenant domain. Regular tenant members are not partners,
+    // so canViewPartnerWorkspace still blocks them.
     if (location.pathname === '/partner-workspace') {
       throw redirect({ to: '/partner-workspace/overview' })
     }
