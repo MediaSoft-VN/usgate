@@ -5,6 +5,7 @@ import { parseHttpStatusCodeRules } from '@/lib/http-status-code-rules'
 
 export function createRoutingPolicySchema(t: TFunction) {
   return z.object({
+    ChannelRoutingPolicy: z.enum(['priority', 'lowest_cost']),
     RetryTimes: z.number().int().min(0).max(99),
     AutomaticRetryStatusCodes: z
       .string()
@@ -47,6 +48,7 @@ export function routingPolicyFormValues(
   options: Record<string, string>
 ): RoutingPolicyFormValues {
   return {
+    ChannelRoutingPolicy: options.ChannelRoutingPolicy === 'lowest_cost' ? 'lowest_cost' : 'priority',
     RetryTimes: Number(options.RetryTimes),
     AutomaticRetryStatusCodes: options.AutomaticRetryStatusCodes,
     channel_affinity_setting: {
@@ -70,6 +72,7 @@ export function routingPolicyOptions(
   values: RoutingPolicyFormValues
 ): Record<string, string> {
   return {
+    ChannelRoutingPolicy: values.ChannelRoutingPolicy,
     RetryTimes: String(values.RetryTimes),
     AutomaticRetryStatusCodes: values.AutomaticRetryStatusCodes,
     ...Object.fromEntries(

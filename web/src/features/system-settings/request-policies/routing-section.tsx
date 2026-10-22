@@ -101,6 +101,9 @@ function RoutingPolicyEditor(props: { config: PolicyConfig }) {
         if (key === 'AutomaticRetryStatusCodes') {
           return value !== parseHttpStatusCodeRules(previous).normalized
         }
+        if (key === 'ChannelRoutingPolicy' && !previous && value === 'priority') {
+          return false
+        }
         return value !== previous
       })
     )
@@ -127,6 +130,44 @@ function RoutingPolicyEditor(props: { config: PolicyConfig }) {
           isSaving={mutation.isPending}
         />
         <div className='min-w-0 space-y-4'>
+          <SettingsCard
+            title={t('Channel routing')}
+            description={t('Choose how eligible channels are ordered for requests.')}
+            className='shadow-none'
+          >
+            <FormField
+              control={form.control}
+              name='ChannelRoutingPolicy'
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <RadioGroup
+                      aria-label={t('Channel routing policy')}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className='gap-2 sm:grid-cols-2'
+                    >
+                      <Label className='flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 font-normal'>
+                        <RadioGroupItem value='priority' />
+                        <span>
+                          <span className='block font-medium'>{t('Priority order')}</span>
+                          <span className='text-muted-foreground text-xs'>{t('Use the configured channel order.')}</span>
+                        </span>
+                      </Label>
+                      <Label className='flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 font-normal'>
+                        <RadioGroupItem value='lowest_cost' />
+                        <span>
+                          <span className='block font-medium'>{t('Lowest upstream cost')}</span>
+                          <span className='text-muted-foreground text-xs'>{t('Prefer channels with synchronized provider costs.')}</span>
+                        </span>
+                      </Label>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsCard>
           <AffinitySettings />
           <FormField
             control={form.control}
