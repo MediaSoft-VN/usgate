@@ -18,9 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { createServerError } from '@/lib/server-error-message'
-import { formatNumber } from '@/lib/format'
 
-import { getFinancialWallets } from './api'
 import { getUsers } from '../users/api'
 import { UserQuotaCell } from '../users/components/user-quota-cell'
 
@@ -46,10 +44,6 @@ export function CustomerWallet() {
       )
     },
   })
-  const walletsQuery = useQuery({
-    queryKey: ['financial-wallets', 'user'],
-    queryFn: () => getFinancialWallets('user'),
-  })
 
   const data = usersQuery.data
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
@@ -74,16 +68,11 @@ export function CustomerWallet() {
                   <TableHead>{t('Created At')}</TableHead>
                   <TableHead>{t('Group')}</TableHead>
                   <TableHead>{t('Quota')}</TableHead>
-                  <TableHead>{t('Available balance')}</TableHead>
-                  <TableHead>{t('Reserved balance')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.items.map((user) => {
-                  const wallet = walletsQuery.data?.find(
-                    (item) => item.owner_id === user.id
-                  )
                   return (
                     <TableRow key={user.id}>
                     <TableCell>
@@ -107,16 +96,6 @@ export function CustomerWallet() {
                         remaining={user.quota}
                         used={user.used_quota}
                       />
-                    </TableCell>
-                    <TableCell>
-                      {wallet
-                        ? `${wallet.currency} ${formatNumber(wallet.available_minor)}`
-                        : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {wallet
-                        ? `${wallet.currency} ${formatNumber(wallet.reserved_minor)}`
-                        : '-'}
                     </TableCell>
                     <TableCell>
                       {user.status === 1 ? t('Enabled') : t('Disabled')}
