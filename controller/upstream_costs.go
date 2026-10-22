@@ -19,8 +19,9 @@ import (
 
 const (
 	maxUpstreamCostChannels = 50
-	maxUpstreamCostModels   = 5000
+	maxUpstreamCostModels   = 20000
 	maxUpstreamCostBytes    = 10 << 20
+	maxUpstreamApplyBytes   = 16 << 20
 )
 
 type upstreamCostChannel struct {
@@ -103,7 +104,7 @@ func PreviewUpstreamCosts(c *gin.Context) {
 }
 
 func ApplyUpstreamCosts(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4<<20)
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUpstreamApplyBytes)
 	var request upstreamCostApplyRequest
 	if err := common.DecodeJson(c.Request.Body, &request); err != nil || len(request.Items) == 0 || len(request.Items) > maxUpstreamCostChannels {
 		common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Invalid request parameter format"))

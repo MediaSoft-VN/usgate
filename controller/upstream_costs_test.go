@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/glebarez/sqlite"
@@ -59,4 +62,23 @@ func TestApplyUpstreamCostsPreservesManualAndRejectsStalePreview(t *testing.T) {
 
 	err = model.ApplyChannelModelCosts(3, version, []model.ChannelModelCost{{Model: "new", InputUSDPerMillionMicros: 1, Source: "openrouter", Valid: true}})
 	assert.ErrorIs(t, err, model.ErrChannelModelCostConflict)
+}
+
+func TestConvertModelsDevCostsSupportsLargeCatalog(t *testing.T) {
+	models := make(map[string]modelsDevModel, maxUpstreamCostModels)
+	input := 0.001
+	for i := range 5001 {
+		models["provider/model-"+strconv.Itoa(i)] = modelsDevModel{
+			Cost: modelsDevCost{Input: &input},
+		}
+	}
+
+	body, err := common.Marshal(map[string]modelsDevProvider{
+		"provider": {Models: models},
+	})
+	require.NoError(t, err)
+
+	costs, err := convertModelsDevCosts(bytes.NewReader(body), 1)
+	require.NoError(t, err)
+	require.Len(t, costs, 5001)
 }
