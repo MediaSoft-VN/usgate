@@ -27,6 +27,15 @@ const channels = [
     version: 3,
     costs: [],
   },
+  {
+    id: 3,
+    name: 'Second OpenAI channel',
+    type: 1,
+    type_name: 'OpenAI',
+    supported: true,
+    version: 8,
+    costs: [],
+  },
 ]
 
 function renderPage() {
@@ -103,5 +112,35 @@ describe('upstream cost synchronization', () => {
     expect(post.mock.calls[1]?.[1]).toEqual({
       items: [{ channel_id: 1, version: 7, costs: expect.any(Array) }],
     })
+  })
+
+  it('applies each channel separately when several previews are ready', async () => {
+    const post = vi.spyOn(api, 'post')
+    post.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          results: [
+            { channel_id: 1, source: 'models.dev', supported: true, version: 7, costs: [] },
+            { channel_id: 3, source: 'models.dev', supported: true, version: 8, costs: [] },
+          ],
+        },
+      },
+    })
+    post.mockResolvedValue({
+      data: { success: true, data: { updated_channels: [1, 3] } },
+    })
+    vi.spyOn(api, 'get').mockResolvedValue({ data: { success: true, data: channels } })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Select OpenAI channel' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select Second OpenAI channel' }))
+    await userEvent.click(screen.getByRole('button', { name: /Preview costs/i }))
+    await screen.findAllByText('Ready to apply')
+    await userEvent.click(screen.getByRole('button', { name: /Apply costs/i }))
+
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(3))
+    expect(post.mock.calls[1]?.[1]).toEqual({ items: [{ channel_id: 1, version: 7, costs: [] }] })
+    expect(post.mock.calls[2]?.[1]).toEqual({ items: [{ channel_id: 3, version: 8, costs: [] }] })
   })
 })

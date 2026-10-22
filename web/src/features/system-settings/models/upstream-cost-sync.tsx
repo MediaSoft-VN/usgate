@@ -84,7 +84,17 @@ export function UpstreamCostSync() {
           version: result.version,
           costs: result.costs ?? [],
         }))
-      return applyUpstreamCosts(items)
+      return (async () => {
+        let lastResponse: Awaited<ReturnType<typeof applyUpstreamCosts>> | undefined
+        for (const item of items) {
+          // Keep each request below the server body limit. A preview may contain
+          // thousands of models across several channels, which otherwise makes
+          // one combined apply request fail with a generic format error.
+          lastResponse = await applyUpstreamCosts([item])
+          if (!lastResponse.success) return lastResponse
+        }
+        return lastResponse ?? { success: true, message: '', data: { updated_channels: [] } }
+      })()
     },
     onSuccess: async (response) => {
       if (!response.success) {
