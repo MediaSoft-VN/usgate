@@ -113,7 +113,7 @@ export function useSidebarData(): SidebarData {
         title: t('Personal'),
         items: [
           {
-            title: t('Wallet'),
+            title: t('User wallet'),
             url: '/wallet',
             icon: Wallet,
           },
