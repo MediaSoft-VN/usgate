@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { handleServerError } from '@/lib/handle-server-error'
 import { requireServerSuccess } from '@/lib/server-error-message'
@@ -150,7 +151,7 @@ export function UpstreamCostSync() {
         <CardContent className='space-y-3'>
           {channels.map((channel) => {
             const result = resultByChannel.get(channel.id)
-            const firstCost = result?.costs?.[0] ?? channel.costs[0]
+            const costs = result?.costs ?? channel.costs
             const isSelected = selected.includes(channel.id)
             return (
               <div key={channel.id} className='flex flex-wrap items-center gap-3 rounded-lg border p-3'>
@@ -165,9 +166,20 @@ export function UpstreamCostSync() {
                     {channel.name}
                     <StatusBadge label={channel.type_name} variant='neutral' size='sm' copyable={false} />
                   </div>
-                  <div className='text-muted-foreground text-xs'>
-                    {firstCost ? `${firstCost.model}: ${costLabel(firstCost)} / M` : t('No stored cost data')}
-                  </div>
+                  {costs.length > 0 ? (
+                    <ScrollArea className='mt-1 max-h-36 w-full pr-3'>
+                      <div className='space-y-1 text-xs'>
+                        {costs.map((cost) => (
+                          <div key={cost.model} className='text-muted-foreground flex justify-between gap-3'>
+                            <span className='min-w-0 truncate' title={cost.model}>{cost.model}</span>
+                            <span className='shrink-0'>{costLabel(cost)} / M</span>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className='text-muted-foreground text-xs'>{t('No stored cost data')}</div>
+                  )}
                   {result?.source && <div className='text-muted-foreground text-xs'>{t('Source')}: {result.source}</div>}
                 </div>
                 <ResultStatus result={result} channel={channel} />

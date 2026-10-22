@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
 
@@ -54,6 +54,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+beforeEach(() => {
+  if (!Element.prototype.getAnimations) {
+    Object.defineProperty(Element.prototype, 'getAnimations', { value: () => [] })
+  }
+})
+
 describe('upstream cost synchronization', () => {
   it('renders Ollama as manual and keeps it out of the supported select-all set', async () => {
     vi.spyOn(api, 'get').mockResolvedValue({
@@ -90,6 +96,18 @@ describe('upstream cost synchronization', () => {
                   valid: true,
                   fetched_at: 1,
                 },
+                {
+                  channel_id: 1,
+                  model: 'gpt-other',
+                  input_usd_per_million_micros: 3000000,
+                  output_usd_per_million_micros: 4000000,
+                  cache_read_usd_per_million_micros: 0,
+                  cache_write_usd_per_million_micros: 0,
+                  source: 'models.dev',
+                  manual: false,
+                  valid: true,
+                  fetched_at: 1,
+                },
               ],
             },
           ],
@@ -105,6 +123,7 @@ describe('upstream cost synchronization', () => {
     await userEvent.click(screen.getByRole('button', { name: /Preview costs/i }))
     expect(await screen.findByText('Ready to apply')).toBeVisible()
     expect(screen.getByText(/gpt-test/)).toBeVisible()
+    expect(screen.getByText('gpt-other')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: /Apply costs/i }))
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
     expect(post.mock.calls[0]?.[0]).toBe('/api/upstream_costs/preview')
