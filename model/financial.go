@@ -262,6 +262,31 @@ func GetOrCreateWalletAccount(ownerType string, ownerID int64, currency string) 
 	return wallet, nil
 }
 
+// ListWalletAccounts returns financial wallets for an owner type. It is used by
+// administrative views and never falls back to legacy quota balances.
+func ListWalletAccounts(ownerType string, ownerID int64) ([]WalletAccount, error) {
+	if ownerID < 0 {
+		return nil, ErrFinancialInvalidOwner
+	}
+	validationID := ownerID
+	if validationID == 0 {
+		validationID = 1
+	}
+	ownerType, err := normalizeFinancialOwner(ownerType, validationID)
+	if err != nil {
+		return nil, err
+	}
+	query := DB.Where("owner_type = ?", ownerType)
+	if ownerID > 0 {
+		query = query.Where("owner_id = ?", ownerID)
+	}
+	var wallets []WalletAccount
+	if err := query.Order("owner_id ASC, currency ASC").Find(&wallets).Error; err != nil {
+		return nil, err
+	}
+	return wallets, nil
+}
+
 // AvailableDeltaMinor and ReservedDeltaMinor record the balance movement made
 // by a wallet operation. They are kept on the transaction so the balance
 // change can be audited without reconstructing it from mutable account state.

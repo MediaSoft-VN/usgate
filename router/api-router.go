@@ -316,6 +316,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/financial/provider-funding/allocate", middleware.AdminAuth(), controller.AllocateProviderFunding)
 		apiRouter.GET("/financial/provider-funding/sync", middleware.AdminAuth(), controller.GetProviderFundingSyncStatus)
 		apiRouter.POST("/financial/provider-funding/sync", middleware.AdminAuth(), controller.StartProviderFundingSync)
+		apiRouter.GET("/financial/wallets", middleware.AdminAuth(), controller.ListFinancialWallets)
 		registerAuthzRoutes(apiRouter)
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())
