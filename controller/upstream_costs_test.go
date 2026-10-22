@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -88,4 +89,16 @@ func TestConvertModelsDevCostsSupportsLargeCatalog(t *testing.T) {
 	costs, err := convertModelsDevCosts(bytes.NewReader(body), 1)
 	require.NoError(t, err)
 	require.Len(t, costs, 5001)
+}
+
+func TestUpstreamCostSyncTaskHandlerUsesConfiguredSchedule(t *testing.T) {
+	handler := upstreamCostSyncTaskHandler{}
+	t.Setenv("UPSTREAM_COST_SYNC_TASK_ENABLED", "false")
+	require.False(t, handler.Enabled())
+
+	t.Setenv("UPSTREAM_COST_SYNC_TASK_ENABLED", "true")
+	t.Setenv("UPSTREAM_COST_SYNC_TASK_INTERVAL_MINUTES", "15")
+	require.True(t, handler.Enabled())
+	interval := handler.Interval()
+	require.Equal(t, 15*time.Minute, interval)
 }
