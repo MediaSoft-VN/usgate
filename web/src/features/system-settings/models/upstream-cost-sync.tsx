@@ -167,7 +167,7 @@ export function UpstreamCostSync() {
                     <StatusBadge label={channel.type_name} variant='neutral' size='sm' copyable={false} />
                   </div>
                   {costs.length > 0 ? (
-                    <ScrollArea className='mt-1 max-h-36 w-full pr-3'>
+                    <ScrollArea className='mt-1 h-36 w-full pr-3'>
                       <div className='space-y-1 text-xs'>
                         {costs.map((cost) => (
                           <div key={cost.model} className='text-muted-foreground flex justify-between gap-3'>
