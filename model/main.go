@@ -378,6 +378,7 @@ func migrateDB() error {
 		&UserAccessToken{},
 		&ProviderCashFlow{},
 		&WalletAccount{},
+		&LedgerAccount{},
 		&FinancialTransaction{},
 		&LedgerEntry{},
 		&IdempotencyKey{},
@@ -389,6 +390,9 @@ func migrateDB() error {
 		&ChannelModelCost{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := migrateFinancialLedgerAccounts(); err != nil {
 		return err
 	}
 	if err := MigrateTenants(); err != nil {

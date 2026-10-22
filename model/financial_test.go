@@ -11,13 +11,14 @@ import (
 
 func migrateFinancialTestTables(t *testing.T) {
 	t.Helper()
-	models := []any{&WalletAccount{}, &FinancialTransaction{}, &LedgerEntry{}, &IdempotencyKey{}, &ExchangeRate{}}
+	models := []any{&WalletAccount{}, &LedgerAccount{}, &FinancialTransaction{}, &LedgerEntry{}, &IdempotencyKey{}, &ExchangeRate{}}
 	require.NoError(t, DB.AutoMigrate(models...))
 	// Startup migration must be idempotent when the process is restarted.
 	require.NoError(t, DB.AutoMigrate(models...))
 	t.Cleanup(func() {
 		DB.Exec("DELETE FROM ledger_entries")
 		DB.Exec("DELETE FROM financial_transactions")
+		DB.Exec("DELETE FROM ledger_accounts")
 		DB.Exec("DELETE FROM wallet_accounts")
 		DB.Exec("DELETE FROM idempotency_keys")
 		DB.Exec("DELETE FROM exchange_rates")
@@ -48,6 +49,10 @@ func TestCreateFinancialTransactionRequiresBalancedEntries(t *testing.T) {
 
 	wallet, err := GetOrCreateWalletAccount(FinancialOwnerUser, 9002, "VND")
 	require.NoError(t, err)
+	walletAccount, err := GetOrCreateLedgerAccount("wallet:user:9002:VND", FinancialOwnerUser, 9002, wallet.ID, "VND")
+	require.NoError(t, err)
+	cashAccount, err := GetOrCreateLedgerAccount("system:cash:VND", "system", 0, 0, "VND")
+	require.NoError(t, err)
 
 	balanced := &FinancialTransaction{
 		TransactionNo: "fin-txn-balanced", WalletAccountID: wallet.ID,
@@ -55,8 +60,8 @@ func TestCreateFinancialTransactionRequiresBalancedEntries(t *testing.T) {
 		AmountMinor: 5000, Currency: "VND",
 	}
 	entries := []LedgerEntry{
-		{EntryType: LedgerEntryDebit, AmountMinor: 5000, Currency: "VND", WalletAccountID: wallet.ID},
-		{EntryType: LedgerEntryCredit, AmountMinor: 5000, Currency: "VND", WalletAccountID: wallet.ID},
+		{EntryType: LedgerEntryDebit, AmountMinor: 5000, Currency: "VND", LedgerAccountID: cashAccount.ID},
+		{EntryType: LedgerEntryCredit, AmountMinor: 5000, Currency: "VND", LedgerAccountID: walletAccount.ID, WalletAccountID: wallet.ID},
 	}
 	require.NoError(t, CreateFinancialTransaction(nil, balanced, entries))
 
@@ -65,8 +70,8 @@ func TestCreateFinancialTransactionRequiresBalancedEntries(t *testing.T) {
 		Type: FinancialTransactionTopUp, AmountMinor: 5000, Currency: "VND",
 	}
 	badEntries := []LedgerEntry{
-		{EntryType: LedgerEntryDebit, AmountMinor: 4000, Currency: "VND", WalletAccountID: wallet.ID},
-		{EntryType: LedgerEntryCredit, AmountMinor: 5000, Currency: "VND", WalletAccountID: wallet.ID},
+		{EntryType: LedgerEntryDebit, AmountMinor: 4000, Currency: "VND", LedgerAccountID: cashAccount.ID},
+		{EntryType: LedgerEntryCredit, AmountMinor: 5000, Currency: "VND", LedgerAccountID: walletAccount.ID, WalletAccountID: wallet.ID},
 	}
 	assert.ErrorIs(t, CreateFinancialTransaction(nil, unbalanced, badEntries), ErrFinancialUnbalanced)
 
@@ -75,6 +80,11 @@ func TestCreateFinancialTransactionRequiresBalancedEntries(t *testing.T) {
 		Type: FinancialTransactionTopUp, AmountMinor: 5000, Currency: "VND",
 	}
 	assert.Error(t, CreateFinancialTransaction(nil, duplicate, entries))
+
+	entry := &LedgerEntry{}
+	require.NoError(t, DB.First(entry, "financial_transaction_id = ?", balanced.ID).Error)
+	assert.ErrorIs(t, DB.Model(entry).Update("amount_minor", 1).Error, ErrFinancialLedgerImmutable)
+	assert.ErrorIs(t, DB.Delete(entry).Error, ErrFinancialLedgerImmutable)
 }
 
 func TestClaimIdempotencyKeyReplaysSamePayload(t *testing.T) {
