@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
+import { TimestampCell } from '@/components/activity-time-cell'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
@@ -64,6 +65,7 @@ export function CustomerWallet() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('Username')}</TableHead>
+                  <TableHead>{t('Created At')}</TableHead>
                   <TableHead>{t('Group')}</TableHead>
                   <TableHead>{t('Quota')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
@@ -79,6 +81,13 @@ export function CustomerWallet() {
                           {user.username}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <TimestampCell
+                        timestamp={user.created_at ?? 0}
+                        format='absolute'
+                        justNowLabel={t('Just now')}
+                      />
                     </TableCell>
                     <TableCell>{user.group}</TableCell>
                     <TableCell>
