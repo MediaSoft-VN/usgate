@@ -66,7 +66,7 @@ describe('upstream cost synchronization', () => {
       data: { success: true, data: channels },
     })
     renderPage()
-    expect(await screen.findByText('Ollama pricing is manual')).toBeVisible()
+    expect((await screen.findAllByText('Manual')).length).toBeGreaterThan(0)
     expect(screen.getByRole('checkbox', { name: 'Select Local Ollama' })).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByRole('checkbox', { name: 'Select all supported channels' })).not.toBeChecked()
   })

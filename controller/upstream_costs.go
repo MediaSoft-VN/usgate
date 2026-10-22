@@ -78,10 +78,10 @@ func ListUpstreamCostChannels(c *gin.Context) {
 			common.ApiError(c, versionErr)
 			return
 		}
-		item := upstreamCostChannel{ID: channel.Id, Name: channel.Name, Type: channel.Type, TypeName: constant.GetChannelTypeName(channel.Type), Supported: channel.Type != constant.ChannelTypeOllama, Version: version, Costs: costs}
-		if channel.Type == constant.ChannelTypeOllama {
+		item := upstreamCostChannel{ID: channel.Id, Name: channel.Name, Type: channel.Type, TypeName: constant.GetChannelTypeName(channel.Type), Supported: supportsAutomaticUpstreamCosts(channel), Version: version, Costs: costs}
+		if !item.Supported {
 			item.Supported = false
-			item.UnsupportedWhy = "Ollama pricing is manual and has no upstream cost source"
+			item.UnsupportedWhy = "This channel has no configured upstream cost source"
 		}
 		result = append(result, item)
 	}
@@ -154,17 +154,18 @@ func fetchUpstreamCosts(parent context.Context, channelIDs []int, timeout int) [
 			continue
 		}
 		result.Version, _ = model.ChannelModelCostVersion(channelID)
-		if channel.Type == constant.ChannelTypeOllama {
+		if !supportsAutomaticUpstreamCosts(channel) {
 			result.Supported = false
 			result.Source = "manual"
-			result.Error = "Ollama pricing is unsupported and must be entered manually"
+			result.Error = "This channel has no configured upstream cost source and must be entered manually"
 			results = append(results, result)
 			continue
 		}
 		baseURL := strings.TrimRight(channel.GetBaseURL(), "/")
-		endpoint := modelsDevPresetBaseURL + modelsDevPath
+		isOpenRouter := channel.Type == constant.ChannelTypeOpenRouter
+		endpoint := baseURL + modelsDevPath
 		result.Source = "models.dev"
-		if channel.Type == constant.ChannelTypeOpenRouter {
+		if isOpenRouter {
 			endpoint = baseURL + "/v1/models"
 			result.Source = "openrouter"
 		}
@@ -216,6 +217,16 @@ func fetchUpstreamCosts(parent context.Context, channelIDs []int, timeout int) [
 		results = append(results, result)
 	}
 	return results
+}
+
+func supportsAutomaticUpstreamCosts(channel *model.Channel) bool {
+	if channel == nil {
+		return false
+	}
+	if channel.Type == constant.ChannelTypeOpenRouter {
+		return true
+	}
+	return strings.TrimRight(channel.GetBaseURL(), "/") == modelsDevPresetBaseURL
 }
 
 func microsPerMillion(value float64) (int64, bool) {

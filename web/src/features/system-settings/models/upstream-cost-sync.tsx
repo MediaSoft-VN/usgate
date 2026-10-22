@@ -183,7 +183,7 @@ export function UpstreamCostSync() {
                   {result?.source && <div className='text-muted-foreground text-xs'>{t('Source')}: {result.source}</div>}
                 </div>
                 <ResultStatus result={result} channel={channel} />
-                {!channel.supported && <span className='text-muted-foreground flex items-center gap-1 text-xs'><AlertTriangle className='size-3' aria-hidden />{t('Ollama pricing is manual')}</span>}
+                {!channel.supported && <span className='text-muted-foreground flex items-center gap-1 text-xs'><AlertTriangle className='size-3' aria-hidden />{t('Manual')}</span>}
                 {result?.error && <span role='alert' className='text-destructive max-w-md text-xs'>{result.error}</span>}
               </div>
             )

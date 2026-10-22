@@ -41,6 +41,13 @@ func TestPreviewUpstreamCostsRepresentsOllamaAsUnsupported(t *testing.T) {
 	assert.Contains(t, results[0].Error, "manual")
 }
 
+func TestPreviewUpstreamCostsDoesNotUseModelsDevForRegularChannels(t *testing.T) {
+	baseURL := "https://provider.example/v1"
+	channel := &model.Channel{Id: 10, Type: constant.ChannelTypeOpenAI, BaseURL: &baseURL}
+
+	require.False(t, supportsAutomaticUpstreamCosts(channel))
+}
+
 func TestApplyUpstreamCostsPreservesManualAndRejectsStalePreview(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
