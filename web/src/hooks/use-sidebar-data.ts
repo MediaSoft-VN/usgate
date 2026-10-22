@@ -149,6 +149,11 @@ export function useSidebarData(): SidebarData {
             icon: Users,
           },
           {
+            title: t('Provider total wallet'),
+            url: '/provider-wallet',
+            icon: Wallet,
+          },
+          {
             title: t('Wallet'),
             url: '/customer-wallet',
             icon: Wallet,
@@ -162,11 +167,6 @@ export function useSidebarData(): SidebarData {
           {
             title: t('Cash flow history'),
             url: '/provider-funding',
-            icon: Wallet,
-          },
-          {
-            title: t('Provider total wallet'),
-            url: '/provider-wallet',
             icon: Wallet,
           },
           {
