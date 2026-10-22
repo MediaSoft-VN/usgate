@@ -23,6 +23,7 @@ import (
 // the runtime globals updated by the same write never disagree with it.
 type RequestPolicySnapshot struct {
 	Affinity        operation_setting.ChannelAffinitySetting
+	RoutingPolicy   string
 	RetryTimes      int
 	RetryCodes      []operation_setting.StatusCodeRange
 	DisableCodes    []operation_setting.StatusCodeRange
@@ -52,6 +53,7 @@ func requestPolicyDefaultOptions() map[string]string {
 		}
 	}
 	defaults["RetryTimes"] = strconv.Itoa(common.RetryTimes)
+	defaults["ChannelRoutingPolicy"] = "priority"
 	defaults["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	defaults["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	defaults["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
@@ -69,7 +71,7 @@ func IsRequestPolicyOption(key string) bool {
 		return true
 	}
 	switch key {
-	case "CheckSensitiveEnabled", "CheckSensitiveOnPromptEnabled", "SensitiveWords", "AutomaticEnableChannelEnabled", "ChannelDisableThreshold", "monitor_setting.auto_test_channel_enabled", "monitor_setting.auto_test_channel_minutes", "monitor_setting.channel_test_concurrency", "monitor_setting.channel_test_mode", "RetryTimes", "AutomaticRetryStatusCodes", "AutomaticDisableChannelEnabled", "AutomaticDisableStatusCodes", "AutomaticDisableKeywords":
+	case "CheckSensitiveEnabled", "CheckSensitiveOnPromptEnabled", "SensitiveWords", "AutomaticEnableChannelEnabled", "ChannelDisableThreshold", "monitor_setting.auto_test_channel_enabled", "monitor_setting.auto_test_channel_minutes", "monitor_setting.channel_test_concurrency", "monitor_setting.channel_test_mode", "RetryTimes", "ChannelRoutingPolicy", "AutomaticRetryStatusCodes", "AutomaticDisableChannelEnabled", "AutomaticDisableStatusCodes", "AutomaticDisableKeywords":
 		return true
 	}
 	return false
@@ -129,6 +131,12 @@ func BuildRequestPolicy(options map[string]string) (*RequestPolicySnapshot, erro
 	snapshot.RetryTimes, err = strconv.Atoi(raw["RetryTimes"])
 	if err != nil || snapshot.RetryTimes < 0 || snapshot.RetryTimes == math.MaxInt {
 		return nil, fmt.Errorf("retry times must be a non-negative integer with room for the initial attempt")
+	}
+	snapshot.RoutingPolicy = raw["ChannelRoutingPolicy"]
+	switch snapshot.RoutingPolicy {
+	case "priority", "lowest_cost":
+	default:
+		return nil, fmt.Errorf("invalid channel routing policy")
 	}
 	snapshot.AutoDisable, err = strconv.ParseBool(raw["AutomaticDisableChannelEnabled"])
 	if err != nil {

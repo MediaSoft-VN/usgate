@@ -120,9 +120,22 @@ func GetRandomSatisfiedChannel(
 	retry int,
 	filters []dto.ChannelFilter,
 ) (*Channel, error) {
+	return GetRandomSatisfiedChannelWithPolicy(group, model, retry, filters, "priority")
+}
+
+// GetRandomSatisfiedChannelWithPolicy selects an eligible channel using the
+// requested routing policy. The legacy priority/weight behavior remains the
+// default and is also the safe fallback when no valid provider costs exist.
+func GetRandomSatisfiedChannelWithPolicy(
+	group string,
+	model string,
+	retry int,
+	filters []dto.ChannelFilter,
+	routingPolicy string,
+) (*Channel, error) {
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannel(group, model, retry, filters)
+		return GetChannelWithPolicy(group, model, retry, filters, routingPolicy)
 	}
 
 	channelSyncLock.RLock()
@@ -146,6 +159,12 @@ func GetRandomSatisfiedChannel(
 			return channel, nil
 		}
 		return nil, fmt.Errorf("database consistency error: channel #%d does not exist, please contact the administrator", channels[0])
+	}
+
+	if routingPolicy == "lowest_cost" {
+		if channel, ok := selectLowestCostChannel(channels, model, retry, filters); ok {
+			return channel, nil
+		}
 	}
 
 	uniquePriorities := make(map[int]bool)
@@ -214,6 +233,82 @@ func GetRandomSatisfiedChannel(
 	}
 	// return null if no channel is not found
 	return nil, errors.New("channel not found")
+}
+
+func selectLowestCostChannel(channelIDs []int, modelName string, retry int, filters []dto.ChannelFilter) (*Channel, bool) {
+	if DB == nil || len(channelIDs) == 0 {
+		return nil, false
+	}
+	normalizedModel := ratio_setting.RoutingMatchModelName(modelName)
+	var costs []ChannelModelCost
+	models := []string{modelName}
+	if normalizedModel != "" && normalizedModel != modelName {
+		models = append(models, normalizedModel)
+	}
+	query := DB.Where("channel_id IN ? AND valid = ? AND model IN ?", channelIDs, true, models)
+	if err := query.Find(&costs).Error; err != nil {
+		return nil, false
+	}
+	known := make(map[int]int64, len(costs))
+	for _, cost := range costs {
+		if _, exists := known[cost.ChannelID]; !exists {
+			known[cost.ChannelID] = cost.RoutingCost()
+		}
+	}
+	if len(known) == 0 {
+		return nil, false
+	}
+	buckets := make(map[int64][]*Channel)
+	var costsByBucket []int64
+	seenBucket := make(map[int64]bool)
+	unknown := make([]*Channel, 0)
+	for _, channelID := range channelIDs {
+		channel, ok := channelsIDM[channelID]
+		if !ok {
+			continue
+		}
+		cost, knownCost := known[channelID]
+		if !knownCost {
+			unknown = append(unknown, channel)
+			continue
+		}
+		if !seenBucket[cost] {
+			seenBucket[cost] = true
+			costsByBucket = append(costsByBucket, cost)
+		}
+		buckets[cost] = append(buckets[cost], channel)
+	}
+	sort.Slice(costsByBucket, func(i, j int) bool { return costsByBucket[i] < costsByBucket[j] })
+	if len(unknown) > 0 {
+		buckets[-1] = unknown
+		costsByBucket = append(costsByBucket, -1)
+	}
+	if len(costsByBucket) == 0 {
+		return nil, false
+	}
+	if retry >= len(costsByBucket) {
+		retry = len(costsByBucket) - 1
+	}
+	target := costsByBucket[retry]
+	return weightedChannel(buckets[target]), true
+}
+
+func weightedChannel(channels []*Channel) *Channel {
+	if len(channels) == 0 {
+		return nil
+	}
+	total := 0
+	for _, channel := range channels {
+		total += channel.GetWeight() + 10
+	}
+	weight := common.GetRandomInt(total)
+	for _, channel := range channels {
+		weight -= channel.GetWeight() + 10
+		if weight <= 0 {
+			return channel
+		}
+	}
+	return channels[len(channels)-1]
 }
 
 func CacheGetChannel(id int) (*Channel, error) {

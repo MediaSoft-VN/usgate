@@ -39,6 +39,13 @@ type ChannelModelCost struct {
 	UpdatedAt                     int64  `json:"updated_at" gorm:"bigint;autoUpdateTime"`
 }
 
+// RoutingCost is the simple provider-cost estimate used when no request usage
+// mix is available during channel selection. Customer pricing is intentionally
+// not involved in this value.
+func (cost ChannelModelCost) RoutingCost() int64 {
+	return cost.InputUSDPerMillionMicros + cost.OutputUSDPerMillionMicros
+}
+
 func (ChannelModelCost) TableName() string {
 	return "channel_model_costs"
 }
