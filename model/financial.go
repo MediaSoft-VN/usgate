@@ -2,11 +2,15 @@ package model
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func SaveExchangeRate(rate *ExchangeRate) error {
@@ -124,19 +128,21 @@ func (w *WalletAccount) BeforeCreate(_ *gorm.DB) error {
 // FinancialTransaction represents one business operation. Its ledger entries
 // are immutable accounting facts; status changes belong to the transaction.
 type FinancialTransaction struct {
-	ID                int64  `json:"id" gorm:"primaryKey"`
-	TransactionNo     string `json:"transaction_no" gorm:"type:varchar(128);not null;uniqueIndex"`
-	WalletAccountID   int64  `json:"wallet_account_id" gorm:"not null;index"`
-	IdempotencyKey    string `json:"idempotency_key" gorm:"type:varchar(255);index"`
-	Type              string `json:"type" gorm:"type:varchar(32);not null;index"`
-	Status            string `json:"status" gorm:"type:varchar(16);not null;index"`
-	AmountMinor       int64  `json:"amount_minor" gorm:"not null"`
-	Currency          string `json:"currency" gorm:"type:varchar(16);not null"`
-	Provider          string `json:"provider" gorm:"type:varchar(64);index"`
-	ExternalReference string `json:"external_reference" gorm:"type:varchar(255);index"`
-	Metadata          string `json:"metadata" gorm:"type:text"`
-	CreatedAt         int64  `json:"created_at" gorm:"not null;index"`
-	CompletedAt       int64  `json:"completed_at"`
+	ID                  int64  `json:"id" gorm:"primaryKey"`
+	TransactionNo       string `json:"transaction_no" gorm:"type:varchar(128);not null;uniqueIndex"`
+	WalletAccountID     int64  `json:"wallet_account_id" gorm:"not null;index"`
+	IdempotencyKey      string `json:"idempotency_key" gorm:"type:varchar(255);index"`
+	Type                string `json:"type" gorm:"type:varchar(32);not null;index"`
+	Status              string `json:"status" gorm:"type:varchar(16);not null;index"`
+	AmountMinor         int64  `json:"amount_minor" gorm:"not null"`
+	AvailableDeltaMinor int64  `json:"available_delta_minor" gorm:"not null;default:0"`
+	ReservedDeltaMinor  int64  `json:"reserved_delta_minor" gorm:"not null;default:0"`
+	Currency            string `json:"currency" gorm:"type:varchar(16);not null"`
+	Provider            string `json:"provider" gorm:"type:varchar(64);index"`
+	ExternalReference   string `json:"external_reference" gorm:"type:varchar(255);index"`
+	Metadata            string `json:"metadata" gorm:"type:text"`
+	CreatedAt           int64  `json:"created_at" gorm:"not null;index"`
+	CompletedAt         int64  `json:"completed_at"`
 }
 
 // LedgerEntry is an immutable debit or credit line. A transaction must balance
@@ -190,12 +196,19 @@ type ExchangeRate struct {
 }
 
 var (
-	ErrFinancialInvalidOwner    = errors.New("invalid wallet owner")
-	ErrFinancialInvalidCurrency = errors.New("invalid currency")
-	ErrFinancialInvalidAmount   = errors.New("amount must be positive")
-	ErrFinancialUnbalanced      = errors.New("ledger entries do not balance")
-	ErrIdempotencyConflict      = errors.New("idempotency key payload mismatch")
+	ErrFinancialInvalidOwner       = errors.New("invalid wallet owner")
+	ErrFinancialInvalidCurrency    = errors.New("invalid currency")
+	ErrFinancialInvalidAmount      = errors.New("amount must be positive")
+	ErrWalletAccountLocked         = errors.New("wallet account is locked")
+	ErrWalletAccountClosed         = errors.New("wallet account is closed")
+	ErrWalletInsufficientAvailable = errors.New("wallet has insufficient available balance")
+	ErrWalletInsufficientReserved  = errors.New("wallet has insufficient reserved balance")
+	ErrIdempotencyInProgress       = errors.New("idempotency request is in progress")
+	ErrFinancialUnbalanced         = errors.New("ledger entries do not balance")
+	ErrIdempotencyConflict         = errors.New("idempotency key payload mismatch")
 )
+
+var financialTransactionSequence atomic.Uint64
 
 func normalizeFinancialCurrency(currency string) (string, error) {
 	code := strings.ToUpper(strings.TrimSpace(currency))
@@ -247,6 +260,158 @@ func GetOrCreateWalletAccount(ownerType string, ownerID int64, currency string) 
 		return nil, err
 	}
 	return wallet, nil
+}
+
+// AvailableDeltaMinor and ReservedDeltaMinor record the balance movement made
+// by a wallet operation. They are kept on the transaction so the balance
+// change can be audited without reconstructing it from mutable account state.
+// The ledger entry model remains reserved for the double-entry phase.
+
+// mutateWalletAccount applies one atomic wallet operation. The idempotency row,
+// balance update, and transaction record commit or roll back together.
+func mutateWalletAccount(ownerType string, ownerID int64, currency string, amountMinor int64, operation string, availableDelta int64, reservedDelta int64, scope string, idempotencyKey string, requestHash string, metadata string) (*FinancialTransaction, bool, error) {
+	ownerType, err := normalizeFinancialOwner(ownerType, ownerID)
+	if err != nil {
+		return nil, false, err
+	}
+	currency, err = normalizeFinancialCurrency(currency)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := ValidateFinancialMinorAmount(amountMinor); err != nil {
+		return nil, false, err
+	}
+	scope = strings.TrimSpace(scope)
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	requestHash = strings.TrimSpace(requestHash)
+	if scope == "" || idempotencyKey == "" || requestHash == "" {
+		return nil, false, ErrIdempotencyConflict
+	}
+
+	var result *FinancialTransaction
+	replay := false
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		now := time.Now().Unix()
+		claim := &IdempotencyKey{
+			Scope: scope, Key: idempotencyKey, RequestHash: requestHash,
+			Status: IdempotencyProcessing, CreatedAt: now,
+		}
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(claim).Error; err != nil {
+			return err
+		}
+		existing := &IdempotencyKey{}
+		if err := tx.Where("scope = ? AND key = ?", scope, idempotencyKey).First(existing).Error; err != nil {
+			return err
+		}
+		if existing.RequestHash != requestHash {
+			return ErrIdempotencyConflict
+		}
+		if existing.Status == IdempotencyCompleted {
+			transactionID, parseErr := strconv.ParseInt(existing.ResourceID, 10, 64)
+			if parseErr != nil || transactionID <= 0 {
+				return ErrIdempotencyInProgress
+			}
+			result = &FinancialTransaction{}
+			if err := tx.First(result, transactionID).Error; err != nil {
+				return err
+			}
+			replay = true
+			return nil
+		}
+		if existing.Status == IdempotencyProcessing {
+			if existing.ID != claim.ID {
+				return ErrIdempotencyInProgress
+			}
+		} else {
+			return ErrIdempotencyInProgress
+		}
+
+		wallet := &WalletAccount{}
+		if err := lockForUpdate(tx).Where("owner_type = ? AND owner_id = ? AND currency = ?", ownerType, ownerID, currency).First(wallet).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				wallet = &WalletAccount{OwnerType: ownerType, OwnerID: ownerID, Currency: currency, Status: WalletAccountActive}
+				if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(wallet).Error; err != nil {
+					return err
+				}
+				if err := lockForUpdate(tx).Where("owner_type = ? AND owner_id = ? AND currency = ?", ownerType, ownerID, currency).First(wallet).Error; err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
+		switch wallet.Status {
+		case WalletAccountLocked:
+			return ErrWalletAccountLocked
+		case WalletAccountClosed:
+			return ErrWalletAccountClosed
+		case WalletAccountActive:
+		default:
+			return ErrWalletAccountClosed
+		}
+		if wallet.AvailableMinor > FinancialMaxMinorUnits-availableDelta && availableDelta > 0 {
+			return ErrFinancialAmountOverflow
+		}
+		if wallet.ReservedMinor > FinancialMaxMinorUnits-reservedDelta && reservedDelta > 0 {
+			return ErrFinancialAmountOverflow
+		}
+		if availableDelta < 0 && wallet.AvailableMinor < -availableDelta {
+			return ErrWalletInsufficientAvailable
+		}
+		if reservedDelta < 0 && wallet.ReservedMinor < -reservedDelta {
+			return ErrWalletInsufficientReserved
+		}
+
+		updated := tx.Model(&WalletAccount{}).
+			Where("id = ? AND version = ? AND status = ?", wallet.ID, wallet.Version, WalletAccountActive).
+			Updates(map[string]any{
+				"available_minor": gorm.Expr("available_minor + ?", availableDelta),
+				"reserved_minor":  gorm.Expr("reserved_minor + ?", reservedDelta),
+				"version":         gorm.Expr("version + 1"),
+				"updated_at":      now,
+			})
+		if updated.Error != nil {
+			return updated.Error
+		}
+		if updated.RowsAffected != 1 {
+			return ErrWalletInsufficientAvailable
+		}
+		result = &FinancialTransaction{
+			TransactionNo:   fmt.Sprintf("wallet-%d-%d", now, financialTransactionSequence.Add(1)),
+			WalletAccountID: wallet.ID, IdempotencyKey: idempotencyKey,
+			Type: operation, Status: FinancialTransactionCompleted,
+			AmountMinor: amountMinor, Currency: currency, Metadata: metadata,
+			AvailableDeltaMinor: availableDelta, ReservedDeltaMinor: reservedDelta,
+			CreatedAt: now, CompletedAt: now,
+		}
+		if err := tx.Create(result).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(existing).Updates(map[string]any{
+			"status": IdempotencyCompleted, "resource_type": "financial_transaction",
+			"resource_id": strconv.FormatInt(result.ID, 10), "completed_at": now,
+		}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return result, replay, err
+}
+
+func CreditWalletAccount(ownerType string, ownerID int64, currency string, amountMinor int64, scope string, idempotencyKey string, requestHash string, metadata string) (*FinancialTransaction, bool, error) {
+	return mutateWalletAccount(ownerType, ownerID, currency, amountMinor, FinancialTransactionCredit, amountMinor, 0, scope, idempotencyKey, requestHash, metadata)
+}
+
+func DebitWalletAccount(ownerType string, ownerID int64, currency string, amountMinor int64, scope string, idempotencyKey string, requestHash string, metadata string) (*FinancialTransaction, bool, error) {
+	return mutateWalletAccount(ownerType, ownerID, currency, amountMinor, FinancialTransactionDebit, -amountMinor, 0, scope, idempotencyKey, requestHash, metadata)
+}
+
+func ReserveWalletAccount(ownerType string, ownerID int64, currency string, amountMinor int64, scope string, idempotencyKey string, requestHash string, metadata string) (*FinancialTransaction, bool, error) {
+	return mutateWalletAccount(ownerType, ownerID, currency, amountMinor, FinancialTransactionReserve, -amountMinor, amountMinor, scope, idempotencyKey, requestHash, metadata)
+}
+
+func ReleaseWalletAccount(ownerType string, ownerID int64, currency string, amountMinor int64, scope string, idempotencyKey string, requestHash string, metadata string) (*FinancialTransaction, bool, error) {
+	return mutateWalletAccount(ownerType, ownerID, currency, amountMinor, FinancialTransactionRelease, amountMinor, -amountMinor, scope, idempotencyKey, requestHash, metadata)
 }
 
 // CreateFinancialTransaction persists a balanced double-entry transaction and
