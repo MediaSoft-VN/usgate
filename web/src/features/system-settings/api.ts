@@ -147,7 +147,7 @@ export async function previewUpstreamCosts(channelIds: number[], timeout = 10) {
 }
 
 export async function applyUpstreamCosts(
-  items: Array<{ channel_id: number; version: number; costs: ChannelModelCost[] }>
+  items: Array<{ channel_id: number; version: string; costs: ChannelModelCost[] }>
 ) {
   const res = await api.post<UpstreamCostApplyResponse>(
     '/api/upstream_costs/apply',

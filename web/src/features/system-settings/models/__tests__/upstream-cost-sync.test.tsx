@@ -14,7 +14,7 @@ const channels = [
     type: 1,
     type_name: 'OpenAI',
     supported: true,
-    version: 7,
+    version: '7',
     costs: [],
   },
   {
@@ -24,7 +24,7 @@ const channels = [
     type_name: 'Ollama',
     supported: false,
     unsupported_reason: 'manual',
-    version: 3,
+    version: '3',
     costs: [],
   },
   {
@@ -33,7 +33,7 @@ const channels = [
     type: 1,
     type_name: 'OpenAI',
     supported: true,
-    version: 8,
+    version: '8',
     costs: [],
   },
 ]
@@ -82,7 +82,7 @@ describe('upstream cost synchronization', () => {
               channel_id: 1,
               source: 'models.dev',
               supported: true,
-              version: 7,
+              version: '7',
               costs: [
                 {
                   channel_id: 1,
@@ -129,7 +129,7 @@ describe('upstream cost synchronization', () => {
     expect(post.mock.calls[0]?.[0]).toBe('/api/upstream_costs/preview')
     expect(post.mock.calls[1]?.[0]).toBe('/api/upstream_costs/apply')
     expect(post.mock.calls[1]?.[1]).toEqual({
-      items: [{ channel_id: 1, version: 7, costs: expect.any(Array) }],
+      items: [{ channel_id: 1, version: '7', costs: expect.any(Array) }],
     })
   })
 
@@ -140,8 +140,8 @@ describe('upstream cost synchronization', () => {
         success: true,
         data: {
           results: [
-            { channel_id: 1, source: 'models.dev', supported: true, version: 7, costs: [] },
-            { channel_id: 3, source: 'models.dev', supported: true, version: 8, costs: [] },
+            { channel_id: 1, source: 'models.dev', supported: true, version: '7', costs: [] },
+            { channel_id: 3, source: 'models.dev', supported: true, version: '8', costs: [] },
           ],
         },
       },
@@ -159,7 +159,7 @@ describe('upstream cost synchronization', () => {
     await userEvent.click(screen.getByRole('button', { name: /Apply costs/i }))
 
     await waitFor(() => expect(post).toHaveBeenCalledTimes(3))
-    expect(post.mock.calls[1]?.[1]).toEqual({ items: [{ channel_id: 1, version: 7, costs: [] }] })
-    expect(post.mock.calls[2]?.[1]).toEqual({ items: [{ channel_id: 3, version: 8, costs: [] }] })
+    expect(post.mock.calls[1]?.[1]).toEqual({ items: [{ channel_id: 1, version: '7', costs: [] }] })
+    expect(post.mock.calls[2]?.[1]).toEqual({ items: [{ channel_id: 3, version: '8', costs: [] }] })
   })
 })

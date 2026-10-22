@@ -31,7 +31,7 @@ type upstreamCostChannel struct {
 	TypeName       string                   `json:"type_name"`
 	Supported      bool                     `json:"supported"`
 	UnsupportedWhy string                   `json:"unsupported_reason,omitempty"`
-	Version        int64                    `json:"version"`
+	Version        string                   `json:"version"`
 	Costs          []model.ChannelModelCost `json:"costs"`
 }
 
@@ -40,7 +40,7 @@ type upstreamCostResult struct {
 	Source    string                   `json:"source"`
 	Supported bool                     `json:"supported"`
 	Error     string                   `json:"error,omitempty"`
-	Version   int64                    `json:"version"`
+	Version   string                   `json:"version"`
 	Costs     []model.ChannelModelCost `json:"costs,omitempty"`
 }
 
@@ -52,7 +52,7 @@ type upstreamCostRequest struct {
 type upstreamCostApplyRequest struct {
 	Items []struct {
 		ChannelID int                      `json:"channel_id"`
-		Version   int64                    `json:"version"`
+		Version   string                   `json:"version"`
 		Costs     []model.ChannelModelCost `json:"costs"`
 	} `json:"items"`
 }
@@ -78,7 +78,7 @@ func ListUpstreamCostChannels(c *gin.Context) {
 			common.ApiError(c, versionErr)
 			return
 		}
-		item := upstreamCostChannel{ID: channel.Id, Name: channel.Name, Type: channel.Type, TypeName: constant.GetChannelTypeName(channel.Type), Supported: supportsAutomaticUpstreamCosts(channel), Version: version, Costs: costs}
+		item := upstreamCostChannel{ID: channel.Id, Name: channel.Name, Type: channel.Type, TypeName: constant.GetChannelTypeName(channel.Type), Supported: supportsAutomaticUpstreamCosts(channel), Version: strconv.FormatInt(version, 10), Costs: costs}
 		if !item.Supported {
 			item.Supported = false
 			item.UnsupportedWhy = "This channel has no configured upstream cost source"
@@ -116,7 +116,12 @@ func ApplyUpstreamCosts(c *gin.Context) {
 			common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Invalid request parameter format"))
 			return
 		}
-		if err := model.ApplyChannelModelCosts(item.ChannelID, item.Version, item.Costs); err != nil {
+		version, err := strconv.ParseInt(item.Version, 10, 64)
+		if err != nil || version < 0 {
+			common.ApiErrorStatus(c, http.StatusBadRequest, common.NewMessage("Invalid request parameter format"))
+			return
+		}
+		if err := model.ApplyChannelModelCosts(item.ChannelID, version, item.Costs); err != nil {
 			if err == model.ErrChannelModelCostConflict {
 				common.ApiErrorStatus(c, http.StatusConflict, common.NewMessage(err.Error()))
 				return
@@ -153,7 +158,8 @@ func fetchUpstreamCosts(parent context.Context, channelIDs []int, timeout int) [
 			results = append(results, result)
 			continue
 		}
-		result.Version, _ = model.ChannelModelCostVersion(channelID)
+		version, _ := model.ChannelModelCostVersion(channelID)
+		result.Version = strconv.FormatInt(version, 10)
 		if !supportsAutomaticUpstreamCosts(channel) {
 			result.Supported = false
 			result.Source = "manual"

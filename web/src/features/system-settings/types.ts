@@ -524,7 +524,7 @@ export type UpstreamCostChannel = {
   type_name: string
   supported: boolean
   unsupported_reason?: string
-  version: number
+  version: string
   costs: ChannelModelCost[]
 }
 
@@ -547,7 +547,7 @@ export type UpstreamCostResult = {
   source: string
   supported: boolean
   error?: string
-  version: number
+  version: string
   costs?: ChannelModelCost[]
 }
 
