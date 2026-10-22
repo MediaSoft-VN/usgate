@@ -285,6 +285,13 @@ func SetApiRouter(router *gin.Engine) {
 			ratioSyncRoute.GET("/channels", controller.GetSyncableChannels)
 			ratioSyncRoute.POST("/fetch", controller.FetchUpstreamRatios)
 		}
+		upstreamCostsRoute := apiRouter.Group("/upstream_costs")
+		upstreamCostsRoute.Use(middleware.AdminAuth())
+		{
+			upstreamCostsRoute.GET("/channels", controller.ListUpstreamCostChannels)
+			upstreamCostsRoute.POST("/preview", controller.PreviewUpstreamCosts)
+			upstreamCostsRoute.POST("/apply", controller.ApplyUpstreamCosts)
+		}
 		taskPluginRoute := apiRouter.Group("/plugin/task")
 		taskPluginRoute.Use(middleware.RootAuth())
 		{
