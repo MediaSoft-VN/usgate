@@ -220,7 +220,7 @@ export function ProviderFunding() {
                   }}
                 />
               </div>
-              <div className='grid w-full gap-1.5 sm:w-32'>
+              <div className='grid w-full gap-1.5 sm:w-40'>
                 <Label htmlFor='cash-flow-direction'>{t('Direction')}</Label>
                 <Select
                   value={direction}
