@@ -8,7 +8,6 @@ import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -44,7 +43,6 @@ type CashFlowFilters = {
   fromDate: string
   toDate: string
   direction: string
-  partner: string
 }
 
 type CashFlowRow = {
@@ -132,12 +130,10 @@ export function ProviderFunding() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [direction, setDirection] = useState('all')
-  const [partner, setPartner] = useState('')
   const [appliedFilters, setAppliedFilters] = useState<CashFlowFilters>({
     fromDate: '',
     toDate: '',
     direction: 'all',
-    partner: '',
   })
   const channelsQuery = useQuery({
     queryKey: ['provider-funding-channels'],
@@ -164,7 +160,6 @@ export function ProviderFunding() {
           appliedFilters.direction === 'all'
             ? undefined
             : (appliedFilters.direction as 'incoming' | 'outgoing'),
-        partner: appliedFilters.partner.trim() || undefined,
       }),
   })
   const data = fundingsQuery.data
@@ -225,7 +220,7 @@ export function ProviderFunding() {
                   }}
                 />
               </div>
-              <div className='grid w-full gap-1.5 sm:w-40'>
+              <div className='grid w-full gap-1.5 sm:w-32'>
                 <Label htmlFor='cash-flow-direction'>{t('Direction')}</Label>
                 <Select
                   value={direction}
@@ -245,17 +240,6 @@ export function ProviderFunding() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className='grid w-full gap-1.5 sm:w-56'>
-                <Label htmlFor='cash-flow-partner'>{t('Counterparty')}</Label>
-                <Input
-                  id='cash-flow-partner'
-                  placeholder={t('Counterparty')}
-                  value={partner}
-                  onChange={(event) => {
-                    setPartner(event.target.value)
-                  }}
-                />
-              </div>
               <div className='flex w-full items-end gap-2 sm:w-auto'>
                 <Button
                   type='button'
@@ -265,7 +249,6 @@ export function ProviderFunding() {
                       fromDate,
                       toDate,
                       direction,
-                      partner,
                     })
                   }}
                 >
@@ -279,12 +262,10 @@ export function ProviderFunding() {
                       fromDate: '',
                       toDate: '',
                       direction: 'all',
-                      partner: '',
                     }
                     setFromDate('')
                     setToDate('')
                     setDirection('all')
-                    setPartner('')
                     setPage(1)
                     setAppliedFilters(emptyFilters)
                   }}
