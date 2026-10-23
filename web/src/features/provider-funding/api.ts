@@ -80,7 +80,6 @@ export async function getProviderFundings(
     from_date?: string
     to_date?: string
     direction?: 'incoming' | 'outgoing'
-    type?: 'funding' | 'allocation'
     partner?: string
   } = {}
 ) {

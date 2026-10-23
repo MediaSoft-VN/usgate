@@ -44,7 +44,6 @@ type CashFlowFilters = {
   fromDate: string
   toDate: string
   direction: string
-  type: string
   partner: string
 }
 
@@ -133,13 +132,11 @@ export function ProviderFunding() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [direction, setDirection] = useState('all')
-  const [type, setType] = useState('all')
   const [partner, setPartner] = useState('')
   const [appliedFilters, setAppliedFilters] = useState<CashFlowFilters>({
     fromDate: '',
     toDate: '',
     direction: 'all',
-    type: 'all',
     partner: '',
   })
   const channelsQuery = useQuery({
@@ -167,10 +164,6 @@ export function ProviderFunding() {
           appliedFilters.direction === 'all'
             ? undefined
             : (appliedFilters.direction as 'incoming' | 'outgoing'),
-        type:
-          appliedFilters.type === 'all'
-            ? undefined
-            : (appliedFilters.type as 'funding' | 'allocation'),
         partner: appliedFilters.partner.trim() || undefined,
       }),
   })
@@ -196,11 +189,6 @@ export function ProviderFunding() {
     all: t('All'),
     incoming: t('Incoming'),
     outgoing: t('Outgoing'),
-  }
-  const typeLabels: Record<string, string> = {
-    all: t('All'),
-    funding: t('Provider funding'),
-    allocation: t('Credit allocation'),
   }
 
   return (
@@ -257,30 +245,6 @@ export function ProviderFunding() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className='grid w-full gap-1.5 sm:w-48'>
-                <Label htmlFor='cash-flow-type'>{t('Type')}</Label>
-                <Select
-                  value={type}
-                  onValueChange={(value) => {
-                    setType(value ?? 'all')
-                  }}
-                >
-                  <SelectTrigger id='cash-flow-type'>
-                    <SelectValue>
-                      {typeLabels[type] ?? typeLabels.all}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='all'>{t('All')}</SelectItem>
-                    <SelectItem value='funding'>
-                      {t('Provider funding')}
-                    </SelectItem>
-                    <SelectItem value='allocation'>
-                      {t('Credit allocation')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               <div className='grid w-full gap-1.5 sm:w-56'>
                 <Label htmlFor='cash-flow-partner'>{t('Counterparty')}</Label>
                 <Input
@@ -301,7 +265,6 @@ export function ProviderFunding() {
                       fromDate,
                       toDate,
                       direction,
-                      type,
                       partner,
                     })
                   }}
@@ -316,13 +279,11 @@ export function ProviderFunding() {
                       fromDate: '',
                       toDate: '',
                       direction: 'all',
-                      type: 'all',
                       partner: '',
                     }
                     setFromDate('')
                     setToDate('')
                     setDirection('all')
-                    setType('all')
                     setPartner('')
                     setPage(1)
                     setAppliedFilters(emptyFilters)
