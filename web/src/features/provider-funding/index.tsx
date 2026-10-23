@@ -228,7 +228,7 @@ export function ProviderFunding() {
                     setDirection(value ?? 'all')
                   }}
                 >
-                  <SelectTrigger id='cash-flow-direction'>
+                  <SelectTrigger id='cash-flow-direction' className='w-full'>
                     <SelectValue>
                       {directionLabels[direction] ?? directionLabels.all}
                     </SelectValue>
