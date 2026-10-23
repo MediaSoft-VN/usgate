@@ -36,7 +36,11 @@ import {
 import { formatNumber } from '@/lib/format'
 import { createServerError } from '@/lib/server-error-message'
 
-import { getChannels } from '../channels/api'
+import {
+  getChannels,
+  getProviderCredit,
+  updateProviderCredit,
+} from '../channels/api'
 import {
   allocateProviderFunding,
   createProviderFunding,
@@ -59,6 +63,9 @@ export function ProviderWallet() {
   const [allocationReference, setAllocationReference] = useState('')
   const [allocationAmount, setAllocationAmount] = useState('')
   const [currency, setCurrency] = useState('USD')
+  const [thresholdDrafts, setThresholdDrafts] = useState<
+    Record<number, string>
+  >({})
   const syncQuery = useQuery({
     queryKey: ['provider-funding-sync-status'],
     queryFn: getProviderFundingSyncStatus,
@@ -85,6 +92,20 @@ export function ProviderWallet() {
       }
       return response.data?.items ?? []
     },
+  })
+  const channelIDs = (channelsQuery.data ?? []).map((channel) => channel.id)
+  const creditQuery = useQuery({
+    queryKey: ['provider-credit-snapshots', channelIDs],
+    queryFn: async () => {
+      const snapshots = await Promise.all(
+        channelIDs.map(
+          async (channelId) =>
+            [channelId, await getProviderCredit(channelId)] as const
+        )
+      )
+      return new Map(snapshots)
+    },
+    enabled: channelIDs.length > 0,
   })
   const walletQuery = useQuery({
     queryKey: ['provider-wallet'],
@@ -143,6 +164,19 @@ export function ProviderWallet() {
       setAllocationOpen(false)
       void queryClient.invalidateQueries({ queryKey: ['provider-wallet'] })
       void queryClient.invalidateQueries({ queryKey: ['provider-funding'] })
+    },
+  })
+  const creditMutation = useMutation({
+    mutationFn: ({
+      channelId,
+      threshold,
+    }: {
+      channelId: number
+      threshold: number
+    }) => updateProviderCredit(channelId, threshold),
+    onSuccess: () => {
+      toast.success(t('Provider credit threshold updated'))
+      void creditQuery.refetch()
     },
   })
   const wallets = walletQuery.data?.wallets ?? []
@@ -446,6 +480,69 @@ export function ProviderWallet() {
                             {formatNumber(wallet.amount_minor / 100)}{' '}
                             {wallet.currency}
                           </p>
+                          {(() => {
+                            const snapshot = creditQuery.data?.get(
+                              wallet.channel_id
+                            )
+                            if (!snapshot) return null
+                            const draft =
+                              thresholdDrafts[wallet.channel_id] ??
+                              String(snapshot.threshold)
+                            const threshold = Number(draft)
+                            const validThreshold =
+                              Number.isFinite(threshold) && threshold >= 0
+                            return (
+                              <div className='mt-4 grid gap-2 border-t pt-3'>
+                                <Label
+                                  htmlFor={`provider-credit-${wallet.channel_id}`}
+                                >
+                                  {t('Provider credit threshold')}
+                                </Label>
+                                <div className='flex items-center gap-2'>
+                                  <Input
+                                    id={`provider-credit-${wallet.channel_id}`}
+                                    type='number'
+                                    min='0'
+                                    step='0.01'
+                                    value={draft}
+                                    onChange={(event) =>
+                                      setThresholdDrafts((current) => ({
+                                        ...current,
+                                        [wallet.channel_id]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                  <Button
+                                    type='button'
+                                    size='sm'
+                                    disabled={
+                                      !validThreshold ||
+                                      creditMutation.isPending
+                                    }
+                                    onClick={() =>
+                                      creditMutation.mutate({
+                                        channelId: wallet.channel_id,
+                                        threshold,
+                                      })
+                                    }
+                                  >
+                                    {t('Save')}
+                                  </Button>
+                                </div>
+                                <p className='text-muted-foreground text-xs'>
+                                  {(() => {
+                                    if (snapshot.auto_disabled) {
+                                      return t('Auto disabled')
+                                    }
+                                    if (snapshot.below_threshold) {
+                                      return t('Below threshold')
+                                    }
+                                    return t('Enabled')
+                                  })()}
+                                </p>
+                              </div>
+                            )
+                          })()}
                         </CardContent>
                       </Card>
                     )
