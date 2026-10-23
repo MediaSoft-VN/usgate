@@ -44,7 +44,7 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.Len(t, channelWallets, 1)
 	assert.Equal(t, channel.Id, channelWallets[0].ChannelID)
 	assert.Equal(t, int64(12500), channelWallets[0].AmountMinor)
-	flows, total, err := ListProviderCashFlows(1, 20)
+	flows, total, err := ListProviderCashFlows(ProviderFundingFilter{Page: 1, PageSize: 20})
 	require.NoError(t, err)
 	assert.True(t, DB.Migrator().HasTable(&ProviderCashFlow{}))
 	assert.False(t, DB.Migrator().HasTable(&ProviderFunding{}))
@@ -53,6 +53,18 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.Len(t, flows, 1)
 	assert.Equal(t, ProviderCashFlowDirectionIncoming, flows[0].Direction)
 	assert.Equal(t, ProviderCashFlowTypeFunding, flows[0].Type)
+	filtered, filteredTotal, err := ListProviderCashFlows(ProviderFundingFilter{
+		Direction: ProviderCashFlowDirectionIncoming,
+		Type:      ProviderCashFlowTypeFunding,
+		Partner:   "provider funding test",
+		From:      record.CreatedAt - 1,
+		To:        record.CreatedAt + 1,
+		Page:      1,
+		PageSize:  20,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), filteredTotal)
+	assert.Len(t, filtered, 1)
 }
 
 func TestProviderFundingWalletUsesNetLedgerBalancePerCurrency(t *testing.T) {

@@ -313,6 +313,22 @@ it.each([
   }
 )
 
+it('selects the previous quarter preset as a complete calendar quarter', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 8, 8, 12))
+  const user = userEvent.setup()
+  const onChange = vi.fn()
+  render(<CompactDateTimeRangePicker onChange={onChange} />)
+
+  await user.click(screen.getByRole('button', { name: 'Date Range' }))
+  await user.click(screen.getByRole('button', { name: 'Previous quarter' }))
+
+  expect(onChange).toHaveBeenCalledWith({
+    start: new Date(2026, 3, 1),
+    end: new Date(2026, 5, 30, 23, 59, 59, 999),
+  })
+})
+
 it('keeps the seconds of the current range when it is confirmed again', async () => {
   const user = userEvent.setup()
   const onChange = vi.fn()

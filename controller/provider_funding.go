@@ -31,18 +31,34 @@ func ListProviderFunding(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	channelID, _ := strconv.Atoi(c.Query("channel_id"))
-	items, _, err := model.ListProviderFundings(model.ProviderFundingFilter{
+	from, err := model.ProviderFundingDateFilter(c.Query("from_date"), false)
+	if err != nil {
+		common.ApiErrorT(c, "Invalid start date")
+		return
+	}
+	to, err := model.ProviderFundingDateFilter(c.Query("to_date"), true)
+	if err != nil {
+		common.ApiErrorT(c, "Invalid end date")
+		return
+	}
+	filter := model.ProviderFundingFilter{
 		ChannelID: channelID,
 		Currency:  c.Query("currency"),
 		Source:    c.Query("source"),
+		Direction: c.Query("direction"),
+		Type:      c.Query("type"),
+		Partner:   strings.TrimSpace(c.Query("partner")),
+		From:      from,
+		To:        to,
 		Page:      page,
 		PageSize:  pageSize,
-	})
+	}
+	items, _, err := model.ListProviderFundings(filter)
 	if err != nil {
 		common.ApiErrorT(c, "Failed to load provider funding records")
 		return
 	}
-	cashFlows, cashFlowTotal, err := model.ListProviderCashFlows(page, pageSize)
+	cashFlows, cashFlowTotal, err := model.ListProviderCashFlows(filter)
 	if err != nil {
 		common.ApiErrorT(c, "Failed to load provider cash flow records")
 		return
@@ -95,7 +111,8 @@ func AllocateProviderFunding(c *gin.Context) {
 			common.ApiErrorT(c, "Provider allocation reference already exists with different details")
 		case errors.Is(err, model.ErrWalletQuotaLimitExceeded):
 			common.ApiErrorT(c, "User quota exceeds the supported range")
-		default: common.ApiError(c, err)
+		default:
+			common.ApiError(c, err)
 		}
 		return
 	}

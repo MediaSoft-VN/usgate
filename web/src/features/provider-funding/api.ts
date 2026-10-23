@@ -73,7 +73,17 @@ export type ProviderCashFlow = {
   created_by: string
 }
 
-export async function getProviderFundings(page: number, pageSize: number) {
+export async function getProviderFundings(
+  page: number,
+  pageSize: number,
+  filters: {
+    from_date?: string
+    to_date?: string
+    direction?: 'incoming' | 'outgoing'
+    type?: 'funding' | 'allocation'
+    partner?: string
+  } = {}
+) {
   const response = await api.get<{
     success: boolean
     data: ProviderFundingPage
@@ -81,6 +91,7 @@ export async function getProviderFundings(page: number, pageSize: number) {
     params: {
       page,
       page_size: pageSize,
+      ...filters,
     },
   })
   return requireServerSuccess(response.data).data

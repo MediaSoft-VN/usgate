@@ -8,6 +8,15 @@ import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -16,10 +25,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import dayjs from '@/lib/dayjs'
 import { formatNumber, formatTimestampToDate } from '@/lib/format'
 import { createServerError } from '@/lib/server-error-message'
 
 import { getChannels } from '../channels/api'
+import { CompactDateTimeRangePicker } from '../usage-logs/components/compact-date-time-range-picker'
 import {
   getProviderFundings,
   type ProviderCashFlow,
@@ -28,6 +39,14 @@ import {
 } from './api'
 
 const PAGE_SIZE = 20
+
+type CashFlowFilters = {
+  fromDate: string
+  toDate: string
+  direction: string
+  type: string
+  partner: string
+}
 
 type CashFlowRow = {
   id: string
@@ -111,6 +130,18 @@ function mapProviderCashFlows(
 export function ProviderFunding() {
   const { t } = useTranslation()
   const [page, setPage] = useState(1)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [direction, setDirection] = useState('all')
+  const [type, setType] = useState('all')
+  const [partner, setPartner] = useState('')
+  const [appliedFilters, setAppliedFilters] = useState<CashFlowFilters>({
+    fromDate: '',
+    toDate: '',
+    direction: 'all',
+    type: 'all',
+    partner: '',
+  })
   const channelsQuery = useQuery({
     queryKey: ['provider-funding-channels'],
     queryFn: async () => {
@@ -127,8 +158,21 @@ export function ProviderFunding() {
     },
   })
   const fundingsQuery = useQuery({
-    queryKey: ['provider-funding', page],
-    queryFn: () => getProviderFundings(page, PAGE_SIZE),
+    queryKey: ['provider-funding', page, appliedFilters],
+    queryFn: () =>
+      getProviderFundings(page, PAGE_SIZE, {
+        from_date: appliedFilters.fromDate || undefined,
+        to_date: appliedFilters.toDate || undefined,
+        direction:
+          appliedFilters.direction === 'all'
+            ? undefined
+            : (appliedFilters.direction as 'incoming' | 'outgoing'),
+        type:
+          appliedFilters.type === 'all'
+            ? undefined
+            : (appliedFilters.type as 'funding' | 'allocation'),
+        partner: appliedFilters.partner.trim() || undefined,
+      }),
   })
   const data = fundingsQuery.data
   const channelNames = new Map(
@@ -148,6 +192,16 @@ export function ProviderFunding() {
         channelNames,
         t('Unknown')
       )
+  const directionLabels: Record<string, string> = {
+    all: t('All'),
+    incoming: t('Incoming'),
+    outgoing: t('Outgoing'),
+  }
+  const typeLabels: Record<string, string> = {
+    all: t('All'),
+    funding: t('Provider funding'),
+    allocation: t('Credit allocation'),
+  }
 
   return (
     <SectionPageLayout fixedContent>
@@ -159,100 +213,220 @@ export function ProviderFunding() {
         {fundingsQuery.isError && (
           <ErrorState onRetry={() => void fundingsQuery.refetch()} />
         )}
-        {data &&
-          (cashFlowRows.length === 0 ? (
-            <EmptyState
-              icon={WalletCards}
-              title={t('No provider funding records')}
-            />
-          ) : (
-            <div className='bg-card mt-4 overflow-hidden rounded-lg border'>
-              <div className='overflow-x-auto'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('Direction')}</TableHead>
-                      <TableHead>{t('Type')}</TableHead>
-                      <TableHead>{t('Counterparty')}</TableHead>
-                      <TableHead>{t('Amount')}</TableHead>
-                      <TableHead>{t('Currency')}</TableHead>
-                      <TableHead>{t('Reference')}</TableHead>
-                      <TableHead>{t('Time')}</TableHead>
-                      <TableHead>{t('Created by')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {cashFlowRows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell
-                          className={
-                            row.direction === 'incoming'
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }
-                        >
-                          {row.direction === 'incoming'
-                            ? t('Incoming')
-                            : t('Outgoing')}
-                        </TableCell>
-                        <TableCell>
-                          {row.type === 'funding'
-                            ? t('Provider funding')
-                            : t('Credit allocation')}
-                        </TableCell>
-                        <TableCell>{row.counterparty}</TableCell>
-                        <TableCell
-                          className={
-                            row.direction === 'incoming'
-                              ? 'font-medium text-emerald-600 tabular-nums dark:text-emerald-400'
-                              : 'font-medium text-red-600 tabular-nums dark:text-red-400'
-                          }
-                        >
-                          {formatSignedCashFlowAmount(
-                            row.amountMinor,
-                            row.direction,
-                            row.currency
-                          )}
-                        </TableCell>
-                        <TableCell>{row.currency}</TableCell>
-                        <TableCell className='font-mono text-xs'>
-                          {row.reference}
-                        </TableCell>
-                        <TableCell>
-                          {formatTimestampToDate(row.createdAt)}
-                        </TableCell>
-                        <TableCell>{row.createdBy || t('Unknown')}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+        {data && (
+          <div className='space-y-4'>
+            <div className='bg-card flex flex-wrap items-end justify-start gap-3 rounded-lg border p-4'>
+              <div className='grid w-full gap-1.5 sm:w-[min(100%,420px)]'>
+                <Label>{t('Date Range')}</Label>
+                <CompactDateTimeRangePicker
+                  start={
+                    fromDate
+                      ? dayjs(`${fromDate}T00:00:00`).toDate()
+                      : undefined
+                  }
+                  end={
+                    toDate ? dayjs(`${toDate}T23:59:59`).toDate() : undefined
+                  }
+                  onChange={(range) => {
+                    setFromDate(
+                      range.start ? dayjs(range.start).format('YYYY-MM-DD') : ''
+                    )
+                    setToDate(
+                      range.end ? dayjs(range.end).format('YYYY-MM-DD') : ''
+                    )
+                  }}
+                />
               </div>
-              <div className='flex items-center justify-between border-t px-4 py-3'>
-                <span className='text-muted-foreground text-sm'>{total}</span>
-                <div className='flex items-center gap-2'>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    disabled={page <= 1}
-                    onClick={() => setPage((value) => value - 1)}
-                  >
-                    {t('Previous')}
-                  </Button>
-                  <span className='text-muted-foreground text-sm'>
-                    {page} / {totalPages}
-                  </span>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((value) => value + 1)}
-                  >
-                    {t('Next')}
-                  </Button>
-                </div>
+              <div className='grid w-full gap-1.5 sm:w-40'>
+                <Label htmlFor='cash-flow-direction'>{t('Direction')}</Label>
+                <Select
+                  value={direction}
+                  onValueChange={(value) => {
+                    setDirection(value ?? 'all')
+                  }}
+                >
+                  <SelectTrigger id='cash-flow-direction'>
+                    <SelectValue>
+                      {directionLabels[direction] ?? directionLabels.all}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='all'>{t('All')}</SelectItem>
+                    <SelectItem value='incoming'>{t('Incoming')}</SelectItem>
+                    <SelectItem value='outgoing'>{t('Outgoing')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className='grid w-full gap-1.5 sm:w-48'>
+                <Label htmlFor='cash-flow-type'>{t('Type')}</Label>
+                <Select
+                  value={type}
+                  onValueChange={(value) => {
+                    setType(value ?? 'all')
+                  }}
+                >
+                  <SelectTrigger id='cash-flow-type'>
+                    <SelectValue>
+                      {typeLabels[type] ?? typeLabels.all}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='all'>{t('All')}</SelectItem>
+                    <SelectItem value='funding'>
+                      {t('Provider funding')}
+                    </SelectItem>
+                    <SelectItem value='allocation'>
+                      {t('Credit allocation')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className='grid w-full gap-1.5 sm:w-56'>
+                <Label htmlFor='cash-flow-partner'>{t('Counterparty')}</Label>
+                <Input
+                  id='cash-flow-partner'
+                  placeholder={t('Counterparty')}
+                  value={partner}
+                  onChange={(event) => {
+                    setPartner(event.target.value)
+                  }}
+                />
+              </div>
+              <div className='flex w-full items-end gap-2 sm:w-auto'>
+                <Button
+                  type='button'
+                  onClick={() => {
+                    setPage(1)
+                    setAppliedFilters({
+                      fromDate,
+                      toDate,
+                      direction,
+                      type,
+                      partner,
+                    })
+                  }}
+                >
+                  {t('Search')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => {
+                    const emptyFilters = {
+                      fromDate: '',
+                      toDate: '',
+                      direction: 'all',
+                      type: 'all',
+                      partner: '',
+                    }
+                    setFromDate('')
+                    setToDate('')
+                    setDirection('all')
+                    setType('all')
+                    setPartner('')
+                    setPage(1)
+                    setAppliedFilters(emptyFilters)
+                  }}
+                >
+                  {t('Reset')}
+                </Button>
               </div>
             </div>
-          ))}
+            {cashFlowRows.length === 0 ? (
+              <EmptyState
+                icon={WalletCards}
+                title={t('No provider funding records')}
+              />
+            ) : (
+              <div className='bg-card overflow-hidden rounded-lg border'>
+                <div className='overflow-x-auto'>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('Direction')}</TableHead>
+                        <TableHead>{t('Type')}</TableHead>
+                        <TableHead>{t('Counterparty')}</TableHead>
+                        <TableHead>{t('Amount')}</TableHead>
+                        <TableHead>{t('Currency')}</TableHead>
+                        <TableHead>{t('Reference')}</TableHead>
+                        <TableHead>{t('Time')}</TableHead>
+                        <TableHead>{t('Created by')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cashFlowRows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell
+                            className={
+                              row.direction === 'incoming'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-red-600 dark:text-red-400'
+                            }
+                          >
+                            {row.direction === 'incoming'
+                              ? t('Incoming')
+                              : t('Outgoing')}
+                          </TableCell>
+                          <TableCell>
+                            {row.type === 'funding'
+                              ? t('Provider funding')
+                              : t('Credit allocation')}
+                          </TableCell>
+                          <TableCell>{row.counterparty}</TableCell>
+                          <TableCell
+                            className={
+                              row.direction === 'incoming'
+                                ? 'font-medium text-emerald-600 tabular-nums dark:text-emerald-400'
+                                : 'font-medium text-red-600 tabular-nums dark:text-red-400'
+                            }
+                          >
+                            {formatSignedCashFlowAmount(
+                              row.amountMinor,
+                              row.direction,
+                              row.currency
+                            )}
+                          </TableCell>
+                          <TableCell>{row.currency}</TableCell>
+                          <TableCell className='font-mono text-xs'>
+                            {row.reference}
+                          </TableCell>
+                          <TableCell>
+                            {formatTimestampToDate(row.createdAt)}
+                          </TableCell>
+                          <TableCell>{row.createdBy || t('Unknown')}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className='flex items-center justify-between border-t px-4 py-3'>
+                  <span className='text-muted-foreground text-sm'>{total}</span>
+                  <div className='flex items-center gap-2'>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      disabled={page <= 1}
+                      onClick={() => setPage((value) => value - 1)}
+                    >
+                      {t('Previous')}
+                    </Button>
+                    <span className='text-muted-foreground text-sm'>
+                      {page} / {totalPages}
+                    </span>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((value) => value + 1)}
+                    >
+                      {t('Next')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </SectionPageLayout.Content>
     </SectionPageLayout>
   )

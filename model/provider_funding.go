@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
@@ -73,6 +74,11 @@ type ProviderFundingFilter struct {
 	ChannelID int
 	Currency  string
 	Source    string
+	Direction string
+	Type      string
+	Partner   string
+	From      int64
+	To        int64
 	Page      int
 	PageSize  int
 }
@@ -192,19 +198,36 @@ func migrateProviderCashFlows() error {
 	})
 }
 
-func ListProviderCashFlows(page, pageSize int) ([]ProviderCashFlowHistory, int64, error) {
+func ListProviderCashFlows(filter ProviderFundingFilter) ([]ProviderCashFlowHistory, int64, error) {
 	if err := migrateProviderCashFlows(); err != nil {
 		return nil, 0, err
 	}
 	query := DB.Model(&ProviderCashFlow{}).Order("provider_cash_flows.created_at DESC, provider_cash_flows.id DESC")
+	if filter.Direction != "" {
+		query = query.Where("provider_cash_flows.direction = ?", filter.Direction)
+	}
+	if filter.Type != "" {
+		query = query.Where("provider_cash_flows.type = ?", filter.Type)
+	}
+	if filter.From > 0 {
+		query = query.Where("provider_cash_flows.created_at >= ?", filter.From)
+	}
+	if filter.To > 0 {
+		query = query.Where("provider_cash_flows.created_at < ?", filter.To)
+	}
+	if filter.Partner != "" {
+		pattern := "%" + strings.TrimSpace(filter.Partner) + "%"
+		query = query.Joins("LEFT JOIN channels ON channels.id = provider_cash_flows.channel_id").Where("channels.name LIKE ? OR users.username LIKE ? OR users.display_name LIKE ?", pattern, pattern, pattern)
+	}
+	query = query.Joins("LEFT JOIN users ON users.id = provider_cash_flows.user_id")
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	page = max(page, 1)
-	pageSize = min(max(pageSize, 1), 100)
+	page := max(filter.Page, 1)
+	pageSize := min(max(filter.PageSize, 1), 100)
 	var rows []ProviderCashFlowHistory
-	err := query.Select("provider_cash_flows.*, users.username AS user_name, users.display_name AS user_display_name").Joins("LEFT JOIN users ON users.id = provider_cash_flows.user_id").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	err := query.Select("provider_cash_flows.*, users.username AS user_name, users.display_name AS user_display_name").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
 	for i := range rows {
 		displayName := strings.TrimSpace(rows[i].UserDisplayName)
 		username := strings.TrimSpace(rows[i].UserName)
@@ -217,6 +240,20 @@ func ListProviderCashFlows(page, pageSize int) ([]ProviderCashFlowHistory, int64
 		}
 	}
 	return rows, total, err
+}
+
+func ProviderFundingDateFilter(value string, end bool) (int64, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	date, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return 0, err
+	}
+	if end {
+		return date.AddDate(0, 0, 1).Unix(), nil
+	}
+	return date.Unix(), nil
 }
 
 func providerCashFlowTotals(currency string) (int64, int64, error) {
