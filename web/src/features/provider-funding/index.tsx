@@ -198,8 +198,8 @@ export function ProviderFunding() {
         )}
         {data && (
           <div className='space-y-4'>
-            <div className='bg-card grid gap-3 rounded-lg border p-4 lg:grid-cols-[2fr_1fr_1fr]'>
-              <div className='grid w-full gap-1.5'>
+            <div className='bg-card flex flex-wrap items-end gap-3 rounded-lg border p-4'>
+              <div className='grid w-full max-w-[440px] gap-1.5'>
                 <Label>{t('Date Range')}</Label>
                 <CompactDateTimeRangePicker
                   start={
@@ -220,7 +220,7 @@ export function ProviderFunding() {
                   }}
                 />
               </div>
-              <div className='grid w-full gap-1.5'>
+              <div className='grid w-full max-w-[180px] gap-1.5'>
                 <Label htmlFor='cash-flow-direction'>{t('Direction')}</Label>
                 <Select
                   value={direction}
@@ -240,7 +240,7 @@ export function ProviderFunding() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className='flex w-full items-end gap-2'>
+              <div className='flex items-end gap-2'>
                 <Button
                   type='button'
                   className='flex-1'
