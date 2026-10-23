@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { WalletCards } from 'lucide-react'
+import { Download, WalletCards } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
@@ -26,11 +27,13 @@ import {
 } from '@/components/ui/table'
 import dayjs from '@/lib/dayjs'
 import { formatNumber, formatTimestampToDate } from '@/lib/format'
+import { handleServerError } from '@/lib/handle-server-error'
 import { createServerError } from '@/lib/server-error-message'
 
 import { getChannels } from '../channels/api'
 import { CompactDateTimeRangePicker } from '../usage-logs/components/compact-date-time-range-picker'
 import {
+  exportProviderFundings,
   getProviderFundings,
   type ProviderCashFlow,
   type ProviderFunding,
@@ -130,6 +133,7 @@ export function ProviderFunding() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [direction, setDirection] = useState('all')
+  const [exporting, setExporting] = useState(false)
   const [appliedFilters, setAppliedFilters] = useState<CashFlowFilters>({
     fromDate: '',
     toDate: '',
@@ -184,6 +188,33 @@ export function ProviderFunding() {
     all: t('All'),
     incoming: t('Incoming'),
     outgoing: t('Outgoing'),
+  }
+  const report = data?.report ?? []
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const blob = await exportProviderFundings({
+        from_date: appliedFilters.fromDate || undefined,
+        to_date: appliedFilters.toDate || undefined,
+        direction:
+          appliedFilters.direction === 'all'
+            ? undefined
+            : (appliedFilters.direction as 'incoming' | 'outgoing'),
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'provider-cash-flow-report.csv'
+      document.body.append(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success(t('Export completed'))
+    } catch (error) {
+      handleServerError(error, t('Failed to export financial report'))
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -274,8 +305,63 @@ export function ProviderFunding() {
                 >
                   {t('Reset')}
                 </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  disabled={exporting}
+                  onClick={() => void handleExport()}
+                >
+                  <Download className='mr-2 h-4 w-4' aria-hidden='true' />
+                  {t('Export')}
+                </Button>
               </div>
             </div>
+            {report.length > 0 && (
+              <div className='space-y-2'>
+                <h2 className='text-sm font-medium'>{t('Financial report')}</h2>
+                <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-3'>
+                  {report.map((summary) => (
+                    <div
+                      key={summary.currency}
+                      className='bg-card grid gap-2 rounded-lg border p-4'
+                    >
+                      <div className='flex items-center justify-between'>
+                        <span className='font-medium'>{summary.currency}</span>
+                        <span className='text-muted-foreground text-xs'>
+                          {summary.count} {t('Transactions')}
+                        </span>
+                      </div>
+                      <div className='grid grid-cols-3 gap-2 text-sm'>
+                        <div>
+                          <div className='text-muted-foreground text-xs'>
+                            {t('Incoming')}
+                          </div>
+                          <div className='font-medium text-emerald-600 dark:text-emerald-400'>
+                            +{formatNumber(summary.incoming_minor / 100)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className='text-muted-foreground text-xs'>
+                            {t('Outgoing')}
+                          </div>
+                          <div className='font-medium text-red-600 dark:text-red-400'>
+                            -{formatNumber(summary.outgoing_minor / 100)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className='text-muted-foreground text-xs'>
+                            {t('Balance')}
+                          </div>
+                          <div className='font-medium'>
+                            {formatNumber(summary.net_minor / 100)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {cashFlowRows.length === 0 ? (
               <EmptyState
                 icon={WalletCards}

@@ -312,6 +312,7 @@ func SetApiRouter(router *gin.Engine) {
 		handlePermissionRoute(apiRouter.Group("", middleware.AdminAuth()), http.MethodGet, "/task_plugin_options", authz.TaskPluginBind, controller.GetTaskPluginOptions)
 		registerChannelRoutes(apiRouter)
 		apiRouter.GET("/financial/provider-funding", middleware.AdminAuth(), controller.ListProviderFunding)
+		apiRouter.GET("/financial/provider-funding/export", middleware.AdminAuth(), controller.ExportProviderFunding)
 		apiRouter.POST("/financial/provider-funding", middleware.AdminAuth(), controller.CreateProviderFunding)
 		apiRouter.POST("/financial/provider-funding/allocate", middleware.AdminAuth(), controller.AllocateProviderFunding)
 		apiRouter.GET("/financial/provider-funding/sync", middleware.AdminAuth(), controller.GetProviderFundingSyncStatus)

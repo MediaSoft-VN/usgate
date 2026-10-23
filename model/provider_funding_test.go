@@ -110,6 +110,35 @@ func TestProviderFundingWalletUsesNetLedgerBalancePerCurrency(t *testing.T) {
 	assert.Equal(t, int64(15000), usdChannelWallet.AmountMinor)
 }
 
+func TestSummarizeProviderCashFlowsAppliesDirectionAndDateFilters(t *testing.T) {
+	require.NoError(t, DB.AutoMigrate(&ProviderCashFlow{}, &User{}))
+	flows := []ProviderCashFlow{
+		{Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: "report-in-1", AmountMinor: 10000, Currency: "USD", Source: ProviderFundingSourceManual, CreatedAt: 100},
+		{Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation, Reference: "report-out-1", AmountMinor: 2500, Currency: "USD", Source: "allocation", CreatedAt: 200},
+		{Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: "report-in-2", AmountMinor: 500, Currency: "USD", Source: ProviderFundingSourceManual, CreatedAt: 300},
+	}
+	for i := range flows {
+		require.NoError(t, DB.Create(&flows[i]).Error)
+	}
+	t.Cleanup(func() {
+		DB.Where("reference LIKE ?", "report-%").Delete(&ProviderCashFlow{})
+	})
+
+	summary, err := SummarizeProviderCashFlows(ProviderFundingFilter{From: 100, To: 300})
+	require.NoError(t, err)
+	require.Len(t, summary, 1)
+	assert.Equal(t, int64(10000), summary[0].IncomingMinor)
+	assert.Equal(t, int64(2500), summary[0].OutgoingMinor)
+	assert.Equal(t, int64(7500), summary[0].NetMinor)
+	assert.Equal(t, int64(2), summary[0].Count)
+
+	incoming, err := SummarizeProviderCashFlows(ProviderFundingFilter{Direction: ProviderCashFlowDirectionIncoming})
+	require.NoError(t, err)
+	require.Len(t, incoming, 1)
+	assert.Equal(t, int64(10500), incoming[0].IncomingMinor)
+	assert.Zero(t, incoming[0].OutgoingMinor)
+}
+
 func TestListProviderFundingAllocationHistoryIncludesCounterpartyName(t *testing.T) {
 	require.NoError(t, DB.AutoMigrate(&ProviderFundingAllocation{}, &User{}))
 	user := &User{Username: "cashflow-counterparty", DisplayName: "Cash Flow Recipient", Password: "test-password"}
