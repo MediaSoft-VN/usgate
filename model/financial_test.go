@@ -87,6 +87,27 @@ func TestCreateFinancialTransactionRequiresBalancedEntries(t *testing.T) {
 	assert.ErrorIs(t, DB.Delete(entry).Error, ErrFinancialLedgerImmutable)
 }
 
+func TestMigrateFinancialLedgerAccountsUpdatesLegacyEntries(t *testing.T) {
+	migrateFinancialTestTables(t)
+
+	wallet, err := GetOrCreateWalletAccount(FinancialOwnerUser, 9004, "VND")
+	require.NoError(t, err)
+	legacyEntry := &LedgerEntry{
+		WalletAccountID: wallet.ID,
+		EntryType:       LedgerEntryCredit,
+		AmountMinor:     100,
+		Currency:        "VND",
+		CreatedAt:       1,
+	}
+	require.NoError(t, DB.Create(legacyEntry).Error)
+
+	require.NoError(t, migrateFinancialLedgerAccounts())
+
+	var migrated LedgerEntry
+	require.NoError(t, DB.First(&migrated, legacyEntry.ID).Error)
+	assert.NotZero(t, migrated.LedgerAccountID)
+}
+
 func TestClaimIdempotencyKeyReplaysSamePayload(t *testing.T) {
 	migrateFinancialTestTables(t)
 

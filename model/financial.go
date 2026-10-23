@@ -650,7 +650,7 @@ func migrateFinancialLedgerAccounts() error {
 		if err != nil {
 			return err
 		}
-		if err := DB.Model(&LedgerEntry{}).Where("wallet_account_id = ? AND ledger_account_id = 0", wallet.ID).Updates(map[string]any{"ledger_account_id": account.ID}).Error; err != nil {
+		if err := DB.Model(&LedgerEntry{}).Where("wallet_account_id = ? AND ledger_account_id = 0", wallet.ID).UpdateColumn("ledger_account_id", account.ID).Error; err != nil {
 			return err
 		}
 	}
