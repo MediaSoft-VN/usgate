@@ -86,6 +86,14 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     'customer-wallet': true,
     'provider-funding': true,
   },
+  partner: {
+    enabled: true,
+    overview: true,
+    users: true,
+    domains: true,
+    wallet: true,
+    transactions: true,
+  },
 }
 
 const toBoolean = (value: unknown, fallback: boolean): boolean => {

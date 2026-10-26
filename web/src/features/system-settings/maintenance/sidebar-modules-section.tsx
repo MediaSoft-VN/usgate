@@ -81,6 +81,10 @@ export function SidebarModulesSection({
       title: t('Admin area'),
       description: t('Global configuration and administrative tools.'),
     },
+    partner: {
+      title: t('Partner management'),
+      description: t('Partner workspace and organization tools.'),
+    },
   }
 
   const moduleMeta: Record<
@@ -175,6 +179,28 @@ export function SidebarModulesSection({
       'provider-funding': {
         title: t('Cash flow history'),
         description: t('Review provider funding and cash flow records.'),
+      },
+    },
+    partner: {
+      overview: {
+        title: t('Overview'),
+        description: t('View partner workspace overview and performance.'),
+      },
+      users: {
+        title: t('Users'),
+        description: t('Manage partner users and their access.'),
+      },
+      domains: {
+        title: t('Domains'),
+        description: t('Configure partner domains.'),
+      },
+      wallet: {
+        title: t('Wallet'),
+        description: t('Manage partner wallet balances and allocations.'),
+      },
+      transactions: {
+        title: t('Funding transactions'),
+        description: t('Review partner funding transactions.'),
       },
     },
   }

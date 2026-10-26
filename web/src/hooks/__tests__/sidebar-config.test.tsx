@@ -22,6 +22,7 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { checkIsActive } from '@/components/layout/lib/url-utils'
+import type { NavGroup } from '@/components/layout/types'
 import {
   parseSidebarModulesAdmin,
   serializeSidebarModulesAdmin,
@@ -45,7 +46,12 @@ afterEach(() => {
   useAuthStore.getState().auth.reset()
 })
 
-function sidebarFor(admin?: object, user?: object, canConfigure = true) {
+function sidebarFor(
+  admin?: object,
+  user?: object,
+  canConfigure = true,
+  navGroups?: NavGroup[]
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -67,7 +73,10 @@ function sidebarFor(admin?: object, user?: object, canConfigure = true) {
     )
   }
   const result = renderHook(
-    () => useSidebarConfig(useSidebarData().navGroups),
+    () => {
+      const defaultNavGroups = useSidebarData().navGroups
+      return useSidebarConfig(navGroups ?? defaultNavGroups)
+    },
     { wrapper: Wrapper }
   )
   return result
@@ -202,5 +211,55 @@ describe('financial sidebar entries', () => {
     expect(titles).not.toContain('Customer wallet')
     expect(titles).not.toContain('Cash flow history')
     expect(titles).toContain('Channels')
+  })
+})
+
+describe('partner workspace sidebar entries', () => {
+  const partnerNavGroups: NavGroup[] = [
+    {
+      id: 'partner-workspace',
+      title: 'Partner workspace',
+      items: [
+        { title: 'Overview', url: '/partner-workspace/overview' },
+        { title: 'Users', url: '/partner-workspace/users' },
+        { title: 'Domains', url: '/partner-workspace/domains' },
+        { title: 'Wallet', url: '/partner-workspace/wallet' },
+        {
+          title: 'Funding transactions',
+          url: '/partner-workspace/transactions',
+        },
+      ],
+    },
+  ]
+
+  it.each([
+    ['overview', 'Overview'],
+    ['users', 'Users'],
+    ['domains', 'Domains'],
+    ['wallet', 'Wallet'],
+    ['transactions', 'Funding transactions'],
+  ] as const)('lets admins hide the %s page independently', (module, title) => {
+    const config = parseSidebarModulesAdmin('')
+    expect(config.partner[module]).toBe(true)
+    config.partner[module] = false
+
+    const saved = parseSidebarModulesAdmin(serializeSidebarModulesAdmin(config))
+    const { result } = sidebarFor(saved, undefined, true, partnerNavGroups)
+    const titles = result.current
+      .flatMap((group) => group.items)
+      .map((item) => item.title)
+
+    expect(titles).not.toContain(title)
+    expect(titles).toHaveLength(partnerNavGroups[0].items.length - 1)
+  })
+
+  it('lets admins hide the entire partner workspace section', () => {
+    const config = parseSidebarModulesAdmin('')
+    config.partner.enabled = false
+
+    const saved = parseSidebarModulesAdmin(serializeSidebarModulesAdmin(config))
+    const { result } = sidebarFor(saved, undefined, true, partnerNavGroups)
+
+    expect(result.current).toEqual([])
   })
 })
