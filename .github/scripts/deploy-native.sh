@@ -15,10 +15,6 @@ set -Eeuo pipefail
 : "${TENANT_DOMAIN_INSTALLER_SHA256:?TENANT_DOMAIN_INSTALLER_SHA256 is required}"
 : "${TENANT_DOMAIN_HOST_SHA256:?TENANT_DOMAIN_HOST_SHA256 is required}"
 : "${TENANT_DOMAIN_SOCKET_SHA256:?TENANT_DOMAIN_SOCKET_SHA256 is required}"
-: "${OLD_DOMAIN:=}"
-if [[ -z ${OLD_DOMAIN//[[:space:]]/} ]]; then
-  OLD_DOMAIN="${DOMAIN}"
-fi
 
 uploaded_file="/tmp/new-api-${RELEASE_ID}.gz"
 uploaded_client_file="/tmp/new-api-client-${RELEASE_ID}.tar.gz"
@@ -58,7 +54,6 @@ validate_value SSH_USER "${SSH_USER}" '^[A-Za-z_][A-Za-z0-9_-]*$'
 validate_value TENANT_DOMAIN_INSTALLER_SHA256 "${TENANT_DOMAIN_INSTALLER_SHA256}" '^[0-9a-f]{64}$'
 validate_value TENANT_DOMAIN_HOST_SHA256 "${TENANT_DOMAIN_HOST_SHA256}" '^[0-9a-f]{64}$'
 validate_value TENANT_DOMAIN_SOCKET_SHA256 "${TENANT_DOMAIN_SOCKET_SHA256}" '^[0-9a-f]{64}$'
-validate_value OLD_DOMAIN "${OLD_DOMAIN}" '^[A-Za-z0-9.-]+$'
 
 if [[ ! -f ${uploaded_file} ]]; then
   echo "Uploaded release was not found" >&2
@@ -267,11 +262,6 @@ sudo -n systemctl enable --now nginx
 sudo -n systemctl reload nginx
 
 echo "========== Issue or renew TLS =========="
-if [[ -n ${OLD_DOMAIN} && ${OLD_DOMAIN} != "${DOMAIN}" ]]; then
-  echo "Removing old TLS certificate for ${OLD_DOMAIN}"
-  sudo -n certbot delete --cert-name "${OLD_DOMAIN}" -n >/dev/null 2>&1 || true
-fi
-
 if sudo -n certbot certificates 2>/dev/null | grep -Fq "Domains: ${DOMAIN}"; then
   sudo -n certbot renew --cert-name "${DOMAIN}" --quiet || true
   sudo -n certbot install --cert-name "${DOMAIN}" --nginx --redirect --non-interactive
