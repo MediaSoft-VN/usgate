@@ -10,6 +10,7 @@ set -Eeuo pipefail
 : "${NEW_API_ENV:?NEW_API_ENV is required}"
 : "${RELEASE_ID:?RELEASE_ID is required}"
 : "${EXPECTED_SHA256:?EXPECTED_SHA256 is required}"
+: "${CLIENT_EXPECTED_SHA256:?CLIENT_EXPECTED_SHA256 is required}"
 : "${SSH_USER:?SSH_USER is required}"
 : "${TENANT_DOMAIN_INSTALLER_SHA256:?TENANT_DOMAIN_INSTALLER_SHA256 is required}"
 : "${TENANT_DOMAIN_HOST_SHA256:?TENANT_DOMAIN_HOST_SHA256 is required}"
@@ -17,11 +18,13 @@ set -Eeuo pipefail
 : "${OLD_DOMAIN:=}"
 
 uploaded_file="/tmp/new-api-${RELEASE_ID}.gz"
+uploaded_client_file="/tmp/new-api-client-${RELEASE_ID}.tar.gz"
 uploaded_provisioner_dir="/tmp/new-api-tenant-domain-${RELEASE_ID}"
 uploaded_provisioner_installer="${uploaded_provisioner_dir}/install-tenant-domain-provisioner.sh"
 uploaded_provisioner_host="${uploaded_provisioner_dir}/tenant-domain-host.sh"
 uploaded_provisioner_socket="${uploaded_provisioner_dir}/tenant-domain-socket.py"
 release_file="${APP_DIR}/releases/new-api-${RELEASE_ID}"
+client_release_dir="${APP_DIR}/client/releases/client-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
 nginx_site=/etc/nginx/sites-available/new-api.conf
 env_file="${APP_DIR}/.env"
@@ -47,6 +50,7 @@ validate_value DOMAIN "${DOMAIN}" '^[A-Za-z0-9.-]+$'
 validate_value CERTBOT_EMAIL "${CERTBOT_EMAIL}" '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
 validate_value RELEASE_ID "${RELEASE_ID}" '^[0-9a-f]{40}$'
 validate_value EXPECTED_SHA256 "${EXPECTED_SHA256}" '^[0-9a-f]{64}$'
+validate_value CLIENT_EXPECTED_SHA256 "${CLIENT_EXPECTED_SHA256}" '^[0-9a-f]{64}$'
 validate_value SSH_USER "${SSH_USER}" '^[A-Za-z_][A-Za-z0-9_-]*$'
 validate_value TENANT_DOMAIN_INSTALLER_SHA256 "${TENANT_DOMAIN_INSTALLER_SHA256}" '^[0-9a-f]{64}$'
 validate_value TENANT_DOMAIN_HOST_SHA256 "${TENANT_DOMAIN_HOST_SHA256}" '^[0-9a-f]{64}$'
@@ -57,6 +61,10 @@ fi
 
 if [[ ! -f ${uploaded_file} ]]; then
   echo "Uploaded release was not found" >&2
+  exit 1
+fi
+if [[ ! -f ${uploaded_client_file} ]]; then
+  echo "Uploaded client release package was not found" >&2
   exit 1
 fi
 for uploaded_script in "${uploaded_provisioner_installer}" "${uploaded_provisioner_host}" "${uploaded_provisioner_socket}"; do
@@ -73,6 +81,23 @@ if [[ ${actual_sha256} != "${EXPECTED_SHA256}" ]]; then
   echo "Release checksum verification failed" >&2
   exit 1
 fi
+client_actual_sha256="$(sha256sum "${uploaded_client_file}" | cut -d' ' -f1)"
+if [[ ${client_actual_sha256} != "${CLIENT_EXPECTED_SHA256}" ]]; then
+  echo "Client package checksum verification failed" >&2
+  exit 1
+fi
+client_manifest="/tmp/new-api-client-${RELEASE_ID}.list"
+tar -tzf "${uploaded_client_file}" >"${client_manifest}"
+while IFS= read -r client_path; do
+  client_path="${client_path#./}"
+  if [[ ${client_path} == /* || ${client_path} == .. || ${client_path} == ../* ||
+    ${client_path} == */../* || ${client_path} == */.. ]]; then
+    echo "Client package contains an unsafe path" >&2
+    rm -f "${client_manifest}"
+    exit 1
+  fi
+done <"${client_manifest}"
+rm -f "${client_manifest}"
 if [[ $(sha256sum "${uploaded_provisioner_installer}" | cut -d' ' -f1) != "${TENANT_DOMAIN_INSTALLER_SHA256}" ||
   $(sha256sum "${uploaded_provisioner_host}" | cut -d' ' -f1) != "${TENANT_DOMAIN_HOST_SHA256}" ||
   $(sha256sum "${uploaded_provisioner_socket}" | cut -d' ' -f1) != "${TENANT_DOMAIN_SOCKET_SHA256}" ]]; then
@@ -82,7 +107,16 @@ fi
 
 app_group="$(id -gn "${APP_USER}")"
 sudo -n install -d -o "${APP_USER}" -g "${app_group}" -m 0755 \
-  "${APP_DIR}" "${APP_DIR}/releases" "${APP_DIR}/logs" "${APP_DIR}/data"
+  "${APP_DIR}" "${APP_DIR}/releases" "${APP_DIR}/client/releases" "${APP_DIR}/logs" "${APP_DIR}/data"
+
+echo "========== Install client release package =========="
+sudo -n rm -rf "${client_release_dir}"
+sudo -n install -d -o "${APP_USER}" -g "${app_group}" -m 0755 "${client_release_dir}"
+sudo -n tar --no-same-owner --no-same-permissions -xzf "${uploaded_client_file}" \
+  -C "${client_release_dir}"
+sudo -n chown -R "${APP_USER}:${app_group}" "${client_release_dir}"
+sudo -n test -s "${client_release_dir}/index.html"
+sudo -n ln -sfn "${client_release_dir}" "${APP_DIR}/client/current"
 
 service_port=""
 if sudo -n systemctl is-active --quiet new-api; then
@@ -262,6 +296,7 @@ curl --fail --silent --show-error --retry 10 --retry-delay 3 \
   "https://${DOMAIN}/api/status" >/dev/null
 
 rm -f "${uploaded_file}"
+rm -f "${uploaded_client_file}"
 rm -rf "${uploaded_provisioner_dir}"
 find "${APP_DIR}/releases" -maxdepth 1 -type f -name 'new-api-*' -printf '%T@ %p\n' \
   | sort -nr \

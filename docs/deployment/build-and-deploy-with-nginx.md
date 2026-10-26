@@ -87,32 +87,39 @@ thư mục gốc repository `MediaSoft-VN/usgate`, rồi chạy lệnh build nà
 Đây là lệnh build đầy đủ của dự án; không chạy `go build` riêng. Script build cả
 frontend và backend rồi đóng gói binary Linux. Khi hoàn tất, gói server được
 tạo tại `deploy/new-api.gz`. Tệp
-`deploy/new-api-client.tar.gz` là gói frontend riêng, không cần đưa lên để chạy
-server.
+`deploy/new-api-client.tar.gz` là gói frontend. GitHub Actions cũng chuyển gói
+này lên máy chủ và giải nén vào `/opt/new-api/client/releases/client-<commit>`;
+liên kết `/opt/new-api/client/current` trỏ đến bản vừa deploy. Binary hiện vẫn
+phục vụ frontend đã nhúng sẵn trong nó; thư mục `client` là bản frontend riêng
+được lưu trên máy chủ.
 
 ### Bước 3: kiểm tra gói
 
 ```bash
 gzip -t deploy/new-api.gz
+gzip -t deploy/new-api-client.tar.gz
 sha256sum deploy/new-api.gz
+sha256sum deploy/new-api-client.tar.gz
 ```
 
-Nếu lệnh `gzip -t` báo lỗi hoặc không có `deploy/new-api.gz`, dừng lại và build
+Nếu một lệnh `gzip -t` báo lỗi hoặc thiếu một trong hai gói, dừng lại và build
 lại. Chưa push gói lỗi lên GitHub.
 
 ### Bước 4: commit riêng gói binary
 
-Thêm đúng một tệp vào commit phát hành:
+Thêm cả hai gói vào commit phát hành:
 
 ```bash
 git add deploy/new-api.gz
+git add deploy/new-api-client.tar.gz
 git diff --cached --name-only
 ```
 
-Trước khi tiếp tục, kết quả lệnh thứ hai phải chỉ có:
+Trước khi tiếp tục, kết quả lệnh thứ hai phải chỉ có hai dòng:
 
 ```text
 deploy/new-api.gz
+deploy/new-api-client.tar.gz
 ```
 
 Nếu còn tệp khác, đừng commit vội; bỏ các tệp không thuộc gói phát hành khỏi
@@ -147,12 +154,13 @@ Mở các địa chỉ sau:
 
 ## 3. Workflow thực hiện những gì?
 
-Khi nhận commit có thay đổi `deploy/new-api.gz`, workflow:
+Khi nhận commit có thay đổi `deploy/new-api.gz` hoặc
+`deploy/new-api-client.tar.gz`, workflow:
 
-1. Kiểm tra gói binary có tồn tại, đọc được và khớp checksum.
-2. Kết nối đến máy chủ qua SSH và chuyển gói lên.
-3. Cài binary vào thư mục release, cập nhật liên kết tới phiên bản mới và khởi
-   động lại `new-api` bằng systemd.
+1. Kiểm tra binary và gói client có tồn tại, đọc được và khớp checksum.
+2. Kết nối đến máy chủ qua SSH và chuyển cả hai gói lên.
+3. Giải nén client vào thư mục release riêng, cập nhật liên kết
+   `/opt/new-api/client/current`, rồi cài binary và khởi động lại `new-api`.
 4. Kiểm tra ứng dụng trên cổng nội bộ.
 5. Cài/cập nhật Nginx và cấu hình chuyển yêu cầu đến ứng dụng.
 6. Dùng Certbot xin hoặc gia hạn chứng chỉ domain chính, bật HTTPS và chuyển

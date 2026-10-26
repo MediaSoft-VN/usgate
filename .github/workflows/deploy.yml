@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - deploy/new-api.gz
+      - deploy/new-api-client.tar.gz
       - .github/scripts/deploy-native.sh
       - scripts/install-tenant-domain-provisioner.sh
       - scripts/tenant-domain-host.sh
@@ -40,6 +41,10 @@ jobs:
           gzip -t deploy/new-api.gz
           file deploy/new-api.gz
           sha256sum deploy/new-api.gz
+          test -s deploy/new-api-client.tar.gz
+          gzip -t deploy/new-api-client.tar.gz
+          tar -tzf deploy/new-api-client.tar.gz >/dev/null
+          sha256sum deploy/new-api-client.tar.gz
           bash -n scripts/install-tenant-domain-provisioner.sh
           bash -n scripts/tenant-domain-host.sh
           python3 -c "compile(open('scripts/tenant-domain-socket.py', encoding='utf-8').read(), 'tenant-domain-socket.py', 'exec')"
@@ -57,7 +62,7 @@ jobs:
           printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
 
-      - name: Upload release package
+      - name: Upload binary release package
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -70,6 +75,17 @@ jobs:
           scp -P "${DEPLOY_PORT}" \
             deploy/new-api.gz \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-${GITHUB_SHA}.gz"
+
+      - name: Upload client release package
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          scp -P "${DEPLOY_PORT}" \
+            deploy/new-api-client.tar.gz \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-client-${GITHUB_SHA}.tar.gz"
 
       - name: Upload tenant-domain host provisioner
         env:
@@ -108,6 +124,7 @@ jobs:
           : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
           : "${NEW_API_ENV:?NEW_API_ENV secret is required}"
           checksum="$(sha256sum deploy/new-api.gz | cut -d' ' -f1)"
+          client_checksum="$(sha256sum deploy/new-api-client.tar.gz | cut -d' ' -f1)"
           tenant_installer_checksum="$(sha256sum scripts/install-tenant-domain-provisioner.sh | cut -d' ' -f1)"
           tenant_host_checksum="$(sha256sum scripts/tenant-domain-host.sh | cut -d' ' -f1)"
           tenant_socket_checksum="$(sha256sum scripts/tenant-domain-socket.py | cut -d' ' -f1)"
@@ -121,6 +138,7 @@ jobs:
             printf 'NEW_API_ENV=%q\n' "${NEW_API_ENV}"
             printf 'RELEASE_ID=%q\n' "${GITHUB_SHA}"
             printf 'EXPECTED_SHA256=%q\n' "${checksum}"
+            printf 'CLIENT_EXPECTED_SHA256=%q\n' "${client_checksum}"
             printf 'SSH_USER=%q\n' "${DEPLOY_USER}"
             printf 'TENANT_DOMAIN_INSTALLER_SHA256=%q\n' "${tenant_installer_checksum}"
             printf 'TENANT_DOMAIN_HOST_SHA256=%q\n' "${tenant_host_checksum}"
