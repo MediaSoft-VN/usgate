@@ -46,17 +46,27 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderWorkspace() {
+function renderWorkspace(section?: 'overview') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <PartnerWorkspace />
+        <PartnerWorkspace section={section} />
     </QueryClientProvider>
   )
   return queryClient
 }
+
+test('overview omits the workspace introduction card', async () => {
+  mockTenantRequests()
+  renderWorkspace('overview')
+
+  await screen.findAllByText('Acme')
+
+  expect(screen.queryByRole('heading', { name: 'Workspace at a glance' })).not.toBeInTheDocument()
+  expect(screen.getByText('Users')).toBeInTheDocument()
+})
 
 function mockTenantRequests() {
   const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
@@ -68,6 +78,14 @@ function mockTenantRequests() {
     }
     if (url === `/api/tenants/${tenant.id}/domains`) {
       return { data: { success: true, data: [domain] } }
+    }
+    if (url === `/api/tenants/${tenant.id}/funding`) {
+      return {
+        data: {
+          success: true,
+          data: { wallet: { available_minor: 10000, currency: 'USD' }, items: [] },
+        },
+      }
     }
     return {
       data: {
