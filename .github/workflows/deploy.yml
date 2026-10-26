@@ -109,7 +109,6 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          APP_USER: ${{ vars.APP_USER }}
           APP_DIR: ${{ vars.APP_DIR }}
           APP_PORT: ${{ vars.APP_PORT }}
           DOMAIN: ${{ vars.PROD_DOMAIN || 'newapi.usgate.ai' }}
@@ -130,7 +129,7 @@ jobs:
           tenant_host_checksum="$(sha256sum scripts/tenant-domain-host.sh | cut -d' ' -f1)"
           tenant_socket_checksum="$(sha256sum scripts/tenant-domain-socket.py | cut -d' ' -f1)"
           {
-            printf 'APP_USER=%q\n' "${APP_USER:-${DEPLOY_USER}}"
+            printf 'APP_USER=%q\n' "${DEPLOY_USER}"
             printf 'APP_DIR=%q\n' "${APP_DIR:-/opt/new-api}"
             printf 'APP_PORT=%q\n' "${APP_PORT:-}"
             printf 'DOMAIN=%q\n' "${DOMAIN}"
