@@ -43,6 +43,8 @@ const SITE_SECTIONS = [
           HomePageContent: settings.HomePageContent,
           ServerAddress: settings.ServerAddress,
           TaskPublicAddress: settings.TaskPublicAddress,
+          TenantDomainDNSRecordCNAME: settings.TenantDomainDNSRecordCNAME,
+          TenantDomainDNSRecordA: settings.TenantDomainDNSRecordA,
           general_setting: {
             docs_link: settings['general_setting.docs_link'],
           },

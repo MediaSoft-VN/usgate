@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"slices"
 	"sort"
@@ -45,6 +46,37 @@ func isPositiveOptionValue(value string) bool {
 	}
 	floatValue, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 	return err == nil && floatValue > 0
+}
+
+func validateTenantDomainDNSOption(key, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+
+	switch key {
+	case "TenantDomainDNSRecordCNAME":
+		if net.ParseIP(value) != nil || len(value) > 253 || strings.ContainsAny(value, "/: ") {
+			return errors.New("CNAME target must be a valid hostname")
+		}
+		for label := range strings.SplitSeq(value, ".") {
+			if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+				return errors.New("CNAME target must be a valid hostname")
+			}
+			for _, char := range label {
+				if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
+					(char < '0' || char > '9') && char != '-' {
+					return errors.New("CNAME target must be a valid hostname")
+				}
+			}
+		}
+	case "TenantDomainDNSRecordA":
+		if net.ParseIP(value) != nil {
+			return nil
+		}
+		return errors.New("A record IP must be a valid IPv4 or IPv6 address")
+	}
+	return nil
 }
 
 func collectModelNamesFromOptionValue(raw string, modelNames map[string]struct{}) {
@@ -218,6 +250,11 @@ func UpdateOption(c *gin.Context) {
 		}
 	}
 	switch option.Key {
+	case "TenantDomainDNSRecordCNAME", "TenantDomainDNSRecordA":
+		if err := validateTenantDomainDNSOption(option.Key, option.Value.(string)); err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	case "GitHubOAuthEnabled":
 		if option.Value == "true" && common.GitHubClientId == "" {
 			common.ApiErrorT(c, "Cannot enable {{provider}}. Enter the {{provider}} Client ID and Client Secret first.", map[string]any{"provider": "GitHub OAuth"})

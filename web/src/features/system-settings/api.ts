@@ -33,6 +33,10 @@ import type {
   UpdatePasskeyDomainsResponse,
   UpstreamChannelsResponse,
   UpstreamRatiosResponse,
+  UpstreamCostApplyResponse,
+  UpstreamCostChannelsResponse,
+  UpstreamCostPreviewResponse,
+  ChannelModelCost,
 } from './types'
 
 export async function getSystemOptions() {
@@ -123,6 +127,32 @@ export async function fetchUpstreamRatios(request: FetchUpstreamRatiosRequest) {
   const res = await api.post<UpstreamRatiosResponse>(
     '/api/ratio_sync/fetch',
     request
+  )
+  return res.data
+}
+
+export async function getUpstreamCostChannels() {
+  const res = await api.get<UpstreamCostChannelsResponse>(
+    '/api/upstream_costs/channels'
+  )
+  return res.data
+}
+
+export async function previewUpstreamCosts(channelIds: number[], timeout = 10) {
+  const res = await api.post<UpstreamCostPreviewResponse>(
+    '/api/upstream_costs/preview',
+    { channel_ids: channelIds, timeout }
+  )
+  return res.data
+}
+
+export async function applyUpstreamCosts(
+  items: Array<{ channel_id: number; version: string; costs: ChannelModelCost[] }>
+) {
+  const res = await api.post<UpstreamCostApplyResponse>(
+    '/api/upstream_costs/apply',
+    { items },
+    { validateStatus: (status) => status >= 200 && status < 300 || status === 409 }
   )
   return res.data
 }

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
+import { TimestampCell } from '@/components/activity-time-cell'
 import { SectionPageLayout } from '@/components/layout'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
@@ -64,14 +65,16 @@ export function CustomerWallet() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('Username')}</TableHead>
+                  <TableHead>{t('Created At')}</TableHead>
                   <TableHead>{t('Group')}</TableHead>
                   <TableHead>{t('Quota')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.items.map((user) => (
-                  <TableRow key={user.id}>
+                {data.items.map((user) => {
+                  return (
+                    <TableRow key={user.id}>
                     <TableCell>
                       <div className='flex flex-col'>
                         <span>{user.display_name || user.username}</span>
@@ -79,6 +82,13 @@ export function CustomerWallet() {
                           {user.username}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <TimestampCell
+                        timestamp={user.created_at ?? 0}
+                        format='absolute'
+                        justNowLabel={t('Just now')}
+                      />
                     </TableCell>
                     <TableCell>{user.group}</TableCell>
                     <TableCell>
@@ -90,8 +100,9 @@ export function CustomerWallet() {
                     <TableCell>
                       {user.status === 1 ? t('Enabled') : t('Disabled')}
                     </TableCell>
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
             <div className='flex items-center justify-between border-t px-4 py-3'>

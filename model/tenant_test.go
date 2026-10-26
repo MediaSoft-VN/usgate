@@ -64,6 +64,11 @@ func TestNormalizeTenantHostname(t *testing.T) {
 		{"console.example.com:443", "", false},
 		{"user@example.com", "", false},
 		{"-console.example.com", "", false},
+		{"127.0.0.1", "", false},
+		{"localhost", "", false},
+		{"bad..example.com", "", false},
+		{"example.invalid", "", false},
+		{"bücher.example.com", "xn--bcher-kva.example.com", true},
 	}
 	for _, test := range tests {
 		got, err := NormalizeTenantHostname(test.input)
@@ -74,16 +79,6 @@ func TestNormalizeTenantHostname(t *testing.T) {
 			require.Error(t, err)
 		}
 	}
-}
-
-func TestVerifyTenantDomainRequiresPendingMatchingToken(t *testing.T) {
-	token, hash, err := NewDomainChallenge()
-	require.NoError(t, err)
-	domain := TenantDomain{Status: DomainPending, VerificationTokenHash: hash}
-	require.True(t, VerifyTenantDomain(&domain, token))
-	require.False(t, VerifyTenantDomain(&domain, "wrong-token"))
-	domain.Status = DomainDisabled
-	require.False(t, VerifyTenantDomain(&domain, token))
 }
 
 func TestRegistrationTenantResolutionAndMembershipAreHostBoundAndIdempotent(t *testing.T) {

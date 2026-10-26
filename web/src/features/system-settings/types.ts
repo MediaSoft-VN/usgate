@@ -167,6 +167,8 @@ export type SiteSettings = {
   HomePageContent: string
   ServerAddress: string
   TaskPublicAddress: string
+  TenantDomainDNSRecordCNAME: string
+  TenantDomainDNSRecordA: string
   'general_setting.docs_link': string
   'legal.user_agreement': string
   'legal.privacy_policy': string
@@ -495,6 +497,7 @@ export type UpstreamConfig = {
 }
 
 export type FetchUpstreamRatiosRequest = {
+  include_unchanged?: boolean
   upstreams: UpstreamConfig[]
   timeout: number
 }
@@ -513,4 +516,56 @@ export type UpstreamRatiosResponse = {
     prices: PricingSyncModels
     test_results: TestResult[]
   }
+}
+
+export type UpstreamCostChannel = {
+  id: number
+  name: string
+  type: number
+  type_name: string
+  supported: boolean
+  unsupported_reason?: string
+  version: string
+  costs: ChannelModelCost[]
+}
+
+export type ChannelModelCost = {
+  channel_id: number
+  model: string
+  input_usd_per_million_micros: number
+  output_usd_per_million_micros: number
+  cache_read_usd_per_million_micros: number
+  cache_write_usd_per_million_micros: number
+  source: string
+  manual: boolean
+  valid: boolean
+  error?: string
+  fetched_at: number
+}
+
+export type UpstreamCostResult = {
+  channel_id: number
+  source: string
+  supported: boolean
+  error?: string
+  version: string
+  costs?: ChannelModelCost[]
+}
+
+export type UpstreamCostChannelsResponse = {
+  success: boolean
+  message: string
+  data: UpstreamCostChannel[]
+}
+
+export type UpstreamCostPreviewResponse = {
+  success: boolean
+  message: string
+  data: { results: UpstreamCostResult[] }
+}
+
+export type UpstreamCostApplyResponse = {
+  success: boolean
+  message: string
+  data: { updated_channels: number[] }
 }

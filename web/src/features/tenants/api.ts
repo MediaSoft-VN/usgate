@@ -1,4 +1,3 @@
-import type { User } from '@/features/users/types'
 import { api } from '@/lib/api'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
@@ -13,6 +12,11 @@ export type Tenant = {
   updated_at: number
 }
 
+export async function getTenantContext(): Promise<Tenant | null> {
+  const response = await api.get('/api/tenant-context')
+  return requireServerSuccess(response.data).data as Tenant | null
+}
+
 export type CreateTenantPayload = {
   slug: string
   partner_code?: string
@@ -24,8 +28,11 @@ export type TenantMember = {
   id: number
   tenant_id: number
   user_id: number
+  username: string
+  display_name: string
   role_key: string
   status: string
+  created_at: number
 }
 
 export type TenantDomain = {
@@ -34,6 +41,33 @@ export type TenantDomain = {
   hostname: string
   status: string
   verification_method: string
+}
+
+export type TenantFunding = {
+  id: number
+  tenant_id: number
+  user_id: number
+  reference: string
+  amount_minor: number
+  currency: string
+  quota: number
+  created_at: number
+  created_by: string
+  username: string
+  display_name: string
+}
+
+export type TenantWallet = {
+  owner_user_id: number
+  available_quota: number
+  available_minor: number
+  reserved_minor: number
+  currency: string
+}
+
+export type TenantDNSRecord = {
+  cname_target: string
+  a_record_ip: string
 }
 
 export async function getTenants(): Promise<Tenant[]> {
@@ -46,13 +80,6 @@ export async function promoteTenant(
 ): Promise<Tenant> {
   const response = await api.post('/api/tenants', payload)
   return requireServerSuccess(response.data).data as Tenant
-}
-
-export async function getTenantMemberCandidates(
-  tenantId: number
-): Promise<User[]> {
-  const response = await api.get(`/api/tenants/${tenantId}/member-candidates`)
-  return requireServerSuccess(response.data).data as User[]
 }
 
 export async function selectTenant(tenantId: number): Promise<Tenant> {
@@ -69,41 +96,6 @@ export async function getTenantMembers(
   return requireServerSuccess(response.data).data as TenantMember[]
 }
 
-export async function upsertTenantMember(
-  tenantId: number,
-  payload: { user_id: number; role_key: string }
-): Promise<TenantMember> {
-  const response = await api.post(
-    `/api/tenants/${tenantId}/members/invitations`,
-    payload
-  )
-  return requireServerSuccess(response.data).data as TenantMember
-}
-
-export async function updateTenantMember(
-  tenantId: number,
-  userId: number,
-  roleKey: string
-): Promise<TenantMember> {
-  const response = await api.patch(
-    `/api/tenants/${tenantId}/members/${userId}`,
-    {
-      role_key: roleKey,
-    }
-  )
-  return requireServerSuccess(response.data).data as TenantMember
-}
-
-export async function removeTenantMember(
-  tenantId: number,
-  userId: number
-): Promise<void> {
-  const response = await api.delete(
-    `/api/tenants/${tenantId}/members/${userId}`
-  )
-  requireServerSuccess(response.data)
-}
-
 export async function getTenantDomains(
   tenantId: number
 ): Promise<TenantDomain[]> {
@@ -111,37 +103,76 @@ export async function getTenantDomains(
   return requireServerSuccess(response.data).data as TenantDomain[]
 }
 
+export async function getTenantDNSRecord(
+  tenantId: number
+): Promise<TenantDNSRecord> {
+  const response = await api.get(`/api/tenants/${tenantId}/domains/dns-record`)
+  return requireServerSuccess(response.data).data as TenantDNSRecord
+}
+
 export async function createTenantDomain(
   tenantId: number,
   hostname: string
-): Promise<{ domain: TenantDomain; verification_token: string }> {
+): Promise<{ domain: TenantDomain }> {
   const response = await api.post(`/api/tenants/${tenantId}/domains`, {
     hostname,
   })
-  return requireServerSuccess(response.data).data as {
-    domain: TenantDomain
-    verification_token: string
-  }
+  return requireServerSuccess(response.data).data as { domain: TenantDomain }
 }
 
 export async function verifyTenantDomain(
   tenantId: number,
-  domainId: number,
-  token: string
+  domainId: number
 ): Promise<void> {
   const response = await api.post(
     `/api/tenants/${tenantId}/domains/${domainId}/verify`,
-    { token }
+    {}
   )
   requireServerSuccess(response.data)
 }
 
-export async function removeTenantDomain(
+export async function updateTenantDomain(
+  tenantId: number,
+  domainId: number,
+  hostname: string
+): Promise<{ domain: TenantDomain }> {
+  const response = await api.patch(
+    `/api/tenants/${tenantId}/domains/${domainId}`,
+    { hostname }
+  )
+  return requireServerSuccess(response.data).data as { domain: TenantDomain }
+}
+
+export async function deleteTenantDomain(
   tenantId: number,
   domainId: number
 ): Promise<void> {
   const response = await api.delete(
     `/api/tenants/${tenantId}/domains/${domainId}`
   )
+  requireServerSuccess(response.data)
+}
+
+export async function getTenantFunding(tenantId: number): Promise<{
+  wallet: TenantWallet
+  items: TenantFunding[]
+}> {
+  const response = await api.get(`/api/tenants/${tenantId}/funding`)
+  return requireServerSuccess(response.data).data as {
+    wallet: TenantWallet
+    items: TenantFunding[]
+  }
+}
+
+export async function fundTenantMember(
+  tenantId: number,
+  payload: {
+    user_id: number
+    reference: string
+    amount_minor: number
+    currency: string
+  }
+): Promise<void> {
+  const response = await api.post(`/api/tenants/${tenantId}/funding`, payload)
   requireServerSuccess(response.data)
 }

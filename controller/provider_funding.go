@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"encoding/csv"
 	"errors"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -28,21 +30,17 @@ type providerFundingRequest struct {
 }
 
 func ListProviderFunding(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	channelID, _ := strconv.Atoi(c.Query("channel_id"))
-	items, _, err := model.ListProviderFundings(model.ProviderFundingFilter{
-		ChannelID: channelID,
-		Currency:  c.Query("currency"),
-		Source:    c.Query("source"),
-		Page:      page,
-		PageSize:  pageSize,
-	})
+	filter, err := providerFundingFilterFromContext(c)
+	if err != nil {
+		common.ApiErrorT(c, err.Error())
+		return
+	}
+	items, _, err := model.ListProviderFundings(filter)
 	if err != nil {
 		common.ApiErrorT(c, "Failed to load provider funding records")
 		return
 	}
-	cashFlows, cashFlowTotal, err := model.ListProviderCashFlows(page, pageSize)
+	cashFlows, cashFlowTotal, err := model.ListProviderCashFlows(filter)
 	if err != nil {
 		common.ApiErrorT(c, "Failed to load provider cash flow records")
 		return
@@ -62,7 +60,74 @@ func ListProviderFunding(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to load provider allocation history")
 		return
 	}
-	common.ApiSuccess(c, gin.H{"items": items, "total": cashFlowTotal, "page": max(page, 1), "page_size": min(max(pageSize, 1), 100), "wallets": wallets, "provider_wallets": providerWallets, "allocations": allocations, "cash_flows": cashFlows, "cash_flow_total": cashFlowTotal})
+	report, err := model.SummarizeProviderCashFlows(filter)
+	if err != nil {
+		common.ApiErrorT(c, "Failed to load financial report")
+		return
+	}
+	common.ApiSuccess(c, gin.H{"items": items, "total": cashFlowTotal, "page": max(filter.Page, 1), "page_size": min(max(filter.PageSize, 1), 100), "wallets": wallets, "provider_wallets": providerWallets, "allocations": allocations, "cash_flows": cashFlows, "cash_flow_total": cashFlowTotal, "report": report})
+}
+
+func providerFundingFilterFromContext(c *gin.Context) (model.ProviderFundingFilter, error) {
+	from, err := model.ProviderFundingDateFilter(c.Query("from_date"), false)
+	if err != nil {
+		return model.ProviderFundingFilter{}, errors.New("Invalid start date")
+	}
+	to, err := model.ProviderFundingDateFilter(c.Query("to_date"), true)
+	if err != nil {
+		return model.ProviderFundingFilter{}, errors.New("Invalid end date")
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	channelID, _ := strconv.Atoi(c.Query("channel_id"))
+	return model.ProviderFundingFilter{
+		ChannelID: channelID,
+		Currency:  c.Query("currency"),
+		Source:    c.Query("source"),
+		Direction: c.Query("direction"),
+		Type:      c.Query("type"),
+		Partner:   strings.TrimSpace(c.Query("partner")),
+		From:      from,
+		To:        to,
+		Page:      page,
+		PageSize:  pageSize,
+	}, nil
+}
+
+func ExportProviderFunding(c *gin.Context) {
+	filter, err := providerFundingFilterFromContext(c)
+	if err != nil {
+		common.ApiErrorT(c, err.Error())
+		return
+	}
+	rows, err := model.ListAllProviderCashFlows(filter)
+	if err != nil {
+		common.ApiErrorT(c, "Failed to export financial report")
+		return
+	}
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", `attachment; filename="provider-cash-flow-report.csv"`)
+	c.Header("Cache-Control", "no-store")
+	c.Status(http.StatusOK)
+	writer := csv.NewWriter(c.Writer)
+	if err := writer.Write([]string{"direction", "type", "counterparty", "amount_minor", "currency", "reference", "created_at", "created_by"}); err != nil {
+		return
+	}
+	for _, row := range rows {
+		if err := writer.Write([]string{
+			row.Direction,
+			row.Type,
+			row.CounterpartyName,
+			strconv.FormatInt(row.AmountMinor, 10),
+			row.Currency,
+			row.Reference,
+			strconv.FormatInt(row.CreatedAt, 10),
+			row.CreatedBy,
+		}); err != nil {
+			return
+		}
+	}
+	writer.Flush()
 }
 
 type providerFundingAllocationRequest struct {
@@ -95,7 +160,8 @@ func AllocateProviderFunding(c *gin.Context) {
 			common.ApiErrorT(c, "Provider allocation reference already exists with different details")
 		case errors.Is(err, model.ErrWalletQuotaLimitExceeded):
 			common.ApiErrorT(c, "User quota exceeds the supported range")
-		default: common.ApiError(c, err)
+		default:
+			common.ApiError(c, err)
 		}
 		return
 	}

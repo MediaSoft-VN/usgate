@@ -24,7 +24,10 @@ import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { logout } from '@/features/auth/api'
-import { clearAuthenticatedClientState } from '@/lib/auth-session'
+import {
+  clearAuthenticatedClientState,
+  setLogoutInProgress,
+} from '@/lib/auth-session'
 import { handleServerError } from '@/lib/handle-server-error'
 
 interface SignOutDialogProps {
@@ -40,6 +43,8 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
 
   const handleSignOut = async () => {
     setIsSigningOut(true)
+    setLogoutInProgress(true)
+    await queryClient.cancelQueries()
     try {
       const response = await logout()
       if (!response.success) {
@@ -53,6 +58,7 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
     } catch (error: unknown) {
       handleServerError(error, t('Failed to sign out session'))
     } finally {
+      setLogoutInProgress(false)
       setIsSigningOut(false)
     }
   }

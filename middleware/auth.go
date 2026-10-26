@@ -78,6 +78,10 @@ func authHelper(c *gin.Context, minRole int) {
 		return
 	}
 	setDashboardAuthContext(c, user, identity, useAccessToken)
+	if err := ResolveTenantContext(c); err != nil {
+		abortWithWebMessage(c, http.StatusForbidden, "TENANT_ACCESS_DENIED", common.NewMessage("Tenant access denied"))
+		return
+	}
 	if lookup != nil {
 		setAccessTokenContext(c, lookup)
 	}
@@ -121,6 +125,10 @@ func TryUserAuth() func(c *gin.Context) {
 		}
 		if credentialKind != dashboardCredentialUnmatched {
 			setDashboardAuthContext(c, user, identity, credentialKind == dashboardCredentialPAT)
+			if err := ResolveTenantContext(c); err != nil {
+				abortWithWebMessage(c, http.StatusForbidden, "TENANT_ACCESS_DENIED", common.NewMessage("Tenant access denied"))
+				return
+			}
 			if credentialKind == dashboardCredentialPAT {
 				setAccessTokenContext(c, lookup)
 			}
@@ -444,6 +452,10 @@ func TokenOrUserAuth() func(c *gin.Context) {
 				return
 			}
 			setDashboardAuthContext(c, user, identity, false)
+			if err := ResolveTenantContext(c); err != nil {
+				abortWithWebMessage(c, http.StatusForbidden, "TENANT_ACCESS_DENIED", common.NewMessage("Tenant access denied"))
+				return
+			}
 			c.Next()
 			return
 		}
@@ -521,6 +533,11 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 		c.Set("id", token.UserId)
 		c.Set("token_id", token.Id)
 		c.Set("token_key", token.Key)
+		if err := ResolveTenantContext(c); err != nil {
+			common.ApiErrorStatus(c, http.StatusForbidden, errors.New("Tenant access denied"))
+			c.Abort()
+			return
+		}
 		c.Next()
 	}
 }
@@ -618,6 +635,10 @@ func TokenAuth() func(c *gin.Context) {
 		}
 
 		userCache.WriteContext(c)
+		if err := ResolveTenantContext(c); err != nil {
+			abortWithOpenAiMessage(c, http.StatusForbidden, "Tenant access denied")
+			return
+		}
 
 		userGroup := userCache.Group
 		tokenGroup := token.Group

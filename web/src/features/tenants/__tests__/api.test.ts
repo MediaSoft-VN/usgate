@@ -4,10 +4,11 @@ import { api } from '@/lib/api'
 
 import {
   createTenantDomain,
+  deleteTenantDomain,
+  getTenantDNSRecord,
   promoteTenant,
-  removeTenantMember,
   selectTenant,
-  upsertTenantMember,
+  updateTenantDomain,
 } from '../api'
 
 describe('tenant management API', () => {
@@ -15,17 +16,25 @@ describe('tenant management API', () => {
 
   it('selects a tenant through the tenant context endpoint', async () => {
     const response = { id: 7, slug: 'acme', name: 'Acme', status: 'active' }
-    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { success: true, data: response } })
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, data: response } })
 
     await expect(selectTenant(7)).resolves.toEqual(response)
-    expect(post).toHaveBeenCalledWith('/api/tenant-context/select', { tenant_id: 7 })
+    expect(post).toHaveBeenCalledWith('/api/tenant-context/select', {
+      tenant_id: 7,
+    })
   })
 
   it('promotes an enabled user through the admin tenant endpoint', async () => {
     const response = { id: 8, slug: 'acme', name: 'Acme', status: 'active' }
-    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { success: true, data: response } })
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, data: response } })
 
-    await expect(promoteTenant({ slug: 'acme', name: 'Acme', owner_user_id: 4 })).resolves.toEqual(response)
+    await expect(
+      promoteTenant({ slug: 'acme', name: 'Acme', owner_user_id: 4 })
+    ).resolves.toEqual(response)
     expect(post).toHaveBeenCalledWith('/api/tenants', {
       slug: 'acme',
       name: 'Acme',
@@ -43,23 +52,65 @@ describe('tenant management API', () => {
     ).rejects.toThrow('Partner already exists')
   })
 
-  it('uses the M1 member and domain endpoints with tenant-scoped paths', async () => {
+  it('uses the tenant-scoped domain endpoint', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({
-      data: { success: true, data: { id: 3, tenant_id: 7, user_id: 4, role_key: 'member' } },
+      data: {
+        success: true,
+        data: { id: 3, tenant_id: 7, user_id: 4, role_key: 'member' },
+      },
     })
-    const remove = vi.spyOn(api, 'delete').mockResolvedValue({ data: { success: true } })
+    const remove = vi
+      .spyOn(api, 'delete')
+      .mockResolvedValue({ data: { success: true } })
 
-    await upsertTenantMember(7, { user_id: 4, role_key: 'member' })
     await createTenantDomain(7, 'app.example.com')
-    await removeTenantMember(7, 4)
 
-    expect(post).toHaveBeenNthCalledWith(1, '/api/tenants/7/members/invitations', {
-      user_id: 4,
-      role_key: 'member',
-    })
-    expect(post).toHaveBeenNthCalledWith(2, '/api/tenants/7/domains', {
+    expect(post).toHaveBeenCalledWith('/api/tenants/7/domains', {
       hostname: 'app.example.com',
     })
-    expect(remove).toHaveBeenCalledWith('/api/tenants/7/members/4')
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('reads the tenant-scoped DNS record without exposing admin settings', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          cname_target: 'proxy.example.com',
+          a_record_ip: '203.0.113.10',
+        },
+      },
+    })
+
+    await expect(getTenantDNSRecord(7)).resolves.toEqual({
+      cname_target: 'proxy.example.com',
+      a_record_ip: '203.0.113.10',
+    })
+    expect(get).toHaveBeenCalledWith('/api/tenants/7/domains/dns-record')
+  })
+
+  it('updates a domain through the tenant-scoped endpoint', async () => {
+    const patch = vi.spyOn(api, 'patch').mockResolvedValue({
+      data: {
+        success: true,
+        data: { domain: { id: 3 } },
+      },
+    })
+
+    await expect(updateTenantDomain(7, 3, 'new.example.com')).resolves.toEqual({
+      domain: { id: 3 },
+    })
+    expect(patch).toHaveBeenCalledWith('/api/tenants/7/domains/3', {
+      hostname: 'new.example.com',
+    })
+  })
+
+  it('deletes a domain through the tenant-scoped endpoint', async () => {
+    const remove = vi.spyOn(api, 'delete').mockResolvedValue({
+      data: { success: true },
+    })
+
+    await expect(deleteTenantDomain(7, 3)).resolves.toBeUndefined()
+    expect(remove).toHaveBeenCalledWith('/api/tenants/7/domains/3')
   })
 })
