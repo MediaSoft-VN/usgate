@@ -16,6 +16,9 @@ set -Eeuo pipefail
 : "${TENANT_DOMAIN_HOST_SHA256:?TENANT_DOMAIN_HOST_SHA256 is required}"
 : "${TENANT_DOMAIN_SOCKET_SHA256:?TENANT_DOMAIN_SOCKET_SHA256 is required}"
 : "${OLD_DOMAIN:=}"
+if [[ -z ${OLD_DOMAIN//[[:space:]]/} ]]; then
+  OLD_DOMAIN=""
+fi
 
 uploaded_file="/tmp/new-api-${RELEASE_ID}.gz"
 uploaded_client_file="/tmp/new-api-client-${RELEASE_ID}.tar.gz"
