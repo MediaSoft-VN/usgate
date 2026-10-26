@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -15,6 +18,12 @@ import (
 // TenantDomainDNSResolver is replaceable in tests so verification never needs
 // to depend on the public DNS network.
 var TenantDomainDNSResolver DomainDNSResolver = net.DefaultResolver
+
+var TenantDomainHostOperation = runTenantDomainHostOperation
+var tenantDomainProvisionerSocketPath = "/run/new-api-tenant-domain.sock"
+
+var ErrTenantDomainHostOperation = errors.New("domain host configuration failed")
+var ErrTenantDomainReserved = errors.New("this domain is reserved by the system")
 
 type DomainDNSResolver interface {
 	LookupIP(context.Context, string, string) ([]net.IP, error)
@@ -84,35 +93,56 @@ func DemoteUserPartner(userID int) error {
 	})
 }
 
-func CreateDomain(tenantID int, hostname string) (*model.TenantDomain, error) {
+func CreateDomain(tenantID, userID int, hostname string) (*model.TenantDomain, error) {
 	normalized, err := model.NormalizeTenantHostname(hostname)
 	if err != nil {
+		return nil, err
+	}
+	if err = validatePartnerDomainOwner(normalized, userID); err != nil {
 		return nil, err
 	}
 	return savePendingDomain(tenantID, normalized, nil)
 }
 
-func UpdateDomain(domainID, tenantID int, hostname string) (*model.TenantDomain, error) {
+func UpdateDomain(domainID, tenantID, userID int, hostname string) (*model.TenantDomain, error) {
 	normalized, err := model.NormalizeTenantHostname(hostname)
 	if err != nil {
+		return nil, err
+	}
+	if err = validatePartnerDomainOwner(normalized, userID); err != nil {
 		return nil, err
 	}
 	var domain model.TenantDomain
 	if err = model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).First(&domain).Error; err != nil {
 		return nil, err
 	}
-	return savePendingDomain(tenantID, normalized, &domain)
+	if err = ensureTenantHostnameAvailable(normalized, &domain); err != nil {
+		return nil, err
+	}
+	if err = TenantDomainHostOperation("cleanup", domain.Hostname); err != nil {
+		return nil, ErrTenantDomainHostOperation
+	}
+	previousHostname := domain.Hostname
+	previousStatus := domain.Status
+	updated, err := savePendingDomain(tenantID, normalized, &domain)
+	if err != nil && previousStatus == model.DomainVerified {
+		_ = TenantDomainHostOperation("provision", previousHostname)
+	}
+	return updated, err
+}
+
+func validatePartnerDomainOwner(hostname string, userID int) error {
+	if model.IsAdmin(userID) {
+		return nil
+	}
+	if hostname == "usgate.ai" || strings.HasSuffix(hostname, ".usgate.ai") {
+		return ErrTenantDomainReserved
+	}
+	return nil
 }
 
 func savePendingDomain(tenantID int, hostname string, domain *model.TenantDomain) (*model.TenantDomain, error) {
-	var existing model.TenantDomain
-	query := model.DB.Where("hostname = ?", hostname)
-	if domain != nil {
-		query = query.Where("id <> ?", domain.Id)
-	}
-	if err := query.First(&existing).Error; err == nil {
-		return nil, model.ErrTenantDomainTaken
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := ensureTenantHostnameAvailable(hostname, domain); err != nil {
 		return nil, err
 	}
 	now := common.GetTimestamp()
@@ -131,17 +161,59 @@ func savePendingDomain(tenantID int, hostname string, domain *model.TenantDomain
 	return domain, nil
 }
 
+func ensureTenantHostnameAvailable(hostname string, except *model.TenantDomain) error {
+	var existing model.TenantDomain
+	query := model.DB.Where("hostname = ?", hostname)
+	if except != nil {
+		query = query.Where("id <> ?", except.Id)
+	}
+	if err := query.First(&existing).Error; err == nil {
+		return model.ErrTenantDomainTaken
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return nil
+}
+
 func VerifyDomain(domainID, tenantID int) error {
 	var domain model.TenantDomain
 	if err := model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).First(&domain).Error; err != nil {
 		return err
 	}
-	if domain.Status != model.DomainPending || !tenantDomainDNSMatches(domain.Hostname) {
+	if (domain.Status != model.DomainPending && domain.Status != model.DomainVerified) || !tenantDomainDNSMatches(domain.Hostname) {
 		return errors.New("domain verification failed")
 	}
 	now := common.GetTimestamp()
 	domain.Status, domain.VerifiedAt, domain.LastCheckedAt, domain.UpdatedAt = model.DomainVerified, &now, &now, now
-	return model.DB.Save(&domain).Error
+	if err := model.DB.Save(&domain).Error; err != nil {
+		return err
+	}
+	if err := TenantDomainHostOperation("provision", domain.Hostname); err != nil {
+		return ErrTenantDomainHostOperation
+	}
+	return nil
+}
+
+func runTenantDomainHostOperation(operation, hostname string) error {
+	if os.Getenv("TENANT_DOMAIN_PROVISIONER_ENABLED") != "true" {
+		return nil
+	}
+	connection, err := net.DialTimeout("unix", tenantDomainProvisionerSocketPath, 5*time.Second)
+	if err != nil {
+		return ErrTenantDomainHostOperation
+	}
+	defer connection.Close()
+	if err = connection.SetDeadline(time.Now().Add(10 * time.Minute)); err != nil {
+		return ErrTenantDomainHostOperation
+	}
+	if _, err = io.WriteString(connection, operation+"\t"+hostname+"\n"); err != nil {
+		return ErrTenantDomainHostOperation
+	}
+	response, err := io.ReadAll(connection)
+	if err != nil || string(response) != "OK\n" {
+		return ErrTenantDomainHostOperation
+	}
+	return nil
 }
 
 func tenantDomainDNSMatches(hostname string) bool {
@@ -182,11 +254,24 @@ func normalizeDNSName(name string) string {
 }
 
 func DeleteDomain(domainID, tenantID int) error {
+	var domain model.TenantDomain
+	if err := model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).First(&domain).Error; err != nil {
+		return err
+	}
+	if err := TenantDomainHostOperation("cleanup", domain.Hostname); err != nil {
+		return ErrTenantDomainHostOperation
+	}
 	result := model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).Delete(&model.TenantDomain{})
 	if result.Error != nil {
+		if domain.Status == model.DomainVerified {
+			_ = TenantDomainHostOperation("provision", domain.Hostname)
+		}
 		return result.Error
 	}
 	if result.RowsAffected != 1 {
+		if domain.Status == model.DomainVerified {
+			_ = TenantDomainHostOperation("provision", domain.Hostname)
+		}
 		return gorm.ErrRecordNotFound
 	}
 	return nil

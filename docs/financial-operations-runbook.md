@@ -1,43 +1,60 @@
-# Hướng dẫn vận hành nền tảng tài chính
+# Hướng dẫn vận hành nền tảng New API
 
-Tài liệu này hướng dẫn từng bước vận hành các tính năng đã triển khai: tenant
-workspace, membership và domain, customer wallet, ledger bất biến, provider
-wallet, provider funding, provider credit threshold, cash-flow report và CSV
-export.
+Tài liệu này hướng dẫn triển khai, kiểm tra và xử lý sự cố cho các chức năng
+không gian đối tác, thành viên và tên miền, ví khách hàng, sổ cái, ví nhà cung
+cấp, nạp tiền, cấp hạn mức, ngưỡng tín dụng, báo cáo dòng tiền và xuất CSV.
 
-> **Phạm vi hiện tại:** đây là MVP vận hành tài chính. Invoice, approval
-> workflow và tự động đối soát nâng cao chưa được triển khai. Customer quota là
-> số dư sử dụng; financial wallet và ledger là sổ cái nội bộ riêng biệt.
+Tài liệu dành cho quản trị viên và người vận hành. Mỗi mục được trình bày theo
+thứ tự: việc cần làm, cách kiểm tra kết quả và cách xử lý nếu không đúng. Các
+tên trong dấu `...` như `SQL_DSN`, `/api/status` và tên nút trên màn hình được
+giữ nguyên để có thể đối chiếu trực tiếp với cấu hình hoặc giao diện.
+
+### Từ ngữ dùng trong tài liệu
+
+- **Tenant/không gian đối tác:** khu vực riêng của một đối tác trong hệ thống.
+- **Quota/hạn mức sử dụng:** lượng dịch vụ người dùng còn được phép sử dụng;
+  đây không phải tiền trong ví.
+- **Ví tài chính:** nơi ghi nhận số tiền theo từng chủ sở hữu và loại tiền.
+- **Sổ cái:** lịch sử ghi tăng/giảm tiền của ví; không sửa hoặc xóa lịch sử này.
+- **Mã tham chiếu:** mã để tìm và đối chiếu một giao dịch.
+- **Thử lại an toàn:** gửi lại cùng yêu cầu và cùng mã chống trùng để hệ thống
+  không ghi nhận giao dịch lần thứ hai.
+- **Host provisioner:** dịch vụ chạy trên máy chủ, thay ứng dụng tạo/xóa cấu hình
+  Nginx và chứng chỉ cho tên miền.
+
+> **Phạm vi hiện tại:** đây là phiên bản tối thiểu của chức năng tài chính. Hóa đơn,
+> quy trình phê duyệt và đối soát tự động nâng cao chưa được triển khai. Quota
+> khách hàng là hạn mức sử dụng dịch vụ; ví tài chính và sổ cái là các số liệu
+> nội bộ riêng, không thay thế quota.
 
 ## Quy tắc an toàn bắt buộc
 
-1. Chỉ Administrator được thực hiện funding, allocation, threshold và
-   reconciliation.
-2. Không ghi secret, access token, DSN, cookie phiên hoặc dữ liệu xác thực vào
-   log, ticket, ảnh chụp màn hình hay repository.
-3. Không sửa hoặc xoá transaction, ledger entry, funding hay allocation đã hoàn
-   tất. Correction phải là transaction adjustment hoặc reversal mới.
-4. Luôn lưu reference và CSV export của từng kỳ đối soát.
-5. Không hạ threshold chỉ để che giấu lỗi số dư provider.
-6. Customer wallet không hiển thị “Available balance”; không dùng giao diện
-   đó để thay thế cho số dư quota.
+1. Chỉ quản trị viên được thực hiện nạp tiền, phân bổ, cấu hình ngưỡng và đối soát.
+2. Không ghi bí mật, mã truy cập, DSN, cookie phiên hoặc dữ liệu xác thực vào
+   nhật ký, phiếu hỗ trợ, ảnh chụp màn hình hay kho mã nguồn.
+3. Không sửa hoặc xóa giao dịch, dòng sổ cái, khoản nạp hoặc khoản phân bổ đã
+   hoàn tất. Mọi điều chỉnh phải được ghi nhận bằng giao dịch điều chỉnh/đảo
+   ngược mới.
+4. Luôn lưu mã tham chiếu và tệp CSV xuất ra của từng kỳ đối soát.
+5. Không hạ ngưỡng chỉ để che giấu sai lệch số dư nhà cung cấp.
+6. Không dùng số dư ví tài chính để thay thế số dư quota sử dụng dịch vụ.
 
-## 1. Before deployment
+## 1. Chuẩn bị trước khi triển khai
 
-- Deploy a tagged release or a reviewed commit from a clean working tree.
-- Confirm that `SQL_DSN` points to the intended primary database and that the
-  database backup completed successfully.
-- Confirm that `REDIS_CONN_STRING`, `SESSION_SECRET`, and `CRYPTO_SECRET` are
-  configured from the secret store. Never commit or paste their values into
-  logs, tickets, or this repository.
-- For HTTPS deployments, set `SESSION_COOKIE_SECURE=true` and configure the
-  exact public origins in `SESSION_COOKIE_TRUSTED_URL`.
-- Set explicit `TRUSTED_PROXIES` values or `none`; do not rely on the default
-  compatibility warning in production.
+- Triển khai phiên bản đã gắn thẻ hoặc commit đã được duyệt; không triển khai
+  thay đổi chưa được rà soát.
+- Xác nhận `SQL_DSN` trỏ đến đúng cơ sở dữ liệu chính và đã tạo bản sao lưu có
+  thể khôi phục.
+- Nạp `REDIS_CONN_STRING`, `SESSION_SECRET` và `CRYPTO_SECRET` từ kho bí mật.
+  Không ghi giá trị của chúng vào log, phiếu hỗ trợ hoặc kho mã nguồn.
+- Khi dùng HTTPS, đặt `SESSION_COOKIE_SECURE=true` và khai báo chính xác các
+  nguồn truy cập công khai trong `SESSION_COOKIE_TRUSTED_URL`.
+- Cấu hình rõ `TRUSTED_PROXIES` hoặc đặt `none`; không bỏ qua cảnh báo tương
+  thích mặc định trên môi trường thật.
 
-## 2. Deployment and migration check
+## 2. Triển khai và kiểm tra migration
 
-For a Docker deployment:
+Với Docker Compose:
 
 ```bash
 docker compose up -d
@@ -45,7 +62,7 @@ docker compose ps
 curl -fsS http://127.0.0.1:3000/api/status
 ```
 
-For a systemd deployment, restart the service and verify the health endpoint:
+Với dịch vụ systemd, khởi động lại dịch vụ và kiểm tra endpoint tình trạng:
 
 ```bash
 sudo systemctl restart new-api
@@ -53,81 +70,81 @@ sudo systemctl is-active new-api
 curl -fsS https://<public-host>/api/status
 ```
 
-The response must contain `"success":true`. Check startup logs for migration
-errors before sending traffic:
+Phản hồi phải có `"success":true`. Trước khi nhận lưu lượng, kiểm tra log khởi
+động để phát hiện lỗi migration:
 
 ```bash
 docker logs --since=10m <container> | grep -Ei 'fatal|panic|migration|error'
 sudo journalctl -u new-api --since '-10 minutes' --no-pager
 ```
 
-Financial migrations are expected to be idempotent. Run the health check again
-after a second restart; do not delete volumes to resolve a migration failure.
+Migration tài chính phải chạy lặp lại an toàn. Khởi động lại lần thứ hai rồi
+kiểm tra sức khỏe thêm lần nữa. Không xóa volume để xử lý lỗi migration.
 
-## 3. Daily financial checks
+## 3. Kiểm tra tài chính hằng ngày
 
-1. Open the administrator **Provider Wallet** page.
-2. Check provider wallet totals and per-channel balances.
-3. Review channels marked **Below threshold** or **Auto disabled**.
-4. Confirm recent deposits and allocations in **Cash flow history**.
-5. Use the date and direction filters, then confirm that the report totals match
-   the visible rows for each currency.
-6. Export the filtered report and retain it with the operational record when a
-   reconciliation is required.
+1. Mở trang quản trị **Provider Wallet** (Ví nhà cung cấp).
+2. Kiểm tra tổng số dư ví và số dư của từng kênh.
+3. Rà soát các kênh có trạng thái **Below threshold** (Dưới ngưỡng) hoặc
+   **Auto disabled** (Tự động tắt).
+4. Đối chiếu các khoản nạp và phân bổ gần đây trong **Cash flow history**
+   (Lịch sử dòng tiền).
+5. Lọc theo ngày và chiều thu/chi; kiểm tra tổng báo cáo khớp các dòng hiển thị
+   theo từng loại tiền.
+6. Khi cần đối soát, xuất báo cáo đã lọc và lưu cùng hồ sơ vận hành.
 
-Provider credit thresholds are safeguards for the provider balance reported by
-each channel. They are not customer quotas. A channel below its configured
-threshold is automatically disabled; it is re-enabled after the balance is
-restored. A manual channel disable must not be overridden by this policy.
+Ngưỡng tín dụng nhà cung cấp là mức bảo vệ dựa trên số dư do từng kênh báo cáo,
+không phải quota khách hàng. Kênh sẽ tự tắt khi số dư thấp hơn ngưỡng và chỉ
+được tự bật lại khi số dư được khôi phục. Chính sách này không được ghi đè thao
+tác tắt kênh thủ công.
 
-## 4. Reconciliation procedure
+## 4. Quy trình đối soát
 
-For each currency and reporting period:
+Thực hiện riêng cho từng loại tiền và kỳ báo cáo:
 
-1. Export the filtered cash-flow CSV from the administrator console.
-2. Reconcile incoming funding against provider payment records.
-3. Reconcile outgoing allocations against the customer or tenant funding
-   records.
-4. Verify:
+1. Xuất CSV dòng tiền đã lọc từ trang quản trị.
+2. Đối chiếu tiền vào với chứng từ thanh toán của nhà cung cấp.
+3. Đối chiếu tiền ra với hồ sơ cấp tiền cho khách hàng hoặc tenant.
+4. Kiểm tra công thức:
 
    ```text
    net = incoming - outgoing
    ```
 
-5. Investigate duplicate references, missing counterparties, unexpected
-   currencies, or a negative available balance before making any adjustment.
+5. Trước khi điều chỉnh, kiểm tra mã tham chiếu trùng, thiếu bên giao dịch, loại
+   tiền bất thường hoặc số dư khả dụng âm.
 
-Ledger entries and completed financial transactions are append-only. Do not
-edit or delete them directly. Corrections must be represented by a new,
-auditable adjustment or reversal flow approved by the operator.
+Các dòng sổ cái và giao dịch tài chính đã hoàn tất chỉ được ghi nối tiếp; không
+được sửa hoặc xóa trực tiếp. Sai lệch phải được xử lý bằng giao dịch điều chỉnh
+hoặc đảo ngược mới, có thể kiểm toán và được người có thẩm quyền phê duyệt.
 
-## 5. Provider credit response
+## 5. Xử lý khi tín dụng nhà cung cấp thấp
 
-When a channel is automatically disabled:
+Khi một kênh bị hệ thống tự động tắt:
 
-1. Verify the provider balance directly in the provider console.
-2. Confirm the configured threshold in Provider Wallet.
-3. Fund the provider account through the approved payment process.
-4. Refresh or synchronize the channel balance.
-5. Confirm that the channel is enabled only after the balance is above the
-   threshold.
+1. Kiểm tra số dư trực tiếp trên trang quản lý của nhà cung cấp.
+2. Xác nhận ngưỡng đã cấu hình trong trang **Provider Wallet**.
+3. Nạp tiền vào tài khoản nhà cung cấp theo quy trình thanh toán được duyệt.
+4. Làm mới hoặc đồng bộ số dư của kênh.
+5. Xác nhận kênh chỉ được bật lại sau khi số dư vượt ngưỡng.
 
-Do not lower the threshold solely to hide an upstream credit problem. If the
-channel was manually disabled, resolve that operator action separately.
+Không hạ ngưỡng chỉ để che giấu vấn đề tín dụng với nhà cung cấp. Nếu kênh bị
+tắt thủ công, hãy xử lý riêng thao tác của người vận hành.
 
-## 6. Incident: 5xx, timeout, or restart loop
+## 6. Sự cố: lỗi 5xx, hết thời gian chờ hoặc khởi động lặp
 
-1. Check container or systemd status.
-2. Inspect the first fatal startup error, not only the latest restart message.
-3. Check database connectivity and available disk space.
-4. If the error is a migration failure, stop repeated restarts and take a
-   database snapshot before remediation.
-5. Restore the last known-good release only after preserving logs and the
-   database snapshot.
-6. Verify `/api/status` and perform a read-only financial report check before
-   reopening traffic.
+1. Kiểm tra trạng thái container hoặc dịch vụ systemd.
+2. Tìm lỗi nghiêm trọng đầu tiên khi khởi động, không chỉ xem thông báo khởi
+   động lại mới nhất.
+3. Kiểm tra kết nối cơ sở dữ liệu và dung lượng đĩa còn trống.
+4. Nếu lỗi liên quan migration, dừng việc khởi động lặp và tạo ảnh chụp cơ sở
+   dữ liệu trước khi khắc phục.
+5. Chỉ khôi phục phiên bản hoạt động tốt gần nhất sau khi đã lưu log và bản sao
+   cơ sở dữ liệu.
+6. Trước khi mở lại lưu lượng, kiểm tra `/api/status` và xem báo cáo tài chính ở
+   chế độ chỉ đọc.
 
-Example Docker checks:
+Ví dụ lệnh kiểm tra Docker:
 
 ```bash
 docker compose ps
@@ -135,151 +152,154 @@ docker logs --tail=200 <container>
 docker inspect --format '{{.State.Status}}' <container>
 ```
 
-Do not expose database DSNs, session cookies, API keys, or raw authentication
-errors in incident output.
+Không để lộ DSN cơ sở dữ liệu, cookie phiên, khóa API hoặc lỗi xác thực thô
+trong thông tin sự cố.
 
-## 7. Backup and rollback
+## 7. Sao lưu và quay lui
 
-- Back up the primary database before every release that changes models or
-  migrations.
-- Keep the previous application binary or image and its exact commit ID.
-- Roll back application code first when the schema remains compatible.
-- Restore a database backup only with an approved recovery decision; restoring
-  data can remove valid financial transactions created after the backup.
-- After rollback or restore, verify migration idempotency, wallet balances,
-  ledger balance, provider cash-flow totals, and `/api/status`.
+- Sao lưu cơ sở dữ liệu chính trước mỗi bản phát hành có thay đổi model hoặc
+  migration.
+- Lưu lại binary hoặc image của phiên bản trước cùng mã commit chính xác.
+- Nếu schema vẫn tương thích, quay lui mã ứng dụng trước.
+- Chỉ khôi phục bản sao cơ sở dữ liệu khi đã có quyết định khôi phục được duyệt;
+  thao tác này có thể làm mất các giao dịch tài chính hợp lệ phát sinh sau thời
+  điểm sao lưu.
+- Sau khi quay lui hoặc khôi phục, kiểm tra migration chạy lặp an toàn, số dư ví,
+  cân bằng sổ cái, tổng dòng tiền nhà cung cấp và `/api/status`.
 
-## 8. Release sign-off
+## 8. Danh sách kiểm tra trước khi xác nhận phát hành
 
-- [ ] Backup completed and restore point recorded.
-- [ ] Application starts without migration errors.
-- [ ] Health endpoint returns success after two restarts.
-- [ ] Provider wallet totals load for every configured currency.
-- [ ] Provider credit threshold and auto-disable state are correct.
-- [ ] Filtered cash-flow report totals reconcile with the exported CSV.
-- [ ] No secrets or raw sensitive errors appear in logs or release evidence.
-- [ ] SQLite, MySQL, and PostgreSQL verification results are recorded before
-  declaring database compatibility for production.
+- [ ] Đã sao lưu và ghi nhận điểm có thể khôi phục.
+- [ ] Ứng dụng khởi động không có lỗi migration.
+- [ ] Endpoint kiểm tra sức khỏe trả về thành công sau hai lần khởi động lại.
+- [ ] Tổng số dư ví nhà cung cấp tải được cho mọi loại tiền đã cấu hình.
+- [ ] Ngưỡng tín dụng và trạng thái tự tắt của kênh chính xác.
+- [ ] Tổng báo cáo dòng tiền đã lọc khớp CSV xuất ra.
+- [ ] Log và bằng chứng phát hành không chứa bí mật hoặc lỗi nhạy cảm thô.
+- [ ] Đã lưu kết quả kiểm tra SQLite, MySQL và PostgreSQL trước khi công bố khả
+  năng tương thích cơ sở dữ liệu trên môi trường thật.
 
-## 9. Vận hành Partner Workspace
+## 9. Vận hành không gian đối tác (Partner Workspace)
 
-1. Đăng nhập bằng tài khoản có quyền quản lý tenant và mở
+1. Đăng nhập bằng tài khoản có quyền quản lý tenant (không gian đối tác) và mở
    `/partner-workspace`.
-2. Chọn workspace cần thao tác.
+2. Chọn không gian đối tác cần thao tác.
 3. Dùng các màn hình tương ứng:
-   - `/partner-workspace/overview`: thống kê workspace.
-   - `/partner-workspace/users`: quản lý thành viên và role.
-   - `/partner-workspace/domains`: thêm, xác minh hoặc xoá domain.
-   - `/partner-workspace/wallet`: số dư và giao dịch wallet workspace.
-   - `/partner-workspace/transactions`: lịch sử transaction.
-4. Khi thêm member, chọn đúng user và role, lưu, sau đó xác nhận user chỉ thấy
-   dữ liệu thuộc workspace.
-5. Khi thêm domain, nhập hostname, lưu, tạo DNS record theo giá trị xác minh,
-   chờ DNS propagation rồi chọn **Verify**.
-6. Khi xoá member hoặc domain, kiểm tra các liên kết đang sử dụng trước khi
-   xác nhận.
+   - `/partner-workspace/overview`: số liệu tổng quan.
+   - `/partner-workspace/users`: quản lý thành viên và vai trò.
+   - `/partner-workspace/domains`: thêm, xác minh hoặc xóa tên miền.
+   - `/partner-workspace/wallet`: số dư và giao dịch của ví không gian đối tác.
+   - `/partner-workspace/transactions`: lịch sử giao dịch.
+4. Khi thêm thành viên, chọn đúng người dùng và vai trò; sau khi lưu, xác nhận
+   người dùng chỉ xem được dữ liệu thuộc không gian đối tác đó.
+5. Khi thêm tên miền, nhập hostname, lưu, tạo bản ghi DNS theo giá trị xác minh,
+   chờ DNS cập nhật rồi chọn **Verify** (Xác minh).
+6. Trước khi xóa thành viên hoặc tên miền, kiểm tra các liên kết đang sử dụng.
 
-## 10. Customer wallet và ledger
+## 10. Ví khách hàng và sổ cái
 
-### 10.1 Phân biệt số dư
+### 10.1 Phân biệt các loại số dư
 
-- **Customer quota:** số dư sử dụng của user cho relay/billing hiện hành.
-- **Financial wallet:** số dư tiền nội bộ theo owner và currency.
-- **Ledger:** các dòng debit/credit bất biến dùng để audit financial wallet.
+- **Quota khách hàng:** hạn mức sử dụng dịch vụ của người dùng cho relay và tính
+  phí hiện hành.
+- **Ví tài chính:** số dư tiền nội bộ gắn với chủ sở hữu và loại tiền.
+- **Sổ cái:** các dòng ghi nợ/ghi có bất biến dùng để kiểm toán ví tài chính.
 
-Không dùng một loại số dư thay thế loại còn lại. Mọi operation wallet cần
-owner, currency, amount ở minor unit, reference và idempotency key.
+Không dùng loại số dư này thay thế loại số dư khác. Mọi thao tác với ví cần có
+chủ sở hữu, loại tiền, số tiền theo đơn vị nhỏ nhất, mã tham chiếu và khóa chống
+ghi nhận trùng (`idempotency key`).
 
-### 10.2 Thực hiện operation
+### 10.2 Thực hiện thao tác với ví
 
-1. Xác định owner, currency và amount minor unit.
-2. Tạo reference/idempotency key duy nhất.
-3. Kiểm tra wallet ở trạng thái active.
-4. Với reserve, xác nhận available balance đủ.
-5. Gọi service/model wallet; không cập nhật trực tiếp cột balance.
-6. Xác nhận transaction completed và debit/credit ledger cân bằng.
-7. Nếu retry cùng idempotency key, xác nhận kết quả cũ được trả lại và không
-   phát sinh debit/credit thứ hai.
-8. Hoàn tiền hoặc correction bằng release/refund/adjustment mới, không sửa
-   transaction cũ.
+1. Xác định chủ sở hữu, loại tiền và số tiền theo đơn vị nhỏ nhất.
+2. Tạo mã tham chiếu và khóa chống ghi nhận trùng duy nhất.
+3. Kiểm tra ví đang ở trạng thái hoạt động.
+4. Với thao tác giữ tiền (reserve), xác nhận số dư khả dụng đủ.
+5. Gọi service/model của ví; không cập nhật trực tiếp cột số dư trong cơ sở dữ
+   liệu.
+6. Xác nhận giao dịch hoàn tất và tổng ghi nợ/ghi có trong sổ cái cân bằng.
+7. Khi thử lại với cùng khóa chống trùng, xác nhận hệ thống trả kết quả cũ và
+   không tạo thêm lần ghi nợ/ghi có.
+8. Hoàn tiền hoặc điều chỉnh bằng thao tác giải phóng/hoàn tiền/điều chỉnh mới;
+   không sửa giao dịch cũ.
 
-### 10.3 Kiểm tra ledger
+### 10.3 Kiểm tra sổ cái
 
-1. Tra transaction bằng transaction number hoặc external reference.
-2. Kiểm tra status, currency và amount minor.
-3. Đối chiếu tổng debit với tổng credit.
-4. Nếu không cân bằng, dừng thao tác tài chính và mở incident; không sửa bảng
-   trực tiếp.
+1. Tìm giao dịch theo số giao dịch hoặc mã tham chiếu bên ngoài.
+2. Kiểm tra trạng thái, loại tiền và số tiền theo đơn vị nhỏ nhất.
+3. Đối chiếu tổng ghi nợ với tổng ghi có.
+4. Nếu không cân bằng, dừng thao tác tài chính và mở sự cố; không sửa trực tiếp
+   dữ liệu trong bảng.
 
-## 11. Provider funding và provider wallet
+## 11. Nạp tiền và ví nhà cung cấp
 
-### 11.1 Ghi nhận funding
+### 11.1 Ghi nhận khoản nạp
 
-1. Mở `/provider-funding`.
-2. Chọn channel và currency.
-3. Chọn **Create funding**.
-4. Nhập amount minor unit, reference, provider reference và note.
-5. Kiểm tra currency/amount rồi submit một lần.
-6. Xác nhận record xuất hiện ở incoming cash flow.
-7. Nếu timeout, tra reference trước khi tạo lại; không tạo reference mới chỉ vì
-   chưa thấy response.
+1. Mở `/provider-funding` (Nạp tiền nhà cung cấp).
+2. Chọn kênh và loại tiền.
+3. Chọn **Create funding** (Tạo khoản nạp).
+4. Nhập số tiền theo đơn vị nhỏ nhất, mã tham chiếu, mã giao dịch của nhà cung
+   cấp và ghi chú nếu cần.
+5. Kiểm tra loại tiền và số tiền, sau đó gửi một lần.
+6. Xác nhận khoản nạp xuất hiện trong dòng tiền vào.
+7. Nếu yêu cầu hết thời gian chờ, hãy tìm theo mã tham chiếu trước khi thử lại;
+   không tạo mã mới chỉ vì chưa nhận được phản hồi.
 
-### 11.2 Allocation
+### 11.2 Phân bổ tiền
 
-1. Mở `/provider-wallet`.
-2. Chọn provider wallet và currency.
-3. Chọn user/tenant nhận allocation.
-4. Nhập amount, quota, exchange rate và reference.
-5. Xác nhận available provider funding đủ rồi submit.
-6. Kiểm tra available provider funding giảm đúng amount.
-7. Kiểm tra user/tenant nhận đúng quota và outgoing cash flow có allocation.
+1. Mở `/provider-wallet` (Ví nhà cung cấp).
+2. Chọn ví nhà cung cấp và loại tiền.
+3. Chọn người dùng hoặc tenant nhận khoản phân bổ.
+4. Nhập số tiền, quota được cấp, tỷ giá và mã tham chiếu.
+5. Xác nhận nguồn tiền khả dụng của nhà cung cấp đủ rồi mới gửi.
+6. Kiểm tra nguồn tiền khả dụng giảm đúng số tiền phân bổ.
+7. Kiểm tra người dùng/tenant nhận đúng quota và dòng tiền ra có khoản phân bổ.
 
-Nếu gặp insufficient funding hoặc quota limit, không retry vô hạn; kiểm tra
-transaction gần nhất và số dư thực tế trước.
+Nếu nguồn tiền không đủ hoặc chạm giới hạn quota, không thử lại liên tục; trước
+hết kiểm tra giao dịch gần nhất và số dư thực tế.
 
-### 11.3 Đồng bộ
+### 11.3 Đồng bộ số dư
 
-1. Mở `/provider-funding` và kiểm tra sync status.
-2. Chỉ chọn **Start sync** khi không có job đang chạy.
-3. Chờ job hoàn tất.
-4. Đối chiếu kết quả với provider console.
-5. Nếu sync lỗi, giữ nguyên dữ liệu, lưu error không chứa secret và xử lý theo
-   mục incident.
+1. Mở `/provider-funding` và kiểm tra trạng thái đồng bộ.
+2. Chỉ chọn **Start sync** (Bắt đầu đồng bộ) khi không có tác vụ nào đang chạy.
+3. Chờ tác vụ hoàn tất.
+4. Đối chiếu kết quả với trang quản lý của nhà cung cấp.
+5. Nếu đồng bộ lỗi, giữ nguyên dữ liệu, lưu thông tin lỗi không chứa bí mật và
+   xử lý theo mục Sự cố.
 
-## 12. Provider credit threshold
+## 12. Ngưỡng tín dụng nhà cung cấp
 
-1. Mở trang quản trị channel/provider.
-2. Chọn channel và nhập threshold theo currency/đơn vị cấu hình.
-3. Lưu và xác nhận threshold đã cập nhật.
-4. Khi balance thấp hơn threshold, channel chuyển sang auto-disabled.
-5. Fund provider account theo quy trình provider.
-6. Refresh hoặc sync balance.
-7. Xác nhận channel chỉ auto-enable lại khi balance vượt threshold.
-8. Nếu channel bị manual disable, threshold policy không được ghi đè trạng thái
+1. Mở trang quản trị kênh/nhà cung cấp.
+2. Chọn kênh và nhập ngưỡng theo loại tiền/đơn vị cấu hình.
+3. Lưu, sau đó xác nhận ngưỡng đã được cập nhật.
+4. Khi số dư thấp hơn ngưỡng, kênh chuyển sang trạng thái tự động tắt.
+5. Nạp tiền vào tài khoản nhà cung cấp theo quy trình của nhà cung cấp.
+6. Làm mới hoặc đồng bộ số dư.
+7. Xác nhận kênh chỉ tự bật lại khi số dư vượt ngưỡng.
+8. Nếu kênh đã bị tắt thủ công, chính sách ngưỡng không được ghi đè trạng thái
    đó.
 
-Khi channel bị auto-disable, kiểm tra provider console, balance, timestamp sync
-và threshold trước khi thay đổi cấu hình. Không hạ threshold để che giấu lỗi
-credit.
+Khi kênh tự tắt, hãy kiểm tra trang nhà cung cấp, số dư, thời điểm đồng bộ và
+ngưỡng trước khi đổi cấu hình. Không hạ ngưỡng để che giấu lỗi tín dụng.
 
-## 13. Cash-flow report và CSV export
+## 13. Báo cáo dòng tiền và xuất CSV
 
 1. Mở `/provider-funding`.
-2. Chọn currency, khoảng thời gian `From`/`To` và direction.
-3. Dùng **Incoming** cho funding vào provider pool, **Outgoing** cho allocation
-   ra user/tenant.
-4. Kiểm tra công thức:
+2. Chọn loại tiền, khoảng thời gian `From`/`To` (Từ/Đến) và chiều dòng tiền.
+3. Chọn **Incoming** (Tiền vào) cho khoản nạp vào quỹ nhà cung cấp;
+   **Outgoing** (Tiền ra) cho khoản phân bổ cho người dùng/tenant.
+4. Kiểm tra công thức tính:
 
    ```text
    net = incoming - outgoing
    ```
 
-5. Đối chiếu summary với các dòng đang hiển thị.
-6. Chọn **Export CSV** và lưu file theo kỳ, ví dụ
+5. Đối chiếu phần tổng hợp với các dòng đang hiển thị.
+6. Chọn **Export CSV** (Xuất CSV) và lưu tệp theo kỳ, ví dụ
    `provider-cash-flow-YYYY-MM.csv`.
-7. Giữ file gốc; nếu cần ghi chú, tạo bản sao.
+7. Giữ nguyên tệp gốc; nếu cần ghi chú, hãy tạo một bản sao.
 
-API administrator tương ứng:
+Các API quản trị tương ứng:
 
 ```text
 GET  /api/financial/provider-funding
@@ -291,111 +311,169 @@ POST /api/financial/provider-funding/sync
 GET  /api/financial/wallets
 ```
 
-## 14. Quy trình reconciliation định kỳ
+## 14. Quy trình đối soát định kỳ
 
-1. Tạo restore point trước khi bắt đầu.
-2. Export CSV theo từng currency và kỳ đối soát.
-3. Đối chiếu incoming với provider payment records.
-4. Đối chiếu outgoing với user/tenant allocation records.
-5. Kiểm tra duplicate reference, currency lạ, amount âm và available balance âm.
-6. Đối chiếu ledger, wallet transaction và cash-flow record.
-7. Ghi lại chênh lệch, reference và người xử lý.
-8. Không tự ý tạo adjustment nếu chưa có phê duyệt vận hành nội bộ.
+1. Tạo điểm khôi phục trước khi bắt đầu.
+2. Xuất CSV riêng theo từng loại tiền và kỳ đối soát.
+3. Đối chiếu tiền vào với chứng từ thanh toán của nhà cung cấp.
+4. Đối chiếu tiền ra với hồ sơ phân bổ cho người dùng/tenant.
+5. Kiểm tra mã tham chiếu trùng, loại tiền lạ, số tiền âm và số dư khả dụng âm.
+6. Đối chiếu sổ cái, giao dịch ví và bản ghi dòng tiền.
+7. Ghi lại chênh lệch, mã tham chiếu và người xử lý.
+8. Không tự tạo giao dịch điều chỉnh khi chưa được phê duyệt nội bộ.
 
-## 15. Incident và rollback
+## 15. Xử lý sự cố và quay lui
 
-### 15.1 5xx, timeout hoặc restart loop
+### 15.1 Lỗi 5xx, hết thời gian chờ hoặc khởi động lặp
 
-1. Kiểm tra container/systemd status.
-2. Đọc lỗi đầu tiên trong startup log.
-3. Kiểm tra database, Redis, disk space và network.
-4. Nếu là migration failure, dừng restart lặp và tạo database snapshot.
-5. Giữ log, commit/image hiện tại và chỉ rollback sau khi kiểm tra schema.
-6. Xác nhận `/api/status`, wallet và report read-only trước khi mở traffic.
+1. Kiểm tra trạng thái container/dịch vụ systemd.
+2. Đọc lỗi đầu tiên trong log khởi động.
+3. Kiểm tra cơ sở dữ liệu, Redis, dung lượng đĩa và kết nối mạng.
+4. Nếu lỗi migration, dừng khởi động lặp và tạo bản sao cơ sở dữ liệu.
+5. Lưu log, mã commit/image hiện tại; chỉ quay lui sau khi kiểm tra tương thích
+   schema.
+6. Trước khi mở lại lưu lượng, xác nhận `/api/status`, số dư ví và báo cáo ở chế
+   độ chỉ đọc.
 
-### 15.2 Funding bị nghi ghi trùng
+### 15.2 Nghi ngờ khoản nạp bị ghi nhận trùng
 
-1. Tìm theo reference/idempotency key.
-2. Kiểm tra financial transaction và cash-flow record.
-3. Nếu completed, không submit lại.
-4. Nếu pending, xử lý theo retry policy.
-5. Chỉ tạo adjustment khi có bằng chứng giao dịch thực tế.
+1. Tìm theo mã tham chiếu/khóa chống ghi nhận trùng.
+2. Kiểm tra giao dịch tài chính và bản ghi dòng tiền.
+3. Nếu giao dịch đã hoàn tất, không gửi lại.
+4. Nếu đang chờ, xử lý theo chính sách thử lại.
+5. Chỉ tạo giao dịch điều chỉnh khi có bằng chứng về giao dịch thực tế.
 
-### 15.3 Số dư/report không khớp
+### 15.3 Số dư hoặc báo cáo không khớp
 
-1. Chốt currency, khoảng thời gian và direction filter.
-2. Export CSV lại.
-3. Tìm reference thiếu/trùng.
-4. Đối chiếu ledger với wallet và cash-flow.
-5. Không sửa trực tiếp dữ liệu production.
+1. Xác nhận loại tiền, khoảng thời gian và bộ lọc chiều dòng tiền.
+2. Xuất lại CSV.
+3. Tìm mã tham chiếu bị thiếu hoặc trùng.
+4. Đối chiếu sổ cái với ví và dòng tiền.
+5. Không sửa trực tiếp dữ liệu trên môi trường thật.
 
-## 16. Vận hành custom domain của Partner Workspace
+## 16. Vận hành tên miền riêng của Partner Workspace
 
-### 16.1 Trạng thái hiện tại
+### 16.1 Hiểu quy trình trước khi bắt đầu
 
-Tính năng domain hiện hỗ trợ:
+Khi triển khai New API bằng GitHub Actions (systemd), workflow cài luôn dịch vụ
+hỗ trợ tên miền lên máy chủ và bật kết nối giữa dịch vụ đó với New API. Không
+cần SSH vào máy chủ để cài thủ công. Sau khi deployment thành công, đối tác có
+thể thêm tên miền trong giao diện và cập nhật DNS. Khi bấm **Verify** (Xác minh),
+New API kiểm tra DNS rồi tự yêu cầu dịch vụ trên máy chủ tạo cấu hình Nginx và
+chứng chỉ HTTPS riêng.
 
-1. Đối tác thêm hostname.
-2. Hệ thống hiển thị DNS record cần cấu hình.
-3. Hệ thống kiểm tra CNAME hoặc A record.
-4. Domain chuyển từ `pending` sang `verified` khi DNS đúng.
-5. Domain đã verified được dùng để resolve tenant theo HTTP `Host`.
+Trước khi cài, hãy xác nhận với người quản trị máy chủ rằng:
 
-Nginx/Certbot **chưa được tự động provision từ màn hình quản lý domain**. Domain
-deploy chính của hệ thống có pipeline Nginx/Certbot riêng; pipeline đó không tự
-áp dụng cho custom domain của partner.
+- New API và Nginx chạy trên cùng máy chủ; Nginx kết nối đến New API qua cổng
+  ứng dụng (mặc định `3000`).
+- Tên miền đối tác đã trỏ về địa chỉ IP công khai của máy chủ.
+- Người dùng Internet có thể kết nối đến máy chủ qua cổng 80 và 443.
+- GitHub Actions đã deploy thành công và cài dịch vụ
+  `new-api-tenant-domain-provisioner`.
 
-### 16.2 Quy trình thêm và verify domain
+Ứng dụng không được cấp quyền sửa cấu hình máy chủ trực tiếp. Thay vào đó, ứng
+dụng gửi yêu cầu qua một kênh liên lạc nội bộ trên cùng máy chủ. Kênh này không
+phải cổng mở ra Internet và chỉ dành cho tài khoản chạy New API.
 
-1. Mở `/partner-workspace/domains`.
-2. Chọn workspace cần cấu hình.
-3. Chọn **Add domain** và nhập hostname, ví dụ `app.example.com`.
-4. Ghi lại CNAME hoặc A record trong thẻ **DNS records to configure**.
-5. Tạo record tại nhà cung cấp DNS của đối tác.
-6. Chờ DNS propagation.
-7. Chọn **Verify**.
-8. Nếu thành công, kiểm tra trạng thái domain là `verified`.
-9. Truy cập thử hostname và kiểm tra request được resolve đúng tenant.
+### 16.2 Kiểm tra dịch vụ sau khi GitHub Actions deploy
 
-### 16.3 Xử lý lỗi DNS
+Sau khi workflow deploy thành công, quản trị viên có thể kiểm tra dịch vụ và
+socket trên máy chủ:
 
-- `pending`: kiểm tra hostname có bị nhập sai, record có đúng loại và DNS đã
-  propagate hay chưa.
-- CNAME không khớp: kiểm tra trailing dot, proxy mode của DNS provider và record
-  đang bị che bởi CNAME khác.
-- A record không khớp: kiểm tra IP public hiện tại của gateway.
-- Domain không hợp lệ: không dùng IP, wildcard, localhost, port, path hoặc ký tự
-  đặc biệt.
-- Domain đã thuộc workspace khác: không xoá hoặc sửa record của workspace kia;
-  liên hệ administrator để xử lý ownership.
+```bash
+sudo systemctl status new-api-tenant-domain-provisioner --no-pager
+sudo test -S /run/new-api-tenant-domain.sock
+sudo nginx -t
+```
 
-### 16.4 Quy trình khi triển khai tự động Nginx/SSL
+Xác nhận ứng dụng được cấu hình để dùng socket:
 
-Khi host-side domain provisioner được bật, luồng chuẩn sẽ là:
+```bash
+sudo systemctl show new-api -p Environment
+```
 
-1. Chỉ provision domain có trạng thái `verified`.
-2. Tạo file Nginx riêng theo `domain_id`, không dùng hostname làm tên file.
-3. Tạo HTTP-only ACME challenge config.
-4. Chạy `nginx -t` trước mỗi reload.
-5. Dùng Certbot cấp certificate riêng cho hostname.
-6. Tạo HTTPS reverse proxy về application port.
-7. Giữ `Host`, `X-Forwarded-Proto`, WebSocket headers và streaming timeout.
-8. Chỉ chuyển domain sang `ready` sau khi HTTPS health check thành công.
+Nếu một lệnh báo lỗi hoặc socket chưa tồn tại, đừng tiếp tục thêm tên miền. Xem
+log `new-api-tenant-domain-provisioner` và chạy lại GitHub Actions sau khi đã
+khắc phục nguyên nhân.
 
-Không cho API container ghi trực tiếp `/etc/nginx` hoặc chạy `sudo`. Provisioner
-phải chạy trên host qua root-owned wrapper với allowlist thao tác cố định.
+### 16.3 Thêm và xác minh tên miền
 
-### 16.5 Xử lý lỗi provisioner
+1. Đăng nhập bằng tài khoản được cấp quyền quản lý domain của workspace và mở
+   `/partner-workspace/domains`.
+2. Chọn đúng workspace, bấm **Add domain** (Thêm tên miền), rồi nhập hostname,
+   ví dụ `app.example.com`. Nhập hostname, không nhập URL, giao thức, cổng hay
+   đường dẫn.
+3. Lưu lại đúng loại bản ghi DNS, tên/host và giá trị mà giao diện hiển thị.
+4. Tạo bản ghi tại nhà cung cấp DNS của đối tác. Không tự thay đổi giá trị hệ
+   thống cung cấp.
+5. Chờ DNS được cập nhật trên các máy chủ phân giải. Thời gian phụ thuộc TTL và
+   nhà cung cấp DNS.
+6. Quay lại giao diện và chọn **Verify** (Xác minh).
+7. Khi DNS hợp lệ, hệ thống lưu trạng thái `verified` rồi tự động tạo vhost riêng,
+   xin chứng chỉ Certbot và tải lại Nginx.
+8. Mở `https://<hostname>/api/status` hoặc truy cập giao diện để kiểm tra HTTPS,
+   chứng chỉ hợp lệ và nội dung được chuyển đến đúng tenant.
 
-- DNS chưa verified: không gọi Certbot.
-- Certbot lỗi: giữ domain `verified`, ghi trạng thái `failed` và retry.
-- `nginx -t` lỗi: không reload, giữ cấu hình đang chạy.
-- Reload lỗi: rollback cấu hình trước đó.
-- Wrapper hoặc sudo không khả dụng: không đánh dấu `ready`; báo operator xử lý.
-- Xoá domain: ngừng resolve tenant ngay từ database, sau đó dọn Nginx config qua
-  cleanup retry.
-- Gia hạn certificate lỗi: giữ certificate hiện tại và retry ở lịch Certbot sau.
+Tên miền gốc `usgate.ai` và các tên miền con của nó chỉ dành cho quản trị viên
+hệ thống. Người dùng thông thường không thể thêm hoặc đổi sang các tên miền này.
 
-Không ghi certificate private key, token, cookie hoặc toàn bộ environment vào
-log. Mỗi domain phải có cấu hình và trạng thái độc lập để lỗi một domain không
-ảnh hưởng các domain khác.
+### 16.4 Đổi hoặc xóa tên miền
+
+- **Đổi tên miền:** ứng dụng dọn vhost/chứng chỉ của hostname cũ trước khi lưu
+  hostname mới ở trạng thái `pending`. Sau đó đối tác phải tạo DNS và xác minh
+  lại tên miền mới.
+- **Xóa tên miền:** ứng dụng yêu cầu host provisioner gỡ đúng vhost, liên kết
+  Nginx và chứng chỉ của hostname đó trước khi xóa bản ghi trong cơ sở dữ liệu.
+- Nếu dọn cấu hình host thất bại, thao tác đổi/xóa không tiếp tục nhằm tránh
+  mất dấu cấu hình cũ. Khắc phục host provisioner rồi thử lại thao tác.
+- Mỗi hostname có tệp riêng
+  `/etc/nginx/sites-available/partner-<hostname>.conf`, liên kết tương ứng trong
+  `sites-enabled` và chứng chỉ riêng `partner-<hostname>`. Luồng này không sửa
+  vhost chính `new-api.conf` hoặc cấu hình các đối tác khác.
+
+### 16.5 Kiểm tra DNS và xử lý lỗi xác minh
+
+- Trạng thái vẫn là `pending`: kiểm tra hostname, loại bản ghi, tên/host và giá
+  trị DNS; chờ cập nhật rồi xác minh lại.
+- Bản ghi CNAME không khớp: kiểm tra có nhập đúng đích mà giao diện cung cấp,
+  cấu hình proxy của nhà cung cấp DNS và các bản ghi CNAME xung đột hay không.
+- Bản ghi A không khớp: kiểm tra địa chỉ IP công khai hiện tại của gateway và
+  bản ghi A tại DNS.
+- Hostname không hợp lệ: không dùng địa chỉ IP, wildcard, `localhost`, cổng,
+  đường dẫn hoặc ký tự đặc biệt.
+- Tên miền đã được workspace khác sử dụng: không tự xóa bản ghi hoặc sửa dữ
+  liệu của workspace kia; liên hệ quản trị viên để kiểm tra quyền sở hữu.
+- Không gửi được yêu cầu host: xác nhận dịch vụ systemd đang hoạt động, socket
+  tồn tại, UID của ứng dụng khớp UID được phép và cấu hình bật provisioner đúng
+  cho kiểu triển khai đang dùng.
+
+### 16.6 Kiểm tra log và khắc phục tự động cấu hình
+
+Xem trạng thái và nhật ký của dịch vụ cấu hình tên miền:
+
+```bash
+sudo systemctl status new-api-tenant-domain-provisioner --no-pager
+sudo journalctl -u new-api-tenant-domain-provisioner --since '-15 minutes' --no-pager
+sudo journalctl -u new-api --since '-15 minutes' --no-pager
+```
+
+Các bước xử lý theo triệu chứng:
+
+- **Certbot không cấp được chứng chỉ:** xác nhận DNS đã trỏ đúng IP, cổng 80
+  truy cập được từ Internet, Nginx đang chạy và email vận hành hợp lệ. Không
+  xóa thủ công thư mục Certbot; sửa nguyên nhân rồi bấm **Verify** để thử lại.
+- **`nginx -t` thất bại:** không ép tải lại Nginx. Kiểm tra cấu hình lỗi và chỉ
+  sửa tệp của hostname liên quan; không ghi đè cấu hình chính hoặc domain khác.
+- **Tải lại Nginx thất bại:** kiểm tra trạng thái Nginx và cấu hình; thao tác host
+  sẽ cố khôi phục cấu hình trước đó. Xác nhận lại bằng `sudo nginx -t`.
+- **Ứng dụng báo cấu hình host thất bại:** kiểm tra socket và dịch vụ provisioner;
+  sau khi khắc phục, thử lại **Verify**, đổi hoặc xóa theo đúng thao tác đang chờ.
+- **Đã verified nhưng chưa truy cập được:** trạng thái DNS verified không đồng
+  nghĩa provisioning đã thành công. Bấm **Verify** lần nữa để thử cấp cấu hình;
+  kiểm tra DNS, cổng 80/443, Nginx và endpoint `/api/status`.
+- **Gia hạn chứng chỉ lỗi:** chứng chỉ hiện tại được giữ lại; kiểm tra Certbot,
+  hook tải lại Nginx và log dịch vụ, sau đó để Certbot thử lại theo lịch.
+
+Không ghi private key chứng chỉ, token, cookie hoặc toàn bộ biến môi trường vào
+log. Không chạy lệnh root tùy ý từ ứng dụng. Mỗi hostname phải được xử lý độc
+lập để lỗi của một domain không ảnh hưởng domain chính hoặc các đối tác khác.

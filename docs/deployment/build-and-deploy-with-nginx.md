@@ -1,328 +1,210 @@
-# Build và triển khai không dùng Docker
+# Build và triển khai với GitHub Actions
 
-Guide này triển khai New API dưới dạng binary trên Linux server, chạy bằng
-`systemd` và dùng Nginx làm reverse proxy HTTPS. Database và Redis chạy độc
-lập trên server hoặc dùng dịch vụ managed.
+Tài liệu này hướng dẫn đưa New API lên máy chủ live bằng repository
+`https://github.com/MediaSoft-VN/usgate`.
 
-## 1. Điều kiện chuẩn bị
+**Luồng thực hiện:** build gói ứng dụng trên máy local → đẩy gói lên GitHub →
+GitHub Actions gửi gói lên máy chủ và triển khai. GitHub Actions **không build**
+mã nguồn. Máy chủ chạy binary New API bằng systemd, đặt Nginx phía trước để
+phục vụ HTTPS; không chạy ứng dụng trong Docker.
 
-Server cần có:
+## 1. Chuẩn bị một lần
 
-- Linux amd64 hoặc arm64.
-- Go theo phiên bản trong `go.mod`.
-- Bun theo phiên bản được dự án hỗ trợ.
-- Nginx và systemd.
-- PostgreSQL, MySQL hoặc SQLite.
-- Redis nếu cần cache dùng chung.
-- DNS trỏ domain về server.
+### 1.1 Máy chủ
 
-Không dùng các giá trị mẫu như mật khẩu database `123456`. Không ghi secret
-vào Git hoặc gửi secret qua chat.
+Máy chủ live cần:
 
-## 2. Lấy source và tạo thư mục chạy
+- Ubuntu/Debian Linux có systemd.
+- Một tài khoản SSH để GitHub Actions đăng nhập. Tài khoản này phải có quyền
+  `sudo` không hỏi mật khẩu cho các thao tác triển khai.
+- DNS của `newapi.usgate.ai` trỏ đến IP công khai của máy chủ.
+- Cổng 80 và 443 mở từ Internet. Cổng SSH phải cho phép GitHub Actions kết nối.
+- Cơ sở dữ liệu và Redis đã sẵn sàng (trên máy chủ hoặc dịch vụ quản lý riêng).
 
-Nên build từ tag/release cụ thể thay vì branch đang phát triển:
+Workflow tự cài Nginx, Certbot và các gói hệ thống cần thiết. Nó tạo hoặc cập
+nhật dịch vụ `new-api`, cấu hình Nginx và HTTPS cho domain chính. Workflow cũng
+cài dịch vụ host provisioner cho domain tenant, bật kết nối socket của New API
+và xác nhận dịch vụ provisioner đã chạy.
+
+### 1.2 Cấu hình GitHub
+
+Trong repository `MediaSoft-VN/usgate`, vào **Settings → Environments** và tạo
+Environment tên `production`. Thêm các giá trị sau trong Environment này.
+
+**Secrets** — giá trị bí mật, không đưa vào mã nguồn hoặc gửi trong chat:
+
+| Tên | Giá trị cần điền |
+| --- | --- |
+| `DEPLOY_HOST` | IP hoặc hostname của máy chủ live |
+| `DEPLOY_PORT` | Cổng SSH; thường là `22` |
+| `DEPLOY_USER` | Tên tài khoản SSH dùng để triển khai |
+| `DEPLOY_SSH_PRIVATE_KEY` | Khóa riêng SSH của tài khoản triển khai |
+| `DEPLOY_KNOWN_HOSTS` | Khóa nhận diện SSH của máy chủ đã được xác minh |
+| `CERTBOT_EMAIL` | Email người phụ trách chứng chỉ HTTPS |
+| `NEW_API_ENV` | Toàn bộ nội dung file cấu hình `.env` của New API; giữ nguyên nhiều dòng |
+
+**Variables** — cấu hình không bí mật:
+
+| Tên | Giá trị cần điền |
+| --- | --- |
+| `PROD_DOMAIN` | `newapi.usgate.ai` |
+| `APP_USER` | Tài khoản hệ điều hành chạy New API; nếu bỏ trống sẽ dùng `DEPLOY_USER` |
+| `APP_DIR` | Thư mục cài ứng dụng; thường dùng `/opt/new-api` |
+| `APP_PORT` | Cổng nội bộ của ứng dụng; thường dùng `3000` |
+| `OLD_DOMAIN` | Tên miền cũ nếu cần xóa chứng chỉ; không có thì để trống |
+
+Tài khoản triển khai trên máy chủ phải tồn tại và có thể dùng `sudo -n` cho các
+lệnh trong `.github/scripts/deploy-native.sh`. Không cấp quyền rộng hơn cần
+thiết. Nếu không rõ cách cấu hình quyền này, nhờ quản trị viên máy chủ thực hiện.
+
+## 2. Phát hành mỗi lần có phiên bản mới
+
+Thực hiện lần lượt các bước dưới đây trên máy local, từ thư mục repository.
+
+### Bước 1: cập nhật mã nguồn
+
+Đảm bảo mã nguồn muốn phát hành đã được commit và đẩy lên branch `main`. Nếu có
+thay đổi mã nguồn mới, đẩy chúng lên trước. Push mã nguồn **chưa tự triển khai**;
+workflow chỉ chạy khi có gói binary mới.
+
+Nếu máy local có thay đổi chưa commit, lưu chúng an toàn trước khi chuyển
+branch. Không dùng `git reset --hard` để xử lý thay đổi chưa lưu.
 
 ```bash
-sudo mkdir -p /opt/new-api/releases /opt/new-api/data /opt/new-api/logs
-sudo chown -R "$USER":"$USER" /opt/new-api
-
-git clone https://github.com/QuantumNous/new-api.git /opt/new-api/source
-cd /opt/new-api/source
-git checkout <version-or-commit>
+git switch main
+git pull origin main
 ```
 
-Kiểm tra tag hoặc commit trước khi build:
+### Bước 2: build gói Linux ở local
 
-```bash
-git rev-parse HEAD
-git status --short
-```
-
-Working tree phải sạch và đúng phiên bản muốn phát hành.
-
-## 3. Build và đóng gói ở local
-
-Frontend được embed vào binary Go. Từ repository root, chạy script:
+Trên máy local cần Docker đang chạy và Docker Compose đã cài. Mở Terminal tại
+thư mục gốc repository `MediaSoft-VN/usgate`, rồi chạy lệnh build này:
 
 ```bash
 ./scripts/package-native.sh
 ```
 
-Script dùng `docker-compose.build.yml` để build frontend và backend theo target
-`builder2` trong `Dockerfile`, sau đó tạo hai archive:
+Đây là lệnh build đầy đủ của dự án; không chạy `go build` riêng. Script build cả
+frontend và backend rồi đóng gói binary Linux. Khi hoàn tất, gói server được
+tạo tại `deploy/new-api.gz`. Tệp
+`deploy/new-api-client.tar.gz` là gói frontend. GitHub Actions cũng chuyển gói
+này lên máy chủ và giải nén vào `/opt/new-api/client/releases/client-<commit>`;
+liên kết `/opt/new-api/client/current` trỏ đến bản vừa deploy. Binary hiện vẫn
+phục vụ frontend đã nhúng sẵn trong nó; thư mục `client` là bản frontend riêng
+được lưu trên máy chủ.
 
-- `deploy/new-api.gz`: binary server nén, khoảng 42 MB.
-- `deploy/new-api-client.tar.gz`: client frontend (`web/dist`) đóng gói riêng.
-
-Binary thô khoảng 130 MB, vượt giới hạn file 100 MB của GitHub. Client đã được
-embed trong binary để server chạy một file, còn archive client riêng dùng để
-kiểm tra hoặc phân phối. Có thể đổi output binary qua biến môi trường:
-
-```bash
-NATIVE_OUTPUT="deploy/new-api-$(cat VERSION).gz" ./scripts/package-native.sh
-```
-
-Mặc định target là `linux/amd64`. Có thể build cho kiến trúc khác:
+### Bước 3: kiểm tra gói
 
 ```bash
-NATIVE_PLATFORM="linux/arm64" ./scripts/package-native.sh
-```
-
-Compose giữ lại Docker BuildKit cache cho Bun, Go modules và Go build cache.
-Không chạy `docker compose down --volumes` đối với file build nếu muốn giữ
-cache giữa các lần đóng gói.
-
-Nếu muốn gọi qua Make:
-
-```bash
-make package-native
-```
-
-Kiểm tra binary:
-
-```bash
-gzip -dc deploy/new-api.gz > /tmp/new-api
-chmod 0755 /tmp/new-api
-/tmp/new-api --help
-file deploy/new-api.gz
-tar -tzf deploy/new-api-client.tar.gz >/dev/null
-```
-
-Trước khi commit, kiểm tra đúng commit và binary:
-
-```bash
-git rev-parse HEAD
-git status --short
+gzip -t deploy/new-api.gz
+gzip -t deploy/new-api-client.tar.gz
 sha256sum deploy/new-api.gz
+sha256sum deploy/new-api-client.tar.gz
 ```
 
-### Chuẩn bị cho GitHub Actions
+Nếu một lệnh `gzip -t` báo lỗi hoặc thiếu một trong hai gói, dừng lại và build
+lại. Chưa push gói lỗi lên GitHub.
 
-Workflow `.github/workflows/deploy.yml` không build lại source. Nó yêu cầu
-archive binary đã build sẵn được commit tại `deploy/new-api.gz`:
+### Bước 4: commit riêng gói binary
+
+Thêm cả hai gói vào commit phát hành:
 
 ```bash
 git add deploy/new-api.gz
+git add deploy/new-api-client.tar.gz
+git diff --cached --name-only
+```
+
+Trước khi tiếp tục, kết quả lệnh thứ hai phải chỉ có hai dòng:
+
+```text
+deploy/new-api.gz
+deploy/new-api-client.tar.gz
+```
+
+Nếu còn tệp khác, đừng commit vội; bỏ các tệp không thuộc gói phát hành khỏi
+staging rồi kiểm tra lại. Sau đó tạo commit và push:
+
+```bash
 git commit -m "chore: publish native release $(cat VERSION)"
 git push origin main
 ```
 
-Không commit file môi trường, private key hoặc credential vào repository.
-Workflow upload binary lên `/tmp`, kiểm tra SHA-256, cài vào
-`/opt/new-api/releases`, đổi symlink, restart systemd và gọi health check. SSH
-user cần quyền `sudo -n` cho `install`, `ln`, `systemctl` và `rm` trên máy chủ.
+Không commit `.env`, khóa SSH, mật khẩu hoặc thông tin xác thực.
 
-Tạo các GitHub Environment secrets trong environment `production`:
+### Bước 5: theo dõi GitHub Actions
 
-- `DEPLOY_HOST`: hostname hoặc IP máy chủ.
-- `DEPLOY_PORT`: cổng SSH, thường là `22`.
-- `DEPLOY_USER`: user SSH dùng để deploy.
-- `DEPLOY_SSH_PRIVATE_KEY`: private key tương ứng với public key trên máy chủ.
-- `DEPLOY_KNOWN_HOSTS`: output đã xác minh của `ssh-keyscan`, không lấy động
-  trong workflow.
+1. Mở repository `MediaSoft-VN/usgate` trên GitHub.
+2. Chọn tab **Actions**.
+3. Mở workflow **Deploy native release** mới nhất.
+4. Chờ trạng thái chuyển sang thành công. Nếu thất bại, mở bước màu đỏ và xem
+   thông báo lỗi; không đăng tải log có thể chứa thông tin nhạy cảm.
 
-Tạo thêm Environment variables:
+Push gói mới lên `main` sẽ tự chạy workflow. Có thể chạy thủ công bằng
+**Actions → Deploy native release → Run workflow**; commit được chọn phải có
+sẵn `deploy/new-api.gz`.
 
-- `APP_USER`: user chạy `new-api`; nếu bỏ trống sẽ dùng `DEPLOY_USER`.
-- `APP_DIR`: mặc định `/opt/new-api`.
-- `APP_PORT`: port ưu tiên; nếu bỏ trống, workflow đọc port trước đó từ
-  `/opt/new-api/.app-port`, mặc định bắt đầu từ `3000`, rồi tự chọn port trống
-  trong phạm vi 20 port tiếp theo nếu port đang bị dịch vụ khác sử dụng.
-- `PROD_DOMAIN`: domain live, ví dụ `api.example.com`.
-- `OLD_DOMAIN`: domain cũ cần xóa certificate, có thể bỏ trống.
-- `CERTBOT_EMAIL`: email nhận thông báo Let's Encrypt (Environment secret).
-- `NEW_API_ENV`: toàn bộ nội dung file runtime `.env` của New API (Environment
-  secret dạng multiline).
+### Bước 6: xác nhận dịch vụ live
 
-Workflow hiện tự deploy khi có push vào branch `main` có binary mới. Có thể
-chạy thủ công bằng `workflow_dispatch`; production environment nên bật
-required reviewers nếu cần phê duyệt trước deploy.
+Mở các địa chỉ sau:
 
-Mỗi lần deploy workflow sẽ cập nhật `/etc/systemd/system/new-api.service`
-theo binary hiện tại, chạy `daemon-reload`, `enable`, `restart` và kiểm tra
-`/api/status`. Nó cũng ghi lại Nginx server block cho domain mới, cấp hoặc
-renew Let's Encrypt bằng Certbot, bật redirect HTTPS và xóa certificate của
-`OLD_DOMAIN` nếu có.
+- `https://newapi.usgate.ai/api/status` — phải trả về trạng thái thành công.
+- `https://newapi.usgate.ai` — trang phải mở được và trình duyệt không báo lỗi
+  chứng chỉ.
 
-Nếu `new-api` đang chạy, workflow đọc port từ `ExecStart` của service hiện tại
-và tiếp tục dùng đúng port đó; service không bị dừng trong bước dò port. Nếu
-service chưa chạy, workflow dùng `APP_PORT`, `/opt/new-api/.app-port` hoặc bắt
-đầu từ `3000`, rồi tự chọn port trống trong phạm vi 20 port. Port được chọn sẽ được lưu tại
-`/opt/new-api/.app-port` và được dùng đồng thời cho systemd, Nginx và health
-check ở các lần deploy sau.
+## 3. Workflow thực hiện những gì?
 
-## 4. Cấu hình môi trường
+Khi nhận commit có thay đổi `deploy/new-api.gz` hoặc
+`deploy/new-api-client.tar.gz`, workflow:
 
-Không lưu runtime env tại `/etc/new-api.env`. Workflow lấy nội dung từ secret
-`NEW_API_ENV` của GitHub Environment `production`, sau đó ghi thành
-`/opt/new-api/.env` cạnh binary với quyền `0600`. File này được giữ lại khi
-deploy release mới.
+1. Kiểm tra binary và gói client có tồn tại, đọc được và khớp checksum.
+2. Kết nối đến máy chủ qua SSH và chuyển cả hai gói lên.
+3. Giải nén client vào thư mục release riêng, cập nhật liên kết
+   `/opt/new-api/client/current`, rồi cài binary và khởi động lại `new-api`.
+4. Kiểm tra ứng dụng trên cổng nội bộ.
+5. Cài/cập nhật Nginx và cấu hình chuyển yêu cầu đến ứng dụng.
+6. Dùng Certbot xin hoặc gia hạn chứng chỉ domain chính, bật HTTPS và chuyển
+   HTTP sang HTTPS.
+7. Cài ba script host provisioner, đối chiếu checksum, tạo dịch vụ systemd
+   root-owned và socket `/run/new-api-tenant-domain.sock`.
+8. Bật `TENANT_DOMAIN_PROVISIONER_ENABLED=true` cho `new-api`; xác nhận dịch vụ
+   provisioner và socket đang hoạt động.
+9. Kiểm tra endpoint HTTPS công khai.
 
-```bash
-sudo install -o new-api -g new-api -m 0600 /opt/new-api/.env
-sudoedit /opt/new-api/.env
-```
+Sau khi deploy thành công, khi đối tác xác minh domain, New API sẽ gửi yêu cầu
+qua socket. Host provisioner tự tạo cấu hình Nginx và xin chứng chỉ riêng cho
+hostname đó. Luồng này không cần chạy GitHub Actions thêm lần nữa.
 
-Ví dụ tối thiểu:
+Nếu health check nội bộ sau khi khởi động ứng dụng thất bại, workflow sẽ cố
+khôi phục binary trước đó. Nếu lỗi xảy ra ở bước Nginx hoặc cấp chứng chỉ, xem
+log Actions và xử lý lỗi trên máy chủ trước khi chạy lại.
 
-```dotenv
-PORT=3000
-SQL_DSN=postgres://new_api:<database-password>@127.0.0.1:5432/new_api?sslmode=require
-REDIS_CONN_STRING=redis://:<redis-password>@127.0.0.1:6379/0
-SESSION_SECRET=<random-32-byte-secret>
-CRYPTO_SECRET=<different-random-32-byte-secret>
-SESSION_COOKIE_SECURE=true
-SESSION_COOKIE_TRUSTED_URL=https://api.example.com
-TRUSTED_PROXIES=127.0.0.1
-DEFAULT_LANGUAGE=en
-```
+## 4. Kiểm tra lỗi trên máy chủ
 
-Tạo secret bằng:
+Người quản trị máy chủ có thể kiểm tra trạng thái dịch vụ và các thông báo gần
+đây bằng:
 
 ```bash
-openssl rand -hex 32
-```
-
-`SESSION_SECRET` và `CRYPTO_SECRET` phải giữ ổn định khi restart hoặc
-upgrade. Với nhiều node, các node phải dùng cùng authentication secrets và
-database chính.
-
-Nếu dùng SQLite, thay `SQL_DSN` bằng `SQLITE_PATH=/opt/new-api/data/new-api.db`.
-Không bật `DEBUG`, `ENABLE_PPROF` hoặc `TLS_INSECURE_SKIP_VERIFY` trên live.
-
-## 5. Chạy bằng systemd
-
-Tạo `/etc/systemd/system/new-api.service`:
-
-```ini
-[Unit]
-Description=New API
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=simple
-User=new-api
-Group=new-api
-WorkingDirectory=/opt/new-api
-EnvironmentFile=/opt/new-api/.env
-ExecStart=/opt/new-api/new-api --port 3000 --log-dir /opt/new-api/logs
-Restart=on-failure
-RestartSec=5
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=full
-ProtectHome=true
-ReadWritePaths=/opt/new-api/data /opt/new-api/logs
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Tạo user và cấp quyền:
-
-```bash
-sudo useradd --system --home /opt/new-api --shell /usr/sbin/nologin new-api
-sudo chown -R new-api:new-api /opt/new-api
-sudo systemctl daemon-reload
-sudo systemctl enable --now new-api
-sudo systemctl status new-api
-sudo journalctl -u new-api -f
-```
-
-Kiểm tra backend trước khi cấu hình Nginx:
-
-```bash
-curl --fail-with-body http://127.0.0.1:3000/api/status
-```
-
-## 6. Cấu hình Nginx
-
-Cài Nginx rồi tạo `/etc/nginx/sites-available/new-api`:
-
-```nginx
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-
-server {
-    listen 80;
-    listen [::]:80;
-    server_name api.example.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-
-        proxy_buffering off;
-        proxy_read_timeout 1800s;
-        proxy_send_timeout 1800s;
-    }
-}
-```
-
-Kích hoạt và kiểm tra cấu hình:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/new-api /etc/nginx/sites-enabled/new-api
+sudo systemctl status new-api --no-pager
+sudo systemctl status nginx --no-pager
+sudo systemctl status new-api-tenant-domain-provisioner --no-pager
+sudo test -S /run/new-api-tenant-domain.sock
+sudo journalctl -u new-api --since '-10 minutes' --no-pager
 sudo nginx -t
-sudo systemctl reload nginx
 ```
 
-Sau đó cấp TLS bằng Certbot hoặc certificate manager của hệ thống. Chỉ bật
-`SESSION_COOKIE_SECURE=true` sau khi domain đã phục vụ HTTPS ổn định.
+Nếu chứng chỉ không được cấp, kiểm tra DNS đã trỏ đúng IP và cổng 80 có thể truy
+cập từ Internet. Không xóa thủ công dữ liệu Certbot hoặc cấu hình Nginx chính
+để thử khắc phục.
 
-Nginx phải giữ `proxy_buffering off` và timeout đủ dài cho streaming. Nếu
-Nginx đứng sau một load balancer khác, đặt `TRUSTED_PROXIES` thành IP/CIDR
-thực tế của proxy gần nhất, không dùng mạng tin cậy quá rộng.
+## 5. Cấu hình ứng dụng và dữ liệu
 
-## 7. Kiểm tra sau triển khai
+`NEW_API_ENV` là nội dung cấu hình `.env` của New API được lưu dưới dạng GitHub
+Secret. Workflow ghi cấu hình đó lên máy chủ với quyền hạn chế và giữ lại khi
+triển khai phiên bản mới. Cấu hình phải có thông tin kết nối cơ sở dữ liệu và
+các giá trị bí mật cần thiết cho môi trường của bạn.
 
-```bash
-curl --fail-with-body https://api.example.com/api/status
-systemctl is-active --quiet new-api
-sudo journalctl -u new-api --since "10 minutes ago" --no-pager
-```
-
-Kiểm tra thủ công thêm:
-
-1. Mở console qua HTTPS và đăng nhập admin.
-2. Tạo hoặc kiểm tra một API token.
-3. Gửi một request relay không streaming.
-4. Gửi một request streaming và xác nhận dữ liệu đến liên tục.
-5. Kiểm tra log không chứa secret, token hoặc credential.
-
-## 8. Upgrade và rollback
-
-Trước mỗi upgrade:
-
-1. Backup database và thư mục `/opt/new-api/data`.
-2. Đọc release notes và xác nhận migration tương thích.
-3. Build binary vào thư mục `releases` với version mới.
-4. Đổi symlink `/opt/new-api/new-api`.
-5. Restart service và kiểm tra `/api/status`.
-
-```bash
-sudo systemctl restart new-api
-sudo systemctl status new-api
-```
-
-Rollback dùng binary release trước, không dùng tag `latest`:
-
-```bash
-ln -sfn /opt/new-api/releases/new-api-<previous-version> /opt/new-api/new-api
-sudo systemctl restart new-api
-curl --fail-with-body https://api.example.com/api/status
-```
-
-Không rollback database nếu chưa có backup và chưa xác nhận migration có thể
-đảo ngược. Với migration không đảo ngược, cần khôi phục backup trên database
-được cô lập trước khi quyết định rollback production.
+Không đưa mật khẩu mẫu vào môi trường live. Không thay đổi `SESSION_SECRET` hoặc
+`CRYPTO_SECRET` khi chỉ nâng cấp binary; thay đổi các khóa này có thể làm mất
+hiệu lực phiên hoặc dữ liệu đã mã hóa. Sao lưu cơ sở dữ liệu trước khi nâng cấp
+có thay đổi migration.

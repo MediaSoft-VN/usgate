@@ -1,5 +1,6 @@
 # Backend-only build for frontend development
 # Skips frontend build and uses a placeholder for //go:embed web/dist
+# syntax=docker/dockerfile:1.7
 
 FROM golang:1.26.10-alpine AS builder
 
@@ -16,14 +17,16 @@ ADD go.mod go.sum ./
 # go.mod files must be present for go mod download to resolve the main module graph.
 ADD relaykit/go.mod ./relaykit/go.mod
 ADD tokenkit/go.mod ./tokenkit/go.mod
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY . .
 
 RUN mkdir -p web/dist && \
     echo '<!doctype html><html><head><title>dev</title></head><body>use frontend dev server</body></html>' > web/dist/index.html
 
-RUN go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
 
 FROM debian:bookworm-slim
 

@@ -68,7 +68,7 @@ test('overview omits the workspace introduction card', async () => {
   expect(screen.getByText('Users')).toBeInTheDocument()
 })
 
-function mockTenantRequests() {
+function mockTenantRequests(domainStatus = 'pending') {
   const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
     if (url === '/api/tenants') {
       return { data: { success: true, data: [tenant] } }
@@ -77,7 +77,7 @@ function mockTenantRequests() {
       return { data: { success: true, data: [] } }
     }
     if (url === `/api/tenants/${tenant.id}/domains`) {
-      return { data: { success: true, data: [domain] } }
+      return { data: { success: true, data: [{ ...domain, status: domainStatus }] } }
     }
     if (url === `/api/tenants/${tenant.id}/funding`) {
       return {
@@ -122,6 +122,25 @@ test('clicking Verify opens the dialog and verifies the selected domain', async 
         ([url]) => url === `/api/tenants/${tenant.id}/domains`
       ).length
     ).toBeGreaterThan(1)
+  )
+})
+
+test('clicking Verify retries host setup for an already verified domain', async () => {
+  mockTenantRequests('verified')
+  const post = vi
+    .spyOn(api, 'post')
+    .mockResolvedValue({ data: { success: true, data: null } })
+  renderWorkspace()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Verify' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Verify domain' })
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Verify' }))
+
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith(
+      `/api/tenants/${tenant.id}/domains/${domain.id}/verify`,
+      {}
+    )
   )
 })
 
