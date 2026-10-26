@@ -17,7 +17,7 @@ set -Eeuo pipefail
 : "${TENANT_DOMAIN_SOCKET_SHA256:?TENANT_DOMAIN_SOCKET_SHA256 is required}"
 : "${OLD_DOMAIN:=}"
 if [[ -z ${OLD_DOMAIN//[[:space:]]/} ]]; then
-  OLD_DOMAIN=""
+  OLD_DOMAIN="${DOMAIN}"
 fi
 
 uploaded_file="/tmp/new-api-${RELEASE_ID}.gz"
@@ -58,7 +58,7 @@ validate_value SSH_USER "${SSH_USER}" '^[A-Za-z_][A-Za-z0-9_-]*$'
 validate_value TENANT_DOMAIN_INSTALLER_SHA256 "${TENANT_DOMAIN_INSTALLER_SHA256}" '^[0-9a-f]{64}$'
 validate_value TENANT_DOMAIN_HOST_SHA256 "${TENANT_DOMAIN_HOST_SHA256}" '^[0-9a-f]{64}$'
 validate_value TENANT_DOMAIN_SOCKET_SHA256 "${TENANT_DOMAIN_SOCKET_SHA256}" '^[0-9a-f]{64}$'
-validate_value OLD_DOMAIN "${OLD_DOMAIN}" '^[A-Za-z0-9.-]*$'
+validate_value OLD_DOMAIN "${OLD_DOMAIN}" '^[A-Za-z0-9.-]+$'
 
 if [[ ! -f ${uploaded_file} ]]; then
   echo "Uploaded release was not found" >&2
