@@ -180,3 +180,27 @@ describe('audit log sidebar entry', () => {
     expect(titles).toContain('Audit Logs')
   })
 })
+
+describe('financial sidebar entries', () => {
+  it('allows admins to hide each financial module independently', () => {
+    const config = parseSidebarModulesAdmin('')
+    expect(config.admin['provider-wallet']).toBe(true)
+    expect(config.admin['customer-wallet']).toBe(true)
+    expect(config.admin['provider-funding']).toBe(true)
+
+    config.admin['provider-wallet'] = false
+    config.admin['customer-wallet'] = false
+    config.admin['provider-funding'] = false
+
+    const saved = parseSidebarModulesAdmin(serializeSidebarModulesAdmin(config))
+    const { result } = sidebarFor(saved)
+    const titles = result.current
+      .flatMap((group) => group.items)
+      .map((item) => item.title)
+
+    expect(titles).not.toContain('Provider total wallet')
+    expect(titles).not.toContain('Customer wallet')
+    expect(titles).not.toContain('Cash flow history')
+    expect(titles).toContain('Channels')
+  })
+})

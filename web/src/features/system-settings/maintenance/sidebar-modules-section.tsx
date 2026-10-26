@@ -162,6 +162,20 @@ export function SidebarModulesSection({
         title: t('Subscription Management'),
         description: t('Manage subscription plans and pricing.'),
       },
+      'provider-wallet': {
+        title: t('Provider total wallet'),
+        description: t('Manage provider wallet balances and allocations.'),
+      },
+      'customer-wallet': {
+        title: t('Customer wallet'),
+        description: t(
+          'Manage customer wallet balances, locks, and allocations.'
+        ),
+      },
+      'provider-funding': {
+        title: t('Cash flow history'),
+        description: t('Review provider funding and cash flow records.'),
+      },
     },
   }
   const formDefaults = useMemo(() => config, [config])

@@ -82,6 +82,9 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     user: true,
     setting: true,
     subscription: true,
+    'provider-wallet': true,
+    'customer-wallet': true,
+    'provider-funding': true,
   },
 }
 
