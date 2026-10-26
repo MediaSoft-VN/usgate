@@ -328,3 +328,74 @@ GET  /api/financial/wallets
 3. Tìm reference thiếu/trùng.
 4. Đối chiếu ledger với wallet và cash-flow.
 5. Không sửa trực tiếp dữ liệu production.
+
+## 16. Vận hành custom domain của Partner Workspace
+
+### 16.1 Trạng thái hiện tại
+
+Tính năng domain hiện hỗ trợ:
+
+1. Đối tác thêm hostname.
+2. Hệ thống hiển thị DNS record cần cấu hình.
+3. Hệ thống kiểm tra CNAME hoặc A record.
+4. Domain chuyển từ `pending` sang `verified` khi DNS đúng.
+5. Domain đã verified được dùng để resolve tenant theo HTTP `Host`.
+
+Nginx/Certbot **chưa được tự động provision từ màn hình quản lý domain**. Domain
+deploy chính của hệ thống có pipeline Nginx/Certbot riêng; pipeline đó không tự
+áp dụng cho custom domain của partner.
+
+### 16.2 Quy trình thêm và verify domain
+
+1. Mở `/partner-workspace/domains`.
+2. Chọn workspace cần cấu hình.
+3. Chọn **Add domain** và nhập hostname, ví dụ `app.example.com`.
+4. Ghi lại CNAME hoặc A record trong thẻ **DNS records to configure**.
+5. Tạo record tại nhà cung cấp DNS của đối tác.
+6. Chờ DNS propagation.
+7. Chọn **Verify**.
+8. Nếu thành công, kiểm tra trạng thái domain là `verified`.
+9. Truy cập thử hostname và kiểm tra request được resolve đúng tenant.
+
+### 16.3 Xử lý lỗi DNS
+
+- `pending`: kiểm tra hostname có bị nhập sai, record có đúng loại và DNS đã
+  propagate hay chưa.
+- CNAME không khớp: kiểm tra trailing dot, proxy mode của DNS provider và record
+  đang bị che bởi CNAME khác.
+- A record không khớp: kiểm tra IP public hiện tại của gateway.
+- Domain không hợp lệ: không dùng IP, wildcard, localhost, port, path hoặc ký tự
+  đặc biệt.
+- Domain đã thuộc workspace khác: không xoá hoặc sửa record của workspace kia;
+  liên hệ administrator để xử lý ownership.
+
+### 16.4 Quy trình khi triển khai tự động Nginx/SSL
+
+Khi host-side domain provisioner được bật, luồng chuẩn sẽ là:
+
+1. Chỉ provision domain có trạng thái `verified`.
+2. Tạo file Nginx riêng theo `domain_id`, không dùng hostname làm tên file.
+3. Tạo HTTP-only ACME challenge config.
+4. Chạy `nginx -t` trước mỗi reload.
+5. Dùng Certbot cấp certificate riêng cho hostname.
+6. Tạo HTTPS reverse proxy về application port.
+7. Giữ `Host`, `X-Forwarded-Proto`, WebSocket headers và streaming timeout.
+8. Chỉ chuyển domain sang `ready` sau khi HTTPS health check thành công.
+
+Không cho API container ghi trực tiếp `/etc/nginx` hoặc chạy `sudo`. Provisioner
+phải chạy trên host qua root-owned wrapper với allowlist thao tác cố định.
+
+### 16.5 Xử lý lỗi provisioner
+
+- DNS chưa verified: không gọi Certbot.
+- Certbot lỗi: giữ domain `verified`, ghi trạng thái `failed` và retry.
+- `nginx -t` lỗi: không reload, giữ cấu hình đang chạy.
+- Reload lỗi: rollback cấu hình trước đó.
+- Wrapper hoặc sudo không khả dụng: không đánh dấu `ready`; báo operator xử lý.
+- Xoá domain: ngừng resolve tenant ngay từ database, sau đó dọn Nginx config qua
+  cleanup retry.
+- Gia hạn certificate lỗi: giữ certificate hiện tại và retry ở lịch Certbot sau.
+
+Không ghi certificate private key, token, cookie hoặc toàn bộ environment vào
+log. Mỗi domain phải có cấu hình và trạng thái độc lập để lỗi một domain không
+ảnh hưởng các domain khác.
