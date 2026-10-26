@@ -7,6 +7,9 @@ on:
     paths:
       - deploy/new-api.gz
       - .github/scripts/deploy-native.sh
+      - scripts/install-tenant-domain-provisioner.sh
+      - scripts/tenant-domain-host.sh
+      - scripts/tenant-domain-socket.py
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
@@ -19,10 +22,10 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy prebuilt binary
+    name: Deploy locally built New API
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - name: Checkout release commit
@@ -30,13 +33,16 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Validate prebuilt binary
+      - name: Validate locally built release package
         run: |
           set -euo pipefail
-          test -f deploy/new-api.gz
+          test -s deploy/new-api.gz
           gzip -t deploy/new-api.gz
           file deploy/new-api.gz
           sha256sum deploy/new-api.gz
+          bash -n scripts/install-tenant-domain-provisioner.sh
+          bash -n scripts/tenant-domain-host.sh
+          python3 -c "compile(open('scripts/tenant-domain-socket.py', encoding='utf-8').read(), 'tenant-domain-socket.py', 'exec')"
 
       - name: Configure SSH
         env:
@@ -51,7 +57,7 @@ jobs:
           printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
 
-      - name: Upload prebuilt binary
+      - name: Upload release package
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -65,6 +71,22 @@ jobs:
             deploy/new-api.gz \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-${GITHUB_SHA}.gz"
 
+      - name: Upload tenant-domain host provisioner
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          provisioner_dir="/tmp/new-api-tenant-domain-${GITHUB_SHA}"
+          ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "install -d -m 0700 '${provisioner_dir}'"
+          scp -P "${DEPLOY_PORT}" \
+            scripts/install-tenant-domain-provisioner.sh \
+            scripts/tenant-domain-host.sh \
+            scripts/tenant-domain-socket.py \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${provisioner_dir}/"
+
       - name: Activate release and verify health
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -73,7 +95,7 @@ jobs:
           APP_USER: ${{ vars.APP_USER }}
           APP_DIR: ${{ vars.APP_DIR }}
           APP_PORT: ${{ vars.APP_PORT }}
-          DOMAIN: ${{ vars.PROD_DOMAIN }}
+          DOMAIN: ${{ vars.PROD_DOMAIN || 'newapi.usgate.ai' }}
           OLD_DOMAIN: ${{ vars.OLD_DOMAIN }}
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
           NEW_API_ENV: ${{ secrets.NEW_API_ENV }}
@@ -82,10 +104,13 @@ jobs:
           : "${DEPLOY_HOST:?DEPLOY_HOST is required}"
           : "${DEPLOY_PORT:?DEPLOY_PORT is required}"
           : "${DEPLOY_USER:?DEPLOY_USER is required}"
-          : "${DOMAIN:?PROD_DOMAIN environment variable is required}"
+          : "${DOMAIN:?Production domain is required}"
           : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
           : "${NEW_API_ENV:?NEW_API_ENV secret is required}"
           checksum="$(sha256sum deploy/new-api.gz | cut -d' ' -f1)"
+          tenant_installer_checksum="$(sha256sum scripts/install-tenant-domain-provisioner.sh | cut -d' ' -f1)"
+          tenant_host_checksum="$(sha256sum scripts/tenant-domain-host.sh | cut -d' ' -f1)"
+          tenant_socket_checksum="$(sha256sum scripts/tenant-domain-socket.py | cut -d' ' -f1)"
           {
             printf 'APP_USER=%q\n' "${APP_USER:-${DEPLOY_USER}}"
             printf 'APP_DIR=%q\n' "${APP_DIR:-/opt/new-api}"
@@ -97,5 +122,8 @@ jobs:
             printf 'RELEASE_ID=%q\n' "${GITHUB_SHA}"
             printf 'EXPECTED_SHA256=%q\n' "${checksum}"
             printf 'SSH_USER=%q\n' "${DEPLOY_USER}"
+            printf 'TENANT_DOMAIN_INSTALLER_SHA256=%q\n' "${tenant_installer_checksum}"
+            printf 'TENANT_DOMAIN_HOST_SHA256=%q\n' "${tenant_host_checksum}"
+            printf 'TENANT_DOMAIN_SOCKET_SHA256=%q\n' "${tenant_socket_checksum}"
             cat .github/scripts/deploy-native.sh
           } | ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s'

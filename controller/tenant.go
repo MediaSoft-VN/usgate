@@ -226,8 +226,12 @@ func CreateTenantDomain(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	domain, err := service.CreateDomain(id, req.Hostname)
+	domain, err := service.CreateDomain(id, c.GetInt("id"), req.Hostname)
 	if err != nil {
+		if errors.Is(err, service.ErrTenantDomainReserved) {
+			common.ApiErrorT(c, "This domain is reserved by the system")
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}
@@ -249,8 +253,12 @@ func UpdateTenantDomain(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	domain, err := service.UpdateDomain(domainID, id, req.Hostname)
+	domain, err := service.UpdateDomain(domainID, id, c.GetInt("id"), req.Hostname)
 	if err != nil {
+		if errors.Is(err, service.ErrTenantDomainReserved) {
+			common.ApiErrorT(c, "This domain is reserved by the system")
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}
@@ -268,6 +276,10 @@ func VerifyTenantDomain(c *gin.Context) {
 		return
 	}
 	if err = service.VerifyDomain(domainID, id); err != nil {
+		if errors.Is(err, service.ErrTenantDomainHostOperation) {
+			common.ApiErrorT(c, "Domain host configuration failed")
+			return
+		}
 		common.ApiErrorT(c, "Domain verification failed")
 		return
 	}
@@ -285,6 +297,10 @@ func DeleteTenantDomain(c *gin.Context) {
 		return
 	}
 	if err = service.DeleteDomain(domainID, id); err != nil {
+		if errors.Is(err, service.ErrTenantDomainHostOperation) {
+			common.ApiErrorT(c, "Domain host configuration failed")
+			return
+		}
 		common.ApiError(c, errors.New("domain not found"))
 		return
 	}

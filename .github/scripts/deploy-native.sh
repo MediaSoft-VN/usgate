@@ -11,9 +11,16 @@ set -Eeuo pipefail
 : "${RELEASE_ID:?RELEASE_ID is required}"
 : "${EXPECTED_SHA256:?EXPECTED_SHA256 is required}"
 : "${SSH_USER:?SSH_USER is required}"
+: "${TENANT_DOMAIN_INSTALLER_SHA256:?TENANT_DOMAIN_INSTALLER_SHA256 is required}"
+: "${TENANT_DOMAIN_HOST_SHA256:?TENANT_DOMAIN_HOST_SHA256 is required}"
+: "${TENANT_DOMAIN_SOCKET_SHA256:?TENANT_DOMAIN_SOCKET_SHA256 is required}"
 : "${OLD_DOMAIN:=}"
 
 uploaded_file="/tmp/new-api-${RELEASE_ID}.gz"
+uploaded_provisioner_dir="/tmp/new-api-tenant-domain-${RELEASE_ID}"
+uploaded_provisioner_installer="${uploaded_provisioner_dir}/install-tenant-domain-provisioner.sh"
+uploaded_provisioner_host="${uploaded_provisioner_dir}/tenant-domain-host.sh"
+uploaded_provisioner_socket="${uploaded_provisioner_dir}/tenant-domain-socket.py"
 release_file="${APP_DIR}/releases/new-api-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
 nginx_site=/etc/nginx/sites-available/new-api.conf
@@ -41,6 +48,9 @@ validate_value CERTBOT_EMAIL "${CERTBOT_EMAIL}" '^[^[:space:]@]+@[^[:space:]@]+\
 validate_value RELEASE_ID "${RELEASE_ID}" '^[0-9a-f]{40}$'
 validate_value EXPECTED_SHA256 "${EXPECTED_SHA256}" '^[0-9a-f]{64}$'
 validate_value SSH_USER "${SSH_USER}" '^[A-Za-z_][A-Za-z0-9_-]*$'
+validate_value TENANT_DOMAIN_INSTALLER_SHA256 "${TENANT_DOMAIN_INSTALLER_SHA256}" '^[0-9a-f]{64}$'
+validate_value TENANT_DOMAIN_HOST_SHA256 "${TENANT_DOMAIN_HOST_SHA256}" '^[0-9a-f]{64}$'
+validate_value TENANT_DOMAIN_SOCKET_SHA256 "${TENANT_DOMAIN_SOCKET_SHA256}" '^[0-9a-f]{64}$'
 if [[ -n ${OLD_DOMAIN} ]]; then
   validate_value OLD_DOMAIN "${OLD_DOMAIN}" '^[A-Za-z0-9.-]+$'
 fi
@@ -49,12 +59,24 @@ if [[ ! -f ${uploaded_file} ]]; then
   echo "Uploaded release was not found" >&2
   exit 1
 fi
+for uploaded_script in "${uploaded_provisioner_installer}" "${uploaded_provisioner_host}" "${uploaded_provisioner_socket}"; do
+  if [[ ! -f ${uploaded_script} ]]; then
+    echo "Tenant domain provisioner package is incomplete" >&2
+    exit 1
+  fi
+done
 
 gzip -t "${uploaded_file}"
 
 actual_sha256="$(sha256sum "${uploaded_file}" | cut -d' ' -f1)"
 if [[ ${actual_sha256} != "${EXPECTED_SHA256}" ]]; then
   echo "Release checksum verification failed" >&2
+  exit 1
+fi
+if [[ $(sha256sum "${uploaded_provisioner_installer}" | cut -d' ' -f1) != "${TENANT_DOMAIN_INSTALLER_SHA256}" ||
+  $(sha256sum "${uploaded_provisioner_host}" | cut -d' ' -f1) != "${TENANT_DOMAIN_HOST_SHA256}" ||
+  $(sha256sum "${uploaded_provisioner_socket}" | cut -d' ' -f1) != "${TENANT_DOMAIN_SOCKET_SHA256}" ]]; then
+  echo "Tenant domain provisioner checksum verification failed" >&2
   exit 1
 fi
 
@@ -225,10 +247,22 @@ fi
 
 sudo -n nginx -t
 sudo -n systemctl reload nginx
+
+echo "========== Install tenant-domain host provisioner =========="
+sudo -n env CERTBOT_EMAIL="${CERTBOT_EMAIL}" APP_PORT="${APP_PORT}" \
+  NEW_API_APP_UNIT=new-api.service bash "${uploaded_provisioner_installer}"
+sudo -n systemctl is-active --quiet new-api
+sudo -n systemctl is-active --quiet new-api-tenant-domain-provisioner
+sudo -n test -S /run/new-api-tenant-domain.sock
+sudo -n systemctl show -p Environment --value new-api \
+  | grep -Fq 'TENANT_DOMAIN_PROVISIONER_ENABLED=true'
+curl --fail --silent --show-error \
+  "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null
 curl --fail --silent --show-error --retry 10 --retry-delay 3 \
   "https://${DOMAIN}/api/status" >/dev/null
 
 rm -f "${uploaded_file}"
+rm -rf "${uploaded_provisioner_dir}"
 find "${APP_DIR}/releases" -maxdepth 1 -type f -name 'new-api-*' -printf '%T@ %p\n' \
   | sort -nr \
   | awk 'NR > 5 { sub(/^[^ ]+ /, ""); print }' \

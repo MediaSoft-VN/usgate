@@ -32,15 +32,28 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
 	previousDB := model.DB
 	previousResolver := service.TenantDomainDNSResolver
+	previousHostOperation := service.TenantDomainHostOperation
 	model.DB = db
 	service.TenantDomainDNSResolver = tenantControllerDNSResolver{}
+	var domainOperations []string
+	failDomainCleanup := false
+	service.TenantDomainHostOperation = func(operation, hostname string) error {
+		domainOperations = append(domainOperations, operation+":"+hostname)
+		if operation == "cleanup" && failDomainCleanup {
+			return service.ErrTenantDomainHostOperation
+		}
+		return nil
+	}
 	common.OptionMapRWMutex.Lock()
 	if common.OptionMap == nil {
 		common.OptionMap = map[string]string{}
 	}
 	common.OptionMap["TenantDomainDNSRecordA"] = "203.0.113.10"
 	common.OptionMapRWMutex.Unlock()
-	t.Cleanup(func() { model.DB = previousDB })
+	t.Cleanup(func() {
+		model.DB = previousDB
+		service.TenantDomainHostOperation = previousHostOperation
+	})
 	t.Cleanup(func() {
 		service.TenantDomainDNSResolver = previousResolver
 		common.OptionMapRWMutex.Lock()
@@ -73,6 +86,16 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 		} `json:"data"`
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &createResponse))
+	for _, hostname := range []string{"usgate.ai", "api.usgate.ai"} {
+		reservedRecorder := httptest.NewRecorder()
+		reservedContext, _ := gin.CreateTestContext(reservedRecorder)
+		reservedContext.Request = httptest.NewRequest("POST", "/api/tenants/1/domains", strings.NewReader(`{"hostname":"`+hostname+`"}`))
+		reservedContext.Request.Host = "gateway.example.com"
+		reservedContext.Params = gin.Params{{Key: "tenant_id", Value: "1"}}
+		reservedContext.Set("id", owner.Id)
+		CreateTenantDomain(reservedContext)
+		require.Contains(t, reservedRecorder.Body.String(), "This domain is reserved by the system")
+	}
 
 	verifyRecorder := httptest.NewRecorder()
 	verifyContext, _ := gin.CreateTestContext(verifyRecorder)
@@ -82,6 +105,7 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	verifyContext.Set("id", owner.Id)
 	VerifyTenantDomain(verifyContext)
 	require.Equal(t, 200, verifyRecorder.Code)
+	require.Equal(t, []string{"provision:app.example.com"}, domainOperations)
 
 	deniedDeleteRecorder := httptest.NewRecorder()
 	deniedDeleteContext, _ := gin.CreateTestContext(deniedDeleteRecorder)
@@ -100,6 +124,7 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	deleteContext.Set("id", owner.Id)
 	DeleteTenantDomain(deleteContext)
 	require.Equal(t, 200, deleteRecorder.Code)
+	require.Equal(t, []string{"provision:app.example.com", "cleanup:app.example.com"}, domainOperations)
 
 	forbiddenRecorder := httptest.NewRecorder()
 	forbiddenContext, _ := gin.CreateTestContext(forbiddenRecorder)
@@ -122,6 +147,18 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	readdContext.Set("id", owner.Id)
 	CreateTenantDomain(readdContext)
 	require.Equal(t, 200, readdRecorder.Code)
+	var readdedDomain model.TenantDomain
+	require.NoError(t, db.Where("tenant_id = ?", tenant.Id).First(&readdedDomain).Error)
+	failDomainCleanup = true
+	failedCleanupRecorder := httptest.NewRecorder()
+	failedCleanupContext, _ := gin.CreateTestContext(failedCleanupRecorder)
+	failedCleanupContext.Request = httptest.NewRequest("DELETE", "/api/tenants/1/domains/2", nil)
+	failedCleanupContext.Request.Host = "gateway.example.com"
+	failedCleanupContext.Params = gin.Params{{Key: "tenant_id", Value: "1"}, {Key: "domain_id", Value: "2"}}
+	failedCleanupContext.Set("id", owner.Id)
+	DeleteTenantDomain(failedCleanupContext)
+	require.Contains(t, failedCleanupRecorder.Body.String(), "Domain host configuration failed")
+	require.NoError(t, db.First(&readdedDomain, readdedDomain.Id).Error)
 	var otherDomains []model.TenantDomain
 	require.NoError(t, db.Where("tenant_id = ?", otherTenant.Id).Find(&otherDomains).Error)
 	require.Empty(t, otherDomains)
