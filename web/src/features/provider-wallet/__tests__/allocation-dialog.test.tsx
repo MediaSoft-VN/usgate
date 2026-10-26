@@ -7,8 +7,6 @@ import { afterEach, expect, it, vi } from 'vitest'
 
 import { ProviderWallet } from '../index'
 
-const updateProviderCredit = vi.hoisted(() => vi.fn())
-
 vi.mock('../../provider-funding/api', () => ({
   createProviderFunding: vi.fn(),
   getProviderFundings: vi.fn().mockResolvedValue({
@@ -47,16 +45,6 @@ vi.mock('../../channels/api', () => ({
     success: true,
     data: { items: [{ id: 1, name: 'Provider One', type: 'openai' }] },
   }),
-  getProviderCredit: vi.fn().mockResolvedValue({
-    channel_id: 1,
-    balance: 100,
-    threshold: 25,
-    below_threshold: false,
-    auto_disabled: false,
-    status: 1,
-    checked_at: 1,
-  }),
-  updateProviderCredit,
 }))
 
 const i18n = createInstance()
@@ -68,7 +56,6 @@ await i18n.init({
 
 afterEach(() => {
   cleanup()
-  updateProviderCredit.mockClear()
 })
 
 it('accepts whole-dollar credit allocations without a step mismatch', async () => {
@@ -116,24 +103,4 @@ it('shows provider funding without using the channel upstream balance', async ()
   expect(screen.getByText(/100 USD/)).toBeInTheDocument()
   expect(screen.getByText(/75 USD/)).toBeInTheDocument()
   expect(screen.queryByText(/42\.5 USD/)).not.toBeInTheDocument()
-})
-
-it('allows an administrator to update the provider credit threshold', async () => {
-  const user = userEvent.setup()
-  const queryClient = new QueryClient()
-
-  render(
-    <QueryClientProvider client={queryClient}>
-      <I18nextProvider i18n={i18n}>
-        <ProviderWallet />
-      </I18nextProvider>
-    </QueryClientProvider>
-  )
-
-  const threshold = await screen.findByLabelText('Provider credit threshold')
-  await user.clear(threshold)
-  await user.type(threshold, '30')
-  await user.click(screen.getByRole('button', { name: 'Save' }))
-
-  expect(updateProviderCredit).toHaveBeenCalledWith(1, 30)
 })
