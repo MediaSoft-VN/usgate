@@ -112,7 +112,6 @@ jobs:
           APP_DIR: ${{ vars.APP_DIR }}
           APP_PORT: ${{ vars.APP_PORT }}
           DOMAIN: ${{ vars.PROD_DOMAIN || 'newapi.usgate.ai' }}
-          OLD_DOMAIN: ${{ vars.OLD_DOMAIN }}
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
           NEW_API_ENV: ${{ secrets.NEW_API_ENV }}
         run: |
@@ -133,7 +132,6 @@ jobs:
             printf 'APP_DIR=%q\n' "${APP_DIR:-/opt/new-api}"
             printf 'APP_PORT=%q\n' "${APP_PORT:-}"
             printf 'DOMAIN=%q\n' "${DOMAIN}"
-            printf 'OLD_DOMAIN=%q\n' "${OLD_DOMAIN:-}"
             printf 'CERTBOT_EMAIL=%q\n' "${CERTBOT_EMAIL}"
             printf 'NEW_API_ENV=%q\n' "${NEW_API_ENV}"
             printf 'RELEASE_ID=%q\n' "${GITHUB_SHA}"
