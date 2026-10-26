@@ -8,6 +8,7 @@ on:
       - deploy/new-api.gz
       - deploy/new-api-client.tar.gz
       - .github/scripts/deploy-native.sh
+      - .github/scripts/compose-postgres-dsn.py
       - scripts/install-tenant-domain-provisioner.sh
       - scripts/tenant-domain-host.sh
       - scripts/tenant-domain-socket.py
@@ -122,6 +123,7 @@ jobs:
           : "${DOMAIN:?Production domain is required}"
           : "${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}"
           : "${NEW_API_ENV:?NEW_API_ENV secret is required}"
+          NEW_API_ENV="$(printf '%s' "${NEW_API_ENV}" | python3 .github/scripts/compose-postgres-dsn.py)"
           checksum="$(sha256sum deploy/new-api.gz | cut -d' ' -f1)"
           client_checksum="$(sha256sum deploy/new-api-client.tar.gz | cut -d' ' -f1)"
           tenant_installer_checksum="$(sha256sum scripts/install-tenant-domain-provisioner.sh | cut -d' ' -f1)"
