@@ -46,6 +46,12 @@ import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenti
 import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authenticated/keys/index'
 import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models/index'
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
+import { Route as AuthenticatedPartnerWorkspaceIndexRouteImport } from './routes/_authenticated/partner-workspace/index'
+import { Route as AuthenticatedPartnerWorkspaceDomainsRouteImport } from './routes/_authenticated/partner-workspace/domains'
+import { Route as AuthenticatedPartnerWorkspaceOverviewRouteImport } from './routes/_authenticated/partner-workspace/overview'
+import { Route as AuthenticatedPartnerWorkspaceTransactionsRouteImport } from './routes/_authenticated/partner-workspace/transactions'
+import { Route as AuthenticatedPartnerWorkspaceUsersRouteImport } from './routes/_authenticated/partner-workspace/users'
+import { Route as AuthenticatedPartnerWorkspaceWalletRouteImport } from './routes/_authenticated/partner-workspace/wallet'
 import { Route as AuthenticatedPlaygroundIndexRouteImport } from './routes/_authenticated/playground/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
@@ -272,6 +278,42 @@ const AuthenticatedModelsSectionRoute =
     path: '/models/$section',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPartnerWorkspaceIndexRoute =
+  AuthenticatedPartnerWorkspaceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedPartnerWorkspaceRoute,
+  } as any)
+const AuthenticatedPartnerWorkspaceDomainsRoute =
+  AuthenticatedPartnerWorkspaceDomainsRouteImport.update({
+    id: '/domains',
+    path: '/domains',
+    getParentRoute: () => AuthenticatedPartnerWorkspaceRoute,
+  } as any)
+const AuthenticatedPartnerWorkspaceOverviewRoute =
+  AuthenticatedPartnerWorkspaceOverviewRouteImport.update({
+    id: '/overview',
+    path: '/overview',
+    getParentRoute: () => AuthenticatedPartnerWorkspaceRoute,
+  } as any)
+const AuthenticatedPartnerWorkspaceTransactionsRoute =
+  AuthenticatedPartnerWorkspaceTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
+    getParentRoute: () => AuthenticatedPartnerWorkspaceRoute,
+  } as any)
+const AuthenticatedPartnerWorkspaceUsersRoute =
+  AuthenticatedPartnerWorkspaceUsersRouteImport.update({
+    id: '/users',
+    path: '/users',
+    getParentRoute: () => AuthenticatedPartnerWorkspaceRoute,
+  } as any)
+const AuthenticatedPartnerWorkspaceWalletRoute =
+  AuthenticatedPartnerWorkspaceWalletRouteImport.update({
+    id: '/wallet',
+    path: '/wallet',
+    getParentRoute: () => AuthenticatedPartnerWorkspaceRoute,
+  } as any)
 const AuthenticatedPlaygroundIndexRoute =
   AuthenticatedPlaygroundIndexRouteImport.update({
     id: '/playground/',
@@ -475,7 +517,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
-  '/partner-workspace': typeof AuthenticatedPartnerWorkspaceRoute
+  '/partner-workspace': typeof AuthenticatedPartnerWorkspaceRouteWithChildren
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -488,6 +530,11 @@ export interface FileRoutesByFullPath {
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/partner-workspace/domains': typeof AuthenticatedPartnerWorkspaceDomainsRoute
+  '/partner-workspace/overview': typeof AuthenticatedPartnerWorkspaceOverviewRoute
+  '/partner-workspace/transactions': typeof AuthenticatedPartnerWorkspaceTransactionsRoute
+  '/partner-workspace/users': typeof AuthenticatedPartnerWorkspaceUsersRoute
+  '/partner-workspace/wallet': typeof AuthenticatedPartnerWorkspaceWalletRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/usage-logs/audit': typeof AuthenticatedUsageLogsAuditRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
@@ -495,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/keys/': typeof AuthenticatedKeysIndexRoute
   '/models/': typeof AuthenticatedModelsIndexRoute
+  '/partner-workspace/': typeof AuthenticatedPartnerWorkspaceIndexRoute
   '/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
@@ -542,7 +590,6 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/chat2link': typeof AuthenticatedChat2linkRoute
-  '/partner-workspace': typeof AuthenticatedPartnerWorkspaceRoute
   '/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -555,6 +602,11 @@ export interface FileRoutesByTo {
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/partner-workspace/domains': typeof AuthenticatedPartnerWorkspaceDomainsRoute
+  '/partner-workspace/overview': typeof AuthenticatedPartnerWorkspaceOverviewRoute
+  '/partner-workspace/transactions': typeof AuthenticatedPartnerWorkspaceTransactionsRoute
+  '/partner-workspace/users': typeof AuthenticatedPartnerWorkspaceUsersRoute
+  '/partner-workspace/wallet': typeof AuthenticatedPartnerWorkspaceWalletRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/usage-logs/audit': typeof AuthenticatedUsageLogsAuditRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
@@ -562,6 +614,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/keys': typeof AuthenticatedKeysIndexRoute
   '/models': typeof AuthenticatedModelsIndexRoute
+  '/partner-workspace': typeof AuthenticatedPartnerWorkspaceIndexRoute
   '/playground': typeof AuthenticatedPlaygroundIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes': typeof AuthenticatedRedemptionCodesIndexRoute
@@ -613,7 +666,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/chat2link': typeof AuthenticatedChat2linkRoute
-  '/_authenticated/partner-workspace': typeof AuthenticatedPartnerWorkspaceRoute
+  '/_authenticated/partner-workspace': typeof AuthenticatedPartnerWorkspaceRouteWithChildren
   '/_authenticated/provider-funding': typeof AuthenticatedProviderFundingRoute
   '/_authenticated/provider-wallet': typeof AuthenticatedProviderWalletRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -626,6 +679,11 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/_authenticated/partner-workspace/domains': typeof AuthenticatedPartnerWorkspaceDomainsRoute
+  '/_authenticated/partner-workspace/overview': typeof AuthenticatedPartnerWorkspaceOverviewRoute
+  '/_authenticated/partner-workspace/transactions': typeof AuthenticatedPartnerWorkspaceTransactionsRoute
+  '/_authenticated/partner-workspace/users': typeof AuthenticatedPartnerWorkspaceUsersRoute
+  '/_authenticated/partner-workspace/wallet': typeof AuthenticatedPartnerWorkspaceWalletRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/usage-logs/audit': typeof AuthenticatedUsageLogsAuditRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
@@ -633,6 +691,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/keys/': typeof AuthenticatedKeysIndexRoute
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
+  '/_authenticated/partner-workspace/': typeof AuthenticatedPartnerWorkspaceIndexRoute
   '/_authenticated/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
@@ -696,6 +755,11 @@ export interface FileRouteTypes {
     | '/dashboard/$section'
     | '/errors/$error'
     | '/models/$section'
+    | '/partner-workspace/domains'
+    | '/partner-workspace/overview'
+    | '/partner-workspace/transactions'
+    | '/partner-workspace/users'
+    | '/partner-workspace/wallet'
     | '/usage-logs/$section'
     | '/usage-logs/audit'
     | '/channels/'
@@ -703,6 +767,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/keys/'
     | '/models/'
+    | '/partner-workspace/'
     | '/playground/'
     | '/profile/'
     | '/redemption-codes/'
@@ -750,7 +815,6 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/chat2link'
-    | '/partner-workspace'
     | '/provider-funding'
     | '/provider-wallet'
     | '/oauth/$provider'
@@ -763,6 +827,11 @@ export interface FileRouteTypes {
     | '/dashboard/$section'
     | '/errors/$error'
     | '/models/$section'
+    | '/partner-workspace/domains'
+    | '/partner-workspace/overview'
+    | '/partner-workspace/transactions'
+    | '/partner-workspace/users'
+    | '/partner-workspace/wallet'
     | '/usage-logs/$section'
     | '/usage-logs/audit'
     | '/channels'
@@ -770,6 +839,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/keys'
     | '/models'
+    | '/partner-workspace'
     | '/playground'
     | '/profile'
     | '/redemption-codes'
@@ -833,6 +903,11 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/$section'
     | '/_authenticated/errors/$error'
     | '/_authenticated/models/$section'
+    | '/_authenticated/partner-workspace/domains'
+    | '/_authenticated/partner-workspace/overview'
+    | '/_authenticated/partner-workspace/transactions'
+    | '/_authenticated/partner-workspace/users'
+    | '/_authenticated/partner-workspace/wallet'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/usage-logs/audit'
     | '/_authenticated/channels/'
@@ -840,6 +915,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/'
     | '/_authenticated/keys/'
     | '/_authenticated/models/'
+    | '/_authenticated/partner-workspace/'
     | '/_authenticated/playground/'
     | '/_authenticated/profile/'
     | '/_authenticated/redemption-codes/'
@@ -1151,6 +1227,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedModelsSectionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/partner-workspace/': {
+      id: '/_authenticated/partner-workspace/'
+      path: '/'
+      fullPath: '/partner-workspace/'
+      preLoaderRoute: typeof AuthenticatedPartnerWorkspaceIndexRouteImport
+      parentRoute: typeof AuthenticatedPartnerWorkspaceRoute
+    }
+    '/_authenticated/partner-workspace/domains': {
+      id: '/_authenticated/partner-workspace/domains'
+      path: '/domains'
+      fullPath: '/partner-workspace/domains'
+      preLoaderRoute: typeof AuthenticatedPartnerWorkspaceDomainsRouteImport
+      parentRoute: typeof AuthenticatedPartnerWorkspaceRoute
+    }
+    '/_authenticated/partner-workspace/overview': {
+      id: '/_authenticated/partner-workspace/overview'
+      path: '/overview'
+      fullPath: '/partner-workspace/overview'
+      preLoaderRoute: typeof AuthenticatedPartnerWorkspaceOverviewRouteImport
+      parentRoute: typeof AuthenticatedPartnerWorkspaceRoute
+    }
+    '/_authenticated/partner-workspace/transactions': {
+      id: '/_authenticated/partner-workspace/transactions'
+      path: '/transactions'
+      fullPath: '/partner-workspace/transactions'
+      preLoaderRoute: typeof AuthenticatedPartnerWorkspaceTransactionsRouteImport
+      parentRoute: typeof AuthenticatedPartnerWorkspaceRoute
+    }
+    '/_authenticated/partner-workspace/users': {
+      id: '/_authenticated/partner-workspace/users'
+      path: '/users'
+      fullPath: '/partner-workspace/users'
+      preLoaderRoute: typeof AuthenticatedPartnerWorkspaceUsersRouteImport
+      parentRoute: typeof AuthenticatedPartnerWorkspaceRoute
+    }
+    '/_authenticated/partner-workspace/wallet': {
+      id: '/_authenticated/partner-workspace/wallet'
+      path: '/wallet'
+      fullPath: '/partner-workspace/wallet'
+      preLoaderRoute: typeof AuthenticatedPartnerWorkspaceWalletRouteImport
+      parentRoute: typeof AuthenticatedPartnerWorkspaceRoute
+    }
     '/_authenticated/playground/': {
       id: '/_authenticated/playground/'
       path: '/playground'
@@ -1460,10 +1578,40 @@ const AuthenticatedSystemSettingsRouteRouteWithChildren =
     AuthenticatedSystemSettingsRouteRouteChildren,
   )
 
+interface AuthenticatedPartnerWorkspaceRouteChildren {
+  AuthenticatedPartnerWorkspaceDomainsRoute: typeof AuthenticatedPartnerWorkspaceDomainsRoute
+  AuthenticatedPartnerWorkspaceOverviewRoute: typeof AuthenticatedPartnerWorkspaceOverviewRoute
+  AuthenticatedPartnerWorkspaceTransactionsRoute: typeof AuthenticatedPartnerWorkspaceTransactionsRoute
+  AuthenticatedPartnerWorkspaceUsersRoute: typeof AuthenticatedPartnerWorkspaceUsersRoute
+  AuthenticatedPartnerWorkspaceWalletRoute: typeof AuthenticatedPartnerWorkspaceWalletRoute
+  AuthenticatedPartnerWorkspaceIndexRoute: typeof AuthenticatedPartnerWorkspaceIndexRoute
+}
+
+const AuthenticatedPartnerWorkspaceRouteChildren: AuthenticatedPartnerWorkspaceRouteChildren =
+  {
+    AuthenticatedPartnerWorkspaceDomainsRoute:
+      AuthenticatedPartnerWorkspaceDomainsRoute,
+    AuthenticatedPartnerWorkspaceOverviewRoute:
+      AuthenticatedPartnerWorkspaceOverviewRoute,
+    AuthenticatedPartnerWorkspaceTransactionsRoute:
+      AuthenticatedPartnerWorkspaceTransactionsRoute,
+    AuthenticatedPartnerWorkspaceUsersRoute:
+      AuthenticatedPartnerWorkspaceUsersRoute,
+    AuthenticatedPartnerWorkspaceWalletRoute:
+      AuthenticatedPartnerWorkspaceWalletRoute,
+    AuthenticatedPartnerWorkspaceIndexRoute:
+      AuthenticatedPartnerWorkspaceIndexRoute,
+  }
+
+const AuthenticatedPartnerWorkspaceRouteWithChildren =
+  AuthenticatedPartnerWorkspaceRoute._addFileChildren(
+    AuthenticatedPartnerWorkspaceRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedSystemSettingsRouteRoute: typeof AuthenticatedSystemSettingsRouteRouteWithChildren
   AuthenticatedChat2linkRoute: typeof AuthenticatedChat2linkRoute
-  AuthenticatedPartnerWorkspaceRoute: typeof AuthenticatedPartnerWorkspaceRoute
+  AuthenticatedPartnerWorkspaceRoute: typeof AuthenticatedPartnerWorkspaceRouteWithChildren
   AuthenticatedProviderFundingRoute: typeof AuthenticatedProviderFundingRoute
   AuthenticatedProviderWalletRoute: typeof AuthenticatedProviderWalletRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
@@ -1494,7 +1642,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSystemSettingsRouteRoute:
     AuthenticatedSystemSettingsRouteRouteWithChildren,
   AuthenticatedChat2linkRoute: AuthenticatedChat2linkRoute,
-  AuthenticatedPartnerWorkspaceRoute: AuthenticatedPartnerWorkspaceRoute,
+  AuthenticatedPartnerWorkspaceRoute:
+    AuthenticatedPartnerWorkspaceRouteWithChildren,
   AuthenticatedProviderFundingRoute: AuthenticatedProviderFundingRoute,
   AuthenticatedProviderWalletRoute: AuthenticatedProviderWalletRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,

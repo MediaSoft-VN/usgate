@@ -8,6 +8,24 @@ reconciliation, whitelabel và admin console.
 
 Trạng thái: `todo` → `processing` → `done` → `reviewing` → `reviewed`.
 
+### Audit status (2026-10-22)
+
+Kết quả đối chiếu code thực tế:
+
+- **D — Đã có đáng kể:** FIN-034, FIN-038, FIN-061, FIN-062, FIN-064,
+  FIN-101, FIN-107..110, FIN-112.
+- **P — Đã có một phần:** FIN-002..005, FIN-006, FIN-007, FIN-009..017,
+  FIN-019..021, FIN-023, FIN-025..032, FIN-035, FIN-039..046, FIN-047..051,
+  FIN-054..056, FIN-059, FIN-063, FIN-065, FIN-075, FIN-076, FIN-080..082,
+  FIN-089..091, FIN-092, FIN-094..100, FIN-102, FIN-105..106, FIN-111,
+  FIN-113, FIN-119, FIN-122..132, FIN-134..138.
+- **N — Chưa thấy triển khai hoặc chưa có bằng chứng:** các FIN còn lại.
+
+`P` không đồng nghĩa đã hoàn thành production; nhiều phần hiện vẫn dựa trên
+quota/cash-flow legacy và chưa tạo thành financial wallet + immutable ledger
+đầy đủ. Các checkbox bên dưới giữ nguyên như backlog delivery state; audit này
+chỉ ghi nhận mức độ triển khai thực tế để tránh đánh dấu hoàn thành quá sớm.
+
 ## P0 — Foundation
 
 - [ ] **FIN-001** Chốt business rules về tiền, quota, ownership và rounding.

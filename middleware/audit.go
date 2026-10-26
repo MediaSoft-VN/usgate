@@ -73,6 +73,9 @@ var auditRouteActions = map[string]string{
 	"PUT /api/prefill_group/":       "prefill_group.update",
 	"DELETE /api/prefill_group/:id": "prefill_group.delete",
 
+	// Tenant domains
+	"DELETE /api/tenants/:tenant_id/domains/:domain_id": "tenant.domain.delete",
+
 	// 供应商
 	"POST /api/vendors/":      "vendor.create",
 	"PUT /api/vendors/":       "vendor.update",

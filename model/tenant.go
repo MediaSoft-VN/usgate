@@ -1,15 +1,14 @@
 package model
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"net"
 	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"golang.org/x/net/idna"
+	"golang.org/x/net/publicsuffix"
 	"gorm.io/gorm"
 )
 
@@ -54,16 +53,15 @@ type TenantMembership struct {
 }
 
 type TenantDomain struct {
-	Id                    int    `json:"id"`
-	TenantId              int    `json:"tenant_id" gorm:"index"`
-	Hostname              string `json:"hostname" gorm:"size:253;uniqueIndex"`
-	Status                string `json:"status" gorm:"size:16;index"`
-	VerificationMethod    string `json:"verification_method" gorm:"size:16"`
-	VerificationTokenHash string `json:"-" gorm:"size:64"`
-	VerifiedAt            *int64 `json:"verified_at"`
-	LastCheckedAt         *int64 `json:"last_checked_at"`
-	CreatedAt             int64  `json:"created_at"`
-	UpdatedAt             int64  `json:"updated_at"`
+	Id                 int    `json:"id"`
+	TenantId           int    `json:"tenant_id" gorm:"index"`
+	Hostname           string `json:"hostname" gorm:"size:253;uniqueIndex"`
+	Status             string `json:"status" gorm:"size:16;index"`
+	VerificationMethod string `json:"verification_method" gorm:"size:16"`
+	VerifiedAt         *int64 `json:"verified_at"`
+	LastCheckedAt      *int64 `json:"last_checked_at"`
+	CreatedAt          int64  `json:"created_at"`
+	UpdatedAt          int64  `json:"updated_at"`
 }
 
 var ErrTenantNotFound = errors.New("tenant not found")
@@ -72,6 +70,7 @@ var ErrFinalOwner = errors.New("the final active owner cannot be removed or demo
 var ErrInvalidTenantOwner = errors.New("tenant owner must be an existing enabled user")
 var ErrInvalidTenantMember = errors.New("tenant member must be an existing enabled user")
 var ErrPartnerCodeTaken = errors.New("partner code already exists")
+var ErrTenantDomainTaken = errors.New("domain is already pointed to the system")
 
 func normalizeTenantSlug(slug string) (string, error) {
 	slug = strings.ToLower(strings.TrimSpace(slug))
@@ -121,8 +120,9 @@ func GenerateTenantPartnerCode(name string) (string, error) {
 }
 
 func NormalizeTenantHostname(host string) (string, error) {
-	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
-	if host == "" || strings.ContainsAny(host, "@/?#") {
+	host, err := idna.Lookup.ToASCII(strings.TrimSuffix(strings.TrimSpace(host), "."))
+	host = strings.ToLower(host)
+	if err != nil || host == "" || host == "localhost" || strings.ContainsAny(host, "@/?#\\") {
 		return "", errors.New("invalid hostname")
 	}
 	if parsed := net.ParseIP(host); parsed != nil || strings.Contains(host, ":") {
@@ -140,6 +140,16 @@ func NormalizeTenantHostname(host string) (string, error) {
 				return "", errors.New("invalid hostname")
 			}
 		}
+	}
+	if strings.Count(host, ".") == 0 {
+		return "", errors.New("invalid hostname")
+	}
+	tld := host[strings.LastIndexByte(host, '.')+1:]
+	if tld == "example" || tld == "invalid" || tld == "localhost" || tld == "test" {
+		return "", errors.New("invalid hostname")
+	}
+	if _, err := publicsuffix.EffectiveTLDPlusOne(host); err != nil {
+		return "", errors.New("invalid hostname")
 	}
 	return host, nil
 }
@@ -205,6 +215,8 @@ func TenantPermission(role, action string) bool {
 		return role == TenantRoleAdmin || role == TenantRoleMember || role == TenantRoleViewer
 	case "member_admin", "domain_admin":
 		return role == TenantRoleAdmin
+	case "funding":
+		return role == TenantRoleAdmin
 	default:
 		return false
 	}
@@ -238,21 +250,6 @@ func ChangeMembership(tx *gorm.DB, tenantID, userID int, role, status string) er
 	return tx.Save(&membership).Error
 }
 
-func NewDomainChallenge() (string, string, error) {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", "", err
-	}
-	token := hex.EncodeToString(buf)
-	sum := sha256.Sum256([]byte(token))
-	return token, hex.EncodeToString(sum[:]), nil
-}
-
-func VerifyTenantDomain(domain *TenantDomain, token string) bool {
-	sum := sha256.Sum256([]byte(token))
-	return domain.Status == DomainPending && hex.EncodeToString(sum[:]) == domain.VerificationTokenHash
-}
-
 func ResolveVerifiedTenant(host string, userID int) (*Tenant, error) {
 	tenant, err := ResolveVerifiedTenantForRegistration(host)
 	if err != nil {
@@ -269,7 +266,7 @@ func ResolveVerifiedTenant(host string, userID int) (*Tenant, error) {
 // tenant resolver, it does not require membership because registration creates
 // that membership as part of the same operation.
 func ResolveVerifiedTenantForRegistration(host string) (*Tenant, error) {
-	normalized, err := NormalizeTenantHostname(host)
+	normalized, err := normalizeTenantRequestHost(host)
 	if err != nil {
 		return nil, ErrTenantNotFound
 	}
@@ -282,6 +279,47 @@ func ResolveVerifiedTenantForRegistration(host string) (*Tenant, error) {
 		return nil, ErrTenantNotFound
 	}
 	return &tenant, nil
+}
+
+// ResolveVerifiedTenantForHost distinguishes an unknown host from a verified
+// host whose tenant is no longer active. The distinction lets request
+// middleware fail closed instead of falling back to the platform application.
+func ResolveVerifiedTenantForHost(host string) (*Tenant, error) {
+	normalized, err := normalizeTenantRequestHost(host)
+	if err != nil {
+		return nil, ErrTenantNotFound
+	}
+	var domain TenantDomain
+	if err = DB.Where("hostname = ? AND status = ?", normalized, DomainVerified).First(&domain).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTenantNotFound
+		}
+		return nil, err
+	}
+	var tenant Tenant
+	if err = DB.Where("id = ? AND status = ? AND deleted_at IS NULL", domain.TenantId, TenantActive).First(&tenant).Error; err != nil {
+		return nil, ErrTenantForbidden
+	}
+	return &tenant, nil
+}
+
+// normalizeTenantRequestHost accepts the host form supplied by net/http while
+// keeping NormalizeTenantHostname strict for stored/configured hostnames.
+func normalizeTenantRequestHost(host string) (string, error) {
+	host = strings.TrimSpace(host)
+	if parsed, port, err := net.SplitHostPort(host); err == nil {
+		if parsed == "localhost" && common.GetEnvOrDefaultBool("TENANT_ALLOW_LOCALHOST", false) {
+			configuredPort := common.GetEnvOrDefaultString("TENANT_LOCALHOST_PORT", "")
+			if configuredPort != "" && port != configuredPort {
+				return "", errors.New("localhost tenant port mismatch")
+			}
+		}
+		host = parsed
+	}
+	if host == "localhost" && common.GetEnvOrDefaultBool("TENANT_ALLOW_LOCALHOST", false) {
+		return host, nil
+	}
+	return NormalizeTenantHostname(host)
 }
 
 // EnsureActiveTenantMembership makes a user an active member of a tenant. It

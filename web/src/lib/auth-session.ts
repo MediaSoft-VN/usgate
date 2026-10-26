@@ -36,6 +36,16 @@ export type RefreshOutcome =
   | { kind: 'transient_error'; error: unknown }
   | { kind: 'out_of_sync'; code?: string }
 
+let logoutInProgress = false
+
+export function setLogoutInProgress(value: boolean): void {
+  logoutInProgress = value
+}
+
+export function isLogoutInProgress(): boolean {
+  return logoutInProgress
+}
+
 export interface AuthRefreshHTTPResponse {
   status: number
   data?: unknown

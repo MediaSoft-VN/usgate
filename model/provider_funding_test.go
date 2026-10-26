@@ -44,7 +44,7 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.Len(t, channelWallets, 1)
 	assert.Equal(t, channel.Id, channelWallets[0].ChannelID)
 	assert.Equal(t, int64(12500), channelWallets[0].AmountMinor)
-	flows, total, err := ListProviderCashFlows(1, 20)
+	flows, total, err := ListProviderCashFlows(ProviderFundingFilter{Page: 1, PageSize: 20})
 	require.NoError(t, err)
 	assert.True(t, DB.Migrator().HasTable(&ProviderCashFlow{}))
 	assert.False(t, DB.Migrator().HasTable(&ProviderFunding{}))
@@ -53,6 +53,18 @@ func TestRecordProviderFundingIsIdempotentAndSummarized(t *testing.T) {
 	require.Len(t, flows, 1)
 	assert.Equal(t, ProviderCashFlowDirectionIncoming, flows[0].Direction)
 	assert.Equal(t, ProviderCashFlowTypeFunding, flows[0].Type)
+	filtered, filteredTotal, err := ListProviderCashFlows(ProviderFundingFilter{
+		Direction: ProviderCashFlowDirectionIncoming,
+		Type:      ProviderCashFlowTypeFunding,
+		Partner:   "provider funding test",
+		From:      record.CreatedAt - 1,
+		To:        record.CreatedAt + 1,
+		Page:      1,
+		PageSize:  20,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), filteredTotal)
+	assert.Len(t, filtered, 1)
 }
 
 func TestProviderFundingWalletUsesNetLedgerBalancePerCurrency(t *testing.T) {
@@ -96,6 +108,35 @@ func TestProviderFundingWalletUsesNetLedgerBalancePerCurrency(t *testing.T) {
 	}
 	require.NotNil(t, usdChannelWallet)
 	assert.Equal(t, int64(15000), usdChannelWallet.AmountMinor)
+}
+
+func TestSummarizeProviderCashFlowsAppliesDirectionAndDateFilters(t *testing.T) {
+	require.NoError(t, DB.AutoMigrate(&ProviderCashFlow{}, &User{}))
+	flows := []ProviderCashFlow{
+		{Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: "report-in-1", AmountMinor: 10000, Currency: "USD", Source: ProviderFundingSourceManual, CreatedAt: 100},
+		{Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation, Reference: "report-out-1", AmountMinor: 2500, Currency: "USD", Source: "allocation", CreatedAt: 200},
+		{Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding, Reference: "report-in-2", AmountMinor: 500, Currency: "USD", Source: ProviderFundingSourceManual, CreatedAt: 300},
+	}
+	for i := range flows {
+		require.NoError(t, DB.Create(&flows[i]).Error)
+	}
+	t.Cleanup(func() {
+		DB.Where("reference LIKE ?", "report-%").Delete(&ProviderCashFlow{})
+	})
+
+	summary, err := SummarizeProviderCashFlows(ProviderFundingFilter{From: 100, To: 300})
+	require.NoError(t, err)
+	require.Len(t, summary, 1)
+	assert.Equal(t, int64(10000), summary[0].IncomingMinor)
+	assert.Equal(t, int64(2500), summary[0].OutgoingMinor)
+	assert.Equal(t, int64(7500), summary[0].NetMinor)
+	assert.Equal(t, int64(2), summary[0].Count)
+
+	incoming, err := SummarizeProviderCashFlows(ProviderFundingFilter{Direction: ProviderCashFlowDirectionIncoming})
+	require.NoError(t, err)
+	require.Len(t, incoming, 1)
+	assert.Equal(t, int64(10500), incoming[0].IncomingMinor)
+	assert.Zero(t, incoming[0].OutgoingMinor)
 }
 
 func TestListProviderFundingAllocationHistoryIncludesCounterpartyName(t *testing.T) {

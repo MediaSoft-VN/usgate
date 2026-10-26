@@ -149,12 +149,12 @@ export function useSidebarData(): SidebarData {
             icon: Users,
           },
           {
-            title: t('Tenants'),
-            url: '/tenants',
-            icon: Building2,
+            title: t('Provider total wallet'),
+            url: '/provider-wallet',
+            icon: Wallet,
           },
           {
-            title: t('Wallet'),
+            title: t('Customer wallet'),
             url: '/customer-wallet',
             icon: Wallet,
           },
@@ -167,11 +167,6 @@ export function useSidebarData(): SidebarData {
           {
             title: t('Cash flow history'),
             url: '/provider-funding',
-            icon: Wallet,
-          },
-          {
-            title: t('Provider total wallet'),
-            url: '/provider-wallet',
             icon: Wallet,
           },
           {
@@ -224,7 +219,8 @@ export function useSidebarData(): SidebarData {
         items: [
           {
             title: t('Partner workspace'),
-            url: '/partner-workspace',
+            url: '/partner-workspace/overview',
+            activeUrls: ['/partner-workspace'],
             icon: Building2,
             requiredPartner: true,
           },

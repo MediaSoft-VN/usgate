@@ -89,8 +89,23 @@ export function CompactDateTimeRangePicker({
     setOpen(false)
   }
 
-  const applyPreset = (kind: 'today' | '7d' | 'week' | '30d' | 'month') => {
+  const applyPreset = (
+    kind:
+      | 'today'
+      | '7d'
+      | 'week'
+      | '30d'
+      | 'month'
+      | 'lastMonth'
+      | 'quarter'
+      | 'previousQuarter'
+      | 'year'
+      | 'previousYear'
+  ) => {
     const now = dayjs()
+    const currentQuarterStart = now
+      .startOf('month')
+      .subtract(now.month() % 3, 'month')
     const presets = {
       today: {
         start: now.startOf('day').toDate(),
@@ -111,6 +126,26 @@ export function CompactDateTimeRangePicker({
       month: {
         start: now.startOf('month').toDate(),
         end: now.endOf('month').toDate(),
+      },
+      lastMonth: {
+        start: now.subtract(1, 'month').startOf('month').toDate(),
+        end: now.subtract(1, 'month').endOf('month').toDate(),
+      },
+      quarter: {
+        start: currentQuarterStart.toDate(),
+        end: currentQuarterStart.add(2, 'month').endOf('month').toDate(),
+      },
+      previousQuarter: {
+        start: currentQuarterStart.subtract(3, 'month').toDate(),
+        end: currentQuarterStart.subtract(1, 'month').endOf('month').toDate(),
+      },
+      year: {
+        start: now.startOf('year').toDate(),
+        end: now.endOf('year').toDate(),
+      },
+      previousYear: {
+        start: now.subtract(1, 'year').startOf('year').toDate(),
+        end: now.subtract(1, 'year').endOf('year').toDate(),
       },
     }
     const range = presets[kind]
@@ -224,6 +259,51 @@ export function CompactDateTimeRangePicker({
               onClick={() => applyPreset('month')}
             >
               {t('Current month')}
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              size='sm'
+              className='h-7 flex-1 px-2 text-xs'
+              onClick={() => applyPreset('lastMonth')}
+            >
+              {t('Previous month')}
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              size='sm'
+              className='h-7 flex-1 px-2 text-xs'
+              onClick={() => applyPreset('quarter')}
+            >
+              {t('Current quarter')}
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              size='sm'
+              className='h-7 flex-1 px-2 text-xs'
+              onClick={() => applyPreset('previousQuarter')}
+            >
+              {t('Previous quarter')}
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              size='sm'
+              className='h-7 flex-1 px-2 text-xs'
+              onClick={() => applyPreset('year')}
+            >
+              {t('Current year')}
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              size='sm'
+              className='h-7 flex-1 px-2 text-xs'
+              onClick={() => applyPreset('previousYear')}
+            >
+              {t('Previous year')}
             </Button>
           </div>
 

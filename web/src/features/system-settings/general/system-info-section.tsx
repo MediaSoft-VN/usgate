@@ -46,10 +46,39 @@ import { useSettingsForm } from '../hooks/use-settings-form'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { isValidTaskPublicAddress } from './task-public-address'
 
+function isValidCnameTarget(value: string): boolean {
+  const target = value.trim()
+  if (!target) return true
+  if (target.length > 253) return false
+  return target.split('.').every((label) =>
+    /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label)
+  )
+}
+
+function isValidIpAddress(value: string): boolean {
+  const target = value.trim()
+  if (!target) return true
+  const parts = target.includes(':') ? target.split(':') : target.split('.')
+  if (target.includes(':')) {
+    return (
+      !target.includes(':::') &&
+      parts.length >= 3 &&
+      parts.length <= 8 &&
+      /^[0-9a-f:]+$/i.test(target)
+    )
+  }
+  return (
+    parts.length === 4 &&
+    parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255)
+  )
+}
+
 const _systemInfoSchema = z.object({
   SystemName: z.string().min(1),
   ServerAddress: z.string().optional(),
   TaskPublicAddress: z.string().refine(isValidTaskPublicAddress),
+  TenantDomainDNSRecordCNAME: z.string().refine(isValidCnameTarget),
+  TenantDomainDNSRecordA: z.string().refine(isValidIpAddress),
   Logo: z.string().url().optional().or(z.literal('')),
   Footer: z.string().optional(),
   About: z.string().optional(),
@@ -82,6 +111,8 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     SystemName: normalizeValue(defaultValues.SystemName),
     ServerAddress: normalizeValue(defaultValues.ServerAddress),
     TaskPublicAddress: normalizeValue(defaultValues.TaskPublicAddress),
+    TenantDomainDNSRecordCNAME: normalizeValue(defaultValues.TenantDomainDNSRecordCNAME),
+    TenantDomainDNSRecordA: normalizeValue(defaultValues.TenantDomainDNSRecordA),
     Logo: normalizeValue(defaultValues.Logo),
     Footer: normalizeValue(defaultValues.Footer),
     About: normalizeValue(defaultValues.About),
@@ -105,6 +136,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
         t(
           'Enter an absolute HTTP(S) URL without credentials, query parameters, or fragments'
         ),
+    }),
+    TenantDomainDNSRecordCNAME: z.string().refine(isValidCnameTarget, {
+      error: () => t('Enter a valid CNAME hostname'),
+    }),
+    TenantDomainDNSRecordA: z.string().refine(isValidIpAddress, {
+      error: () => t('Enter a valid IPv4 or IPv6 address'),
     }),
     Logo: z.string().url().optional().or(z.literal('')),
     Footer: z.string().optional(),
@@ -228,6 +265,40 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t('URL to your logo image (optional)')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='TenantDomainDNSRecordCNAME'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('CNAME target')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder='proxy.example.com' {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      {t('The hostname partners can use as an alternative to the A record')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='TenantDomainDNSRecordA'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('A record IP')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder='203.0.113.10 or 2001:db8::10' {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      {t('The IPv4 or IPv6 address partners can use as an alternative to CNAME')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

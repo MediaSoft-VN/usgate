@@ -54,6 +54,7 @@ export type ProviderFundingPage = {
   allocations: ProviderFundingAllocation[]
   cash_flows: ProviderCashFlow[]
   cash_flow_total: number
+  report: ProviderCashFlowSummary[]
 }
 
 export type ProviderCashFlow = {
@@ -73,7 +74,23 @@ export type ProviderCashFlow = {
   created_by: string
 }
 
-export async function getProviderFundings(page: number, pageSize: number) {
+export type ProviderCashFlowSummary = {
+  currency: string
+  incoming_minor: number
+  outgoing_minor: number
+  net_minor: number
+  count: number
+}
+
+export async function getProviderFundings(
+  page: number,
+  pageSize: number,
+  filters: {
+    from_date?: string
+    to_date?: string
+    direction?: 'incoming' | 'outgoing'
+  } = {}
+) {
   const response = await api.get<{
     success: boolean
     data: ProviderFundingPage
@@ -81,9 +98,27 @@ export async function getProviderFundings(page: number, pageSize: number) {
     params: {
       page,
       page_size: pageSize,
+      ...filters,
     },
   })
   return requireServerSuccess(response.data).data
+}
+
+export async function exportProviderFundings(
+  filters: {
+    from_date?: string
+    to_date?: string
+    direction?: 'incoming' | 'outgoing'
+  } = {}
+) {
+  const response = await api.get<Blob>(
+    '/api/financial/provider-funding/export',
+    {
+      params: filters,
+      responseType: 'blob',
+    }
+  )
+  return response.data
 }
 
 export async function createProviderFunding(input: {

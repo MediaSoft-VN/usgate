@@ -111,6 +111,16 @@ func GetChannel(
 	retry int,
 	filters []dto.ChannelFilter,
 ) (*Channel, error) {
+	return GetChannelWithPolicy(group, model, retry, filters, "priority")
+}
+
+func GetChannelWithPolicy(
+	group string,
+	model string,
+	retry int,
+	filters []dto.ChannelFilter,
+	routingPolicy string,
+) (*Channel, error) {
 	var abilities []Ability
 	err := DB.Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true).Order("priority DESC, weight DESC").Find(&abilities).Error
 	if err != nil {
@@ -127,6 +137,15 @@ func GetChannel(
 		abilities = filterAbilitiesByConstraints(abilities, model, filters)
 	}
 	if len(abilities) > 0 {
+		if routingPolicy == "lowest_cost" {
+			ids := make([]int, 0, len(abilities))
+			for _, ability := range abilities {
+				ids = append(ids, ability.ChannelId)
+			}
+			if channel, ok := selectLowestCostChannelDB(ids, model, retry); ok {
+				return channel, nil
+			}
+		}
 		priorities := make([]int64, 0)
 		seen := make(map[int64]bool)
 		for _, ability := range abilities {
@@ -170,6 +189,63 @@ func GetChannel(
 	}
 	err = DB.First(&channel, "id = ?", channel.Id).Error
 	return &channel, err
+}
+
+func selectLowestCostChannelDB(channelIDs []int, modelName string, retry int) (*Channel, bool) {
+	if DB == nil || len(channelIDs) == 0 {
+		return nil, false
+	}
+	normalizedModel := ratio_setting.RoutingMatchModelName(modelName)
+	var costs []ChannelModelCost
+	models := []string{modelName}
+	if normalizedModel != "" && normalizedModel != modelName {
+		models = append(models, normalizedModel)
+	}
+	query := DB.Where("channel_id IN ? AND valid = ? AND model IN ?", channelIDs, true, models)
+	if err := query.Find(&costs).Error; err != nil {
+		return nil, false
+	}
+	known := make(map[int]int64, len(costs))
+	for _, cost := range costs {
+		if _, exists := known[cost.ChannelID]; !exists {
+			known[cost.ChannelID] = cost.RoutingCost()
+		}
+	}
+	if len(known) == 0 {
+		return nil, false
+	}
+	var channels []*Channel
+	if err := DB.Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+		return nil, false
+	}
+	buckets := make(map[int64][]*Channel)
+	var bucketCosts []int64
+	seen := make(map[int64]bool)
+	unknown := make([]*Channel, 0)
+	for _, channel := range channels {
+		cost, ok := known[channel.Id]
+		if !ok {
+			unknown = append(unknown, channel)
+			continue
+		}
+		if !seen[cost] {
+			seen[cost] = true
+			bucketCosts = append(bucketCosts, cost)
+		}
+		buckets[cost] = append(buckets[cost], channel)
+	}
+	sort.Slice(bucketCosts, func(i, j int) bool { return bucketCosts[i] < bucketCosts[j] })
+	if len(unknown) > 0 {
+		buckets[-1] = unknown
+		bucketCosts = append(bucketCosts, -1)
+	}
+	if len(bucketCosts) == 0 {
+		return nil, false
+	}
+	if retry >= len(bucketCosts) {
+		retry = len(bucketCosts) - 1
+	}
+	return weightedChannel(buckets[bucketCosts[retry]]), true
 }
 
 // filterAbilitiesByConstraints applies the same ChannelSatisfiesFilters

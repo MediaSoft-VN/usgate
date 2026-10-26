@@ -66,6 +66,17 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     tenant: true,
     setting: true,
     subscription: true,
+    'provider-wallet': true,
+    'customer-wallet': true,
+    'provider-funding': true,
+  },
+  partner: {
+    enabled: true,
+    overview: true,
+    users: true,
+    domains: true,
+    wallet: true,
+    transactions: true,
   },
 }
 
@@ -120,6 +131,18 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/tenants': { section: 'admin', module: 'tenant' },
   '/redemption-codes': { section: 'admin', module: 'redemption' },
   '/subscriptions': { section: 'admin', module: 'subscription' },
+  '/provider-wallet': { section: 'admin', module: 'provider-wallet' },
+  '/customer-wallet': { section: 'admin', module: 'customer-wallet' },
+  '/provider-funding': { section: 'admin', module: 'provider-funding' },
+  '/partner-workspace': { section: 'partner', module: 'overview' },
+  '/partner-workspace/overview': { section: 'partner', module: 'overview' },
+  '/partner-workspace/users': { section: 'partner', module: 'users' },
+  '/partner-workspace/domains': { section: 'partner', module: 'domains' },
+  '/partner-workspace/wallet': { section: 'partner', module: 'wallet' },
+  '/partner-workspace/transactions': {
+    section: 'partner',
+    module: 'transactions',
+  },
   '/system-settings': { section: 'admin', module: 'setting' },
   '/system-settings/site': { section: 'admin', module: 'setting' },
 }

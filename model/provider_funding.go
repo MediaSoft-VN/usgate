@@ -2,7 +2,9 @@ package model
 
 import (
 	"errors"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
@@ -14,8 +16,8 @@ const (
 )
 
 var (
-	ErrInvalidProviderFunding  = errors.New("invalid provider funding")
-	ErrProviderFundingConflict = errors.New("provider funding reference conflict")
+	ErrInvalidProviderFunding      = errors.New("invalid provider funding")
+	ErrProviderFundingConflict     = errors.New("provider funding reference conflict")
 	ErrProviderFundingInsufficient = errors.New("insufficient provider funding")
 )
 
@@ -49,9 +51,9 @@ type ProviderCashFlow struct {
 
 type ProviderCashFlowHistory struct {
 	ProviderCashFlow
-	UserName         string `json:"user_name" gorm:"-"`
-	UserDisplayName  string `json:"user_display_name" gorm:"-"`
-	CounterpartyName string `json:"counterparty_name" gorm:"-"`
+	UserName         string `json:"user_name"`
+	UserDisplayName  string `json:"user_display_name"`
+	CounterpartyName string `json:"counterparty_name"`
 }
 
 // ProviderFunding is an immutable record of money deposited into a provider
@@ -73,6 +75,11 @@ type ProviderFundingFilter struct {
 	ChannelID int
 	Currency  string
 	Source    string
+	Direction string
+	Type      string
+	Partner   string
+	From      int64
+	To        int64
 	Page      int
 	PageSize  int
 }
@@ -82,12 +89,20 @@ type ProviderFundingSummary struct {
 	AmountMinor int64  `json:"amount_minor"`
 }
 
+type ProviderCashFlowSummary struct {
+	Currency      string `json:"currency"`
+	IncomingMinor int64  `json:"incoming_minor"`
+	OutgoingMinor int64  `json:"outgoing_minor"`
+	NetMinor      int64  `json:"net_minor"`
+	Count         int64  `json:"count"`
+}
+
 type ProviderFundingWalletSummary struct {
-	ChannelID   int    `json:"channel_id"`
-	Currency    string `json:"currency"`
-	AmountMinor int64  `json:"amount_minor"`
-	AllocatedMinor int64 `json:"allocated_minor"`
-	AvailableMinor int64 `json:"available_minor"`
+	ChannelID      int    `json:"channel_id"`
+	Currency       string `json:"currency"`
+	AmountMinor    int64  `json:"amount_minor"`
+	AllocatedMinor int64  `json:"allocated_minor"`
+	AvailableMinor int64  `json:"available_minor"`
 }
 
 type ProviderFundingChannelSummary struct {
@@ -101,33 +116,33 @@ type ProviderFundingChannelSummary struct {
 // pool. It intentionally has no channel ID: provider money is fungible across
 // all channels.
 type ProviderFundingAllocation struct {
-	ID          int64  `json:"id" gorm:"primaryKey"`
-	UserID      int    `json:"user_id" gorm:"not null;index"`
-	Reference   string `json:"reference" gorm:"type:varchar(255);not null;uniqueIndex"`
-	AmountMinor int64  `json:"amount_minor" gorm:"not null"`
-	Currency    string `json:"currency" gorm:"type:varchar(16);not null;index"`
-	Quota       int    `json:"quota" gorm:"not null"`
+	ID           int64  `json:"id" gorm:"primaryKey"`
+	UserID       int    `json:"user_id" gorm:"not null;index"`
+	Reference    string `json:"reference" gorm:"type:varchar(255);not null;uniqueIndex"`
+	AmountMinor  int64  `json:"amount_minor" gorm:"not null"`
+	Currency     string `json:"currency" gorm:"type:varchar(16);not null;index"`
+	Quota        int    `json:"quota" gorm:"not null"`
 	ExchangeRate string `json:"exchange_rate" gorm:"type:varchar(64);not null"`
-	CreatedAt   int64  `json:"created_at" gorm:"not null;index"`
-	CreatedBy   string `json:"created_by" gorm:"type:varchar(255);index"`
+	CreatedAt    int64  `json:"created_at" gorm:"not null;index"`
+	CreatedBy    string `json:"created_by" gorm:"type:varchar(255);index"`
 }
 
 // ProviderFundingAllocationHistory is the read model used by the provider
 // wallet UI. Allocation rows are only created after the quota credit succeeds,
 // so each row represents a completed debit from the provider balance.
 type ProviderFundingAllocationHistory struct {
-	ID                int64  `json:"id"`
-	UserID            int    `json:"user_id"`
-	UserName          string `json:"user_name"`
-	UserDisplayName   string `json:"user_display_name"`
-	CounterpartyName  string `json:"counterparty_name"`
-	Reference         string `json:"reference"`
-	AmountMinor       int64  `json:"amount_minor"`
-	Currency          string `json:"currency"`
-	Quota             int    `json:"quota"`
-	ExchangeRate      string `json:"exchange_rate"`
-	CreatedAt         int64  `json:"created_at"`
-	CreatedBy         string `json:"created_by"`
+	ID               int64  `json:"id"`
+	UserID           int    `json:"user_id"`
+	UserName         string `json:"user_name"`
+	UserDisplayName  string `json:"user_display_name"`
+	CounterpartyName string `json:"counterparty_name"`
+	Reference        string `json:"reference"`
+	AmountMinor      int64  `json:"amount_minor"`
+	Currency         string `json:"currency"`
+	Quota            int    `json:"quota"`
+	ExchangeRate     string `json:"exchange_rate"`
+	CreatedAt        int64  `json:"created_at"`
+	CreatedBy        string `json:"created_by"`
 }
 
 func normalizeProviderFundingCurrency(currency string) string {
@@ -192,19 +207,72 @@ func migrateProviderCashFlows() error {
 	})
 }
 
-func ListProviderCashFlows(page, pageSize int) ([]ProviderCashFlowHistory, int64, error) {
+func ListProviderCashFlows(filter ProviderFundingFilter) ([]ProviderCashFlowHistory, int64, error) {
 	if err := migrateProviderCashFlows(); err != nil {
 		return nil, 0, err
 	}
-	query := DB.Model(&ProviderCashFlow{}).Order("provider_cash_flows.created_at DESC, provider_cash_flows.id DESC")
+	query := providerCashFlowQuery(filter).Order("provider_cash_flows.created_at DESC, provider_cash_flows.id DESC")
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	page = max(page, 1)
-	pageSize = min(max(pageSize, 1), 100)
+	page := max(filter.Page, 1)
+	pageSize := min(max(filter.PageSize, 1), 100)
 	var rows []ProviderCashFlowHistory
-	err := query.Select("provider_cash_flows.*, users.username AS user_name, users.display_name AS user_display_name").Joins("LEFT JOIN users ON users.id = provider_cash_flows.user_id").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	err := query.Select("provider_cash_flows.*, users.username AS user_name, users.display_name AS user_display_name").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	setProviderCashFlowCounterparties(rows)
+	return rows, total, err
+}
+
+func providerCashFlowQuery(filter ProviderFundingFilter) *gorm.DB {
+	query := DB.Model(&ProviderCashFlow{})
+	joinedUsers := false
+	if filter.ChannelID > 0 {
+		query = query.Where("provider_cash_flows.channel_id = ?", filter.ChannelID)
+	}
+	if filter.Currency != "" {
+		query = query.Where("provider_cash_flows.currency = ?", normalizeProviderFundingCurrency(filter.Currency))
+	}
+	if filter.Source != "" {
+		query = query.Where("provider_cash_flows.source = ?", filter.Source)
+	}
+	if filter.Direction != "" {
+		query = query.Where("provider_cash_flows.direction = ?", filter.Direction)
+	}
+	if filter.Type != "" {
+		query = query.Where("provider_cash_flows.type = ?", filter.Type)
+	}
+	if filter.From > 0 {
+		query = query.Where("provider_cash_flows.created_at >= ?", filter.From)
+	}
+	if filter.To > 0 {
+		query = query.Where("provider_cash_flows.created_at < ?", filter.To)
+	}
+	if filter.Partner != "" {
+		pattern := "%" + strings.TrimSpace(filter.Partner) + "%"
+		query = query.Joins("LEFT JOIN channels ON channels.id = provider_cash_flows.channel_id").Joins("LEFT JOIN users ON users.id = provider_cash_flows.user_id").Where("channels.name LIKE ? OR users.username LIKE ? OR users.display_name LIKE ?", pattern, pattern, pattern)
+		joinedUsers = true
+	}
+	if !joinedUsers {
+		query = query.Joins("LEFT JOIN users ON users.id = provider_cash_flows.user_id")
+	}
+	return query
+}
+
+func ListAllProviderCashFlows(filter ProviderFundingFilter) ([]ProviderCashFlowHistory, error) {
+	if err := migrateProviderCashFlows(); err != nil {
+		return nil, err
+	}
+	var rows []ProviderCashFlowHistory
+	err := providerCashFlowQuery(filter).
+		Order("provider_cash_flows.created_at DESC, provider_cash_flows.id DESC").
+		Select("provider_cash_flows.*, users.username AS user_name, users.display_name AS user_display_name").
+		Find(&rows).Error
+	setProviderCashFlowCounterparties(rows)
+	return rows, err
+}
+
+func setProviderCashFlowCounterparties(rows []ProviderCashFlowHistory) {
 	for i := range rows {
 		displayName := strings.TrimSpace(rows[i].UserDisplayName)
 		username := strings.TrimSpace(rows[i].UserName)
@@ -216,7 +284,62 @@ func ListProviderCashFlows(page, pageSize int) ([]ProviderCashFlowHistory, int64
 			rows[i].CounterpartyName = username
 		}
 	}
-	return rows, total, err
+}
+
+func SummarizeProviderCashFlows(filter ProviderFundingFilter) ([]ProviderCashFlowSummary, error) {
+	if err := migrateProviderCashFlows(); err != nil {
+		return nil, err
+	}
+	type aggregate struct {
+		Currency  string
+		Direction string
+		Amount    int64
+		Count     int64
+	}
+	var aggregates []aggregate
+	if err := providerCashFlowQuery(filter).
+		Select("provider_cash_flows.currency, provider_cash_flows.direction, SUM(provider_cash_flows.amount_minor) AS amount, COUNT(*) AS count").
+		Group("provider_cash_flows.currency, provider_cash_flows.direction").
+		Order("provider_cash_flows.currency ASC, provider_cash_flows.direction ASC").
+		Scan(&aggregates).Error; err != nil {
+		return nil, err
+	}
+	byCurrency := make(map[string]*ProviderCashFlowSummary, len(aggregates))
+	for _, aggregate := range aggregates {
+		summary := byCurrency[aggregate.Currency]
+		if summary == nil {
+			summary = &ProviderCashFlowSummary{Currency: aggregate.Currency}
+			byCurrency[aggregate.Currency] = summary
+		}
+		summary.Count += aggregate.Count
+		switch aggregate.Direction {
+		case ProviderCashFlowDirectionIncoming:
+			summary.IncomingMinor += aggregate.Amount
+		case ProviderCashFlowDirectionOutgoing:
+			summary.OutgoingMinor += aggregate.Amount
+		}
+	}
+	summaries := make([]ProviderCashFlowSummary, 0, len(byCurrency))
+	for _, summary := range byCurrency {
+		summary.NetMinor = summary.IncomingMinor - summary.OutgoingMinor
+		summaries = append(summaries, *summary)
+	}
+	sort.Slice(summaries, func(i, j int) bool { return summaries[i].Currency < summaries[j].Currency })
+	return summaries, nil
+}
+
+func ProviderFundingDateFilter(value string, end bool) (int64, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	date, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return 0, err
+	}
+	if end {
+		return date.AddDate(0, 0, 1).Unix(), nil
+	}
+	return date.Unix(), nil
 }
 
 func providerCashFlowTotals(currency string) (int64, int64, error) {
