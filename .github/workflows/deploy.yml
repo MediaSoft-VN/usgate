@@ -71,6 +71,7 @@ jobs:
           : "${DEPLOY_PORT:?DEPLOY_PORT is required}"
           : "${DEPLOY_USER:?DEPLOY_USER is required}"
           scp -P "${DEPLOY_PORT}" \
+            -i ~/.ssh/id_ed25519_newapi \
             deploy/new-api.gz \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-${GITHUB_SHA}.gz"
 
@@ -82,6 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           scp -P "${DEPLOY_PORT}" \
+            -i ~/.ssh/id_ed25519_newapi \
             deploy/new-api-client.tar.gz \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/new-api-client-${GITHUB_SHA}.tar.gz"
 
@@ -93,9 +95,10 @@ jobs:
         run: |
           set -euo pipefail
           provisioner_dir="/tmp/new-api-tenant-domain-${GITHUB_SHA}"
-          ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+          ssh -i ~/.ssh/id_ed25519_newapi -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "install -d -m 0700 '${provisioner_dir}'"
           scp -P "${DEPLOY_PORT}" \
+            -i ~/.ssh/id_ed25519_newapi \
             scripts/install-tenant-domain-provisioner.sh \
             scripts/tenant-domain-host.sh \
             scripts/tenant-domain-socket.py \
@@ -142,4 +145,4 @@ jobs:
             printf 'TENANT_DOMAIN_HOST_SHA256=%q\n' "${tenant_host_checksum}"
             printf 'TENANT_DOMAIN_SOCKET_SHA256=%q\n' "${tenant_socket_checksum}"
             cat .github/scripts/deploy-native.sh
-          } | ssh -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s'
+          } | ssh -i ~/.ssh/id_ed25519_newapi -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s'
