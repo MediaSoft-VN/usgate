@@ -23,6 +23,7 @@ uploaded_provisioner_installer="${uploaded_provisioner_dir}/install-tenant-domai
 uploaded_provisioner_host="${uploaded_provisioner_dir}/tenant-domain-host.sh"
 uploaded_provisioner_socket="${uploaded_provisioner_dir}/tenant-domain-socket.py"
 release_file="${APP_DIR}/releases/new-api-${RELEASE_ID}"
+release_staging_file="${APP_DIR}/releases/.new-api-${RELEASE_ID}.tmp.$$"
 client_release_dir="${APP_DIR}/client/releases/client-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
 nginx_site=/etc/nginx/sites-available/new-api.conf
@@ -54,6 +55,7 @@ validate_value SSH_USER "${SSH_USER}" '^[A-Za-z_][A-Za-z0-9_-]*$'
 validate_value TENANT_DOMAIN_INSTALLER_SHA256 "${TENANT_DOMAIN_INSTALLER_SHA256}" '^[0-9a-f]{64}$'
 validate_value TENANT_DOMAIN_HOST_SHA256 "${TENANT_DOMAIN_HOST_SHA256}" '^[0-9a-f]{64}$'
 validate_value TENANT_DOMAIN_SOCKET_SHA256 "${TENANT_DOMAIN_SOCKET_SHA256}" '^[0-9a-f]{64}$'
+trap 'sudo -n rm -f -- "${release_staging_file}" || true' EXIT
 
 if [[ ! -f ${uploaded_file} ]]; then
   echo "Uploaded release was not found" >&2
@@ -172,9 +174,10 @@ printf '%s\n' "${NEW_API_ENV}" | sudo -n tee "${env_file}" >/dev/null
 sudo -n chown "${APP_USER}:${app_group}" "${env_file}"
 sudo -n chmod 0600 "${env_file}"
 
-gzip -dc "${uploaded_file}" | sudo -n tee "${release_file}" >/dev/null
-sudo -n chown "${APP_USER}:${app_group}" "${release_file}"
-sudo -n chmod 0755 "${release_file}"
+gzip -dc "${uploaded_file}" | sudo -n tee "${release_staging_file}" >/dev/null
+sudo -n chown "${APP_USER}:${app_group}" "${release_staging_file}"
+sudo -n chmod 0755 "${release_staging_file}"
+sudo -n mv -f -- "${release_staging_file}" "${release_file}"
 sudo -n ln -sfn "${release_file}" "${APP_DIR}/new-api"
 
 sudo -n tee "${service_file}" >/dev/null <<SERVICE
