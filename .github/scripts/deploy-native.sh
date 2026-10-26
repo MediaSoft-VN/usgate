@@ -281,8 +281,18 @@ sudo -n systemctl is-active --quiet new-api-tenant-domain-provisioner
 sudo -n test -S /run/new-api-tenant-domain.sock
 sudo -n systemctl show -p Environment --value new-api \
   | grep -Fq 'TENANT_DOMAIN_PROVISIONER_ENABLED=true'
-curl --fail --silent --show-error \
-  "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null
+healthy=false
+for _ in {1..30}; do
+  if curl --fail --silent "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null; then
+    healthy=true
+    break
+  fi
+  sleep 2
+done
+if [[ ${healthy} != true ]]; then
+  echo "New API did not become healthy after tenant-domain provisioner restart" >&2
+  exit 1
+fi
 curl --fail --silent --show-error --retry 10 --retry-delay 3 \
   "https://${DOMAIN}/api/status" >/dev/null
 
