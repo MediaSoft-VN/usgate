@@ -29,7 +29,7 @@ if [[ $# != 2 ]]; then
 fi
 operation=$1
 hostname=$2
-if [[ ${operation} != provision && ${operation} != cleanup ]] ||
+if [[ ${operation} != check && ${operation} != provision && ${operation} != cleanup ]] ||
   [[ ! ${hostname} =~ ^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$ ]] ||
   [[ ${hostname} == *..* || ${hostname} == *.-* || ${hostname} == -* ]]; then
   exit 2
@@ -51,6 +51,54 @@ readonly enabled_file="${enabled_dir}/partner-${hostname}.conf"
 
 site_is_managed() {
   [[ -f ${site_file} ]] && grep -Fqx "${marker}" "${site_file}"
+}
+
+nginx_config_has_hostname() {
+  local effective_config owned_config=""
+  effective_config=$("${nginx_bin}" -T 2>/dev/null) || return 2
+  if site_is_managed && [[ -L ${enabled_file} ]] &&
+    [[ $(readlink "${enabled_file}") == "${site_file}" ]]; then
+    owned_config=${enabled_file}
+  fi
+  printf '%s\n' "${effective_config}" | awk -v hostname="${hostname}" -v owned_config="${owned_config}" '
+    /^# configuration file / {
+      source = $0
+      sub(/^# configuration file /, "", source)
+      sub(/:$/, "", source)
+      next
+    }
+    {
+      line = $0
+      sub(/#.*/, "", line)
+      if (owned_config != "" && source == owned_config) next
+      if (line !~ /^[[:space:]]*server_name[[:space:]]/) next
+      sub(/^[[:space:]]*server_name[[:space:]]+/, "", line)
+      sub(/;.*/, "", line)
+      count = split(line, names, /[[:space:]]+/)
+      for (i = 1; i <= count; i++) {
+        if (names[i] == hostname) found = 1
+        if (substr(names[i], 1, 2) == "*.") {
+          suffix = substr(names[i], 2)
+          if (length(hostname) > length(suffix) && substr(hostname, length(hostname) - length(suffix) + 1) == suffix) found = 1
+        }
+        if (substr(names[i], 1, 1) == ".") {
+          suffix = names[i]
+          if (hostname == substr(suffix, 2) || (length(hostname) > length(suffix) && substr(hostname, length(hostname) - length(suffix) + 1) == suffix)) found = 1
+        }
+      }
+    }
+    END { exit found ? 0 : 1 }
+  '
+}
+
+ensure_hostname_available() {
+  local result
+  if nginx_config_has_hostname; then
+    return 1
+  else
+    result=$?
+    [[ ${result} == 1 ]]
+  fi
 }
 
 cert_is_managed() {
@@ -79,7 +127,11 @@ restore_previous_site() {
 }
 
 case ${operation} in
+  check)
+    ensure_hostname_available
+    ;;
   provision)
+    ensure_hostname_available || exit 1
     app_port=${APP_PORT}
     if [[ -e ${cert_manifest} ]] &&
       { [[ ! -f ${cert_manifest} ]] || [[ $(<"${cert_manifest}") != "${hostname}" ]]; }; then

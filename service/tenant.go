@@ -180,7 +180,13 @@ func VerifyDomain(domainID, tenantID int) error {
 	if err := model.DB.Where("id = ? AND tenant_id = ?", domainID, tenantID).First(&domain).Error; err != nil {
 		return err
 	}
-	if (domain.Status != model.DomainPending && domain.Status != model.DomainVerified) || !tenantDomainDNSMatches(domain.Hostname) {
+	if domain.Status != model.DomainPending && domain.Status != model.DomainVerified {
+		return errors.New("domain verification failed")
+	}
+	if err := TenantDomainHostOperation("check", domain.Hostname); err != nil {
+		return ErrTenantDomainHostOperation
+	}
+	if !tenantDomainDNSMatches(domain.Hostname) {
 		return errors.New("domain verification failed")
 	}
 	now := common.GetTimestamp()

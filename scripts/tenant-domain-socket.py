@@ -37,7 +37,7 @@ class DomainProvisionerHandler(socketserver.StreamRequestHandler):
         except (UnicodeDecodeError, ValueError):
             self.wfile.write(b"ERROR\n")
             return
-        if operation not in ("provision", "cleanup") or not valid_hostname(hostname):
+        if operation not in ("check", "provision", "cleanup") or not valid_hostname(hostname):
             self.wfile.write(b"ERROR\n")
             return
         try:
