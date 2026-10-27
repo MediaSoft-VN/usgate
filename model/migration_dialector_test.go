@@ -42,6 +42,16 @@ type migrationConstraintV2 struct {
 	Name string `gorm:"size:64;unique"`
 }
 
+type migrationUsersV1 struct {
+	ID       int    `gorm:"primaryKey"`
+	Username string `gorm:"size:64"`
+}
+
+type migrationUsersV2 struct {
+	ID       int    `gorm:"primaryKey"`
+	Username string `gorm:"size:64;unique;index"`
+}
+
 type migrationDecimalV1 struct {
 	ID    int     `gorm:"primaryKey"`
 	Price float64 `gorm:"type:decimal(10,6);default:0"`
@@ -143,6 +153,28 @@ func TestMigrationSchemaStability(t *testing.T) {
 			})
 
 			if dialect == "postgres" {
+				t.Run("attach_existing_unique_index", func(t *testing.T) {
+					const table = "users"
+					t.Cleanup(func() { _ = db.Migrator().DropTable(table) })
+					tableDB := db.Table(table)
+					require.NoError(t, tableDB.AutoMigrate(&migrationUsersV1{}))
+					require.NoError(t, tableDB.Create(&migrationUsersV1{Username: "existing"}).Error)
+					indexName := db.NamingStrategy.UniqueName(table, "username")
+					require.NoError(t, db.Exec(
+						"CREATE UNIQUE INDEX ? ON ? (?)",
+						clause.Column{Name: indexName},
+						clause.Table{Name: table},
+						clause.Column{Name: "username"},
+					).Error)
+
+					require.NoError(t, tableDB.AutoMigrate(&migrationUsersV2{}))
+					assert.True(t, tableDB.Migrator().HasConstraint(&migrationUsersV2{}, indexName))
+					assert.Error(t, db.Table(table).Create(&migrationUsersV2{Username: "existing"}).Error)
+					recorder.reset()
+					require.NoError(t, db.Table(table).AutoMigrate(&migrationUsersV2{}))
+					assert.Empty(t, recorder.schemaMutations())
+				})
+
 				t.Run("renamed_unique_constraints", func(t *testing.T) {
 					const table = "migration_renamed_unique"
 					t.Cleanup(func() { _ = db.Migrator().DropTable(table) })
