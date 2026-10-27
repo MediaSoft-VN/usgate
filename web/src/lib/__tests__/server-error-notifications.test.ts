@@ -30,6 +30,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 
 import { saveModelPricing } from '@/features/model-pricing/api'
 import { useUpdateOption } from '@/features/system-settings/hooks/use-update-option'
+import { setLogoutInProgress } from '@/lib/auth-session'
 import { handleServerError } from '@/lib/handle-server-error'
 import { api } from '@/lib/http-client'
 import { createAppQueryClient } from '@/lib/query-client'
@@ -45,6 +46,7 @@ const originalAdapter = api.defaults.adapter
 afterEach(() => {
   api.defaults.adapter = originalAdapter
   vi.restoreAllMocks()
+  setLogoutInProgress(false)
   useAuthStore.getState().auth.reset()
   window.history.replaceState({}, '', '/')
 })
@@ -139,6 +141,35 @@ it('uses production mutation callbacks to report nested pricing failures only on
     'Invalid expression',
     'Invalid expression',
   ])
+  client.clear()
+})
+
+it('keeps late unauthorized query failures silent after logout succeeds', async () => {
+  const notify = vi.spyOn(toast, 'error').mockReturnValue('error')
+  const success = vi.spyOn(toast, 'success').mockReturnValue('signed-out')
+  const client = createAppQueryClient()
+  api.defaults.adapter = async (config) => {
+    throw new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
+      data: { message: 'Unauthorized' },
+      status: 401,
+      statusText: 'Unauthorized',
+      headers: {},
+      config,
+    })
+  }
+
+  setLogoutInProgress(true)
+  success('Signed out')
+  await client
+    .fetchQuery({
+      queryKey: ['late-auth-request'],
+      queryFn: () => api.get('/protected'),
+      retry: false,
+    })
+    .catch(() => {})
+
+  expect(success.mock.calls.map(([message]) => message)).toEqual(['Signed out'])
+  expect(notify).not.toHaveBeenCalled()
   client.clear()
 })
 
