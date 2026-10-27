@@ -661,7 +661,8 @@ func TestGetTokenUsageFollowsTheUserQuotaSwitchAndIPWhitelist(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db := setupTokenControllerTestDB(t)
-			require.NoError(t, db.AutoMigrate(&model.User{}))
+			require.NoError(t, db.AutoMigrate(&model.User{}, &model.Option{}, &model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
+			require.NoError(t, model.EnsureLegacyAccessTokenRetireAt(time.Now().Unix()))
 			// Initialize production column quoting for the token key lookup.
 			t.Setenv("LOG_SQL_DSN", "")
 			require.NoError(t, model.InitLogDB())
@@ -736,7 +737,9 @@ func TestAPITokenAuditDatabaseMatrix(t *testing.T) {
 				db, _ := newAuditTestDatabase(t, database.name, dsn)
 				model.DB = db
 				common.SetDatabaseTypes(database.typ, database.typ)
-				require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.Token{}))
+				require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.Token{}, &model.Option{},
+					&model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
+				require.NoError(t, model.EnsureLegacyAccessTokenRetireAt(time.Now().Unix()))
 				// Initialize production column quoting as well as the existing audit table.
 				require.NoError(t, model.InitLogDB())
 				if separateLog {

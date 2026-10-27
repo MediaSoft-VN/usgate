@@ -21,9 +21,9 @@ func TestResolveTenantContextUsesVerifiedHostAndActiveMembership(t *testing.T) {
 	model.DB = db
 	t.Cleanup(func() { model.DB = previousDB })
 
-	owner := model.User{Username: "tenant-owner", Password: "unused", Status: common.UserStatusEnabled}
-	member := model.User{Username: "tenant-member", Password: "unused", Status: common.UserStatusEnabled}
-	outsider := model.User{Username: "tenant-outsider", Password: "unused", Status: common.UserStatusEnabled}
+	owner := model.User{Username: "tenant-owner", Password: "unused", Status: common.UserStatusEnabled, AffCode: "tenant-owner"}
+	member := model.User{Username: "tenant-member", Password: "unused", Status: common.UserStatusEnabled, AffCode: "tenant-member"}
+	outsider := model.User{Username: "tenant-outsider", Password: "unused", Status: common.UserStatusEnabled, AffCode: "tenant-outsider"}
 	require.NoError(t, db.Create(&owner).Error)
 	require.NoError(t, db.Create(&member).Error)
 	require.NoError(t, db.Create(&outsider).Error)
