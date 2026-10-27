@@ -80,7 +80,10 @@ func TestResolveTenantContextAllowsLocalhostOnlyWhenExplicitlyEnabled(t *testing
 	require.True(t, ok)
 	require.Equal(t, tenant.Id, selectedID)
 
-	mainContext := request("localhost:5173", owner.Id)
+	mainContext, _ := gin.CreateTestContext(httptest.NewRecorder())
+	mainContext.Request = httptest.NewRequest("GET", "/api/user/self", nil)
+	mainContext.Request.Host = "localhost:5173"
+	mainContext.Set("id", owner.Id)
 	require.NoError(t, ResolveTenantContext(mainContext))
 	_, ok = mainContext.Get(string(constant.ContextKeyTenantID))
 	require.False(t, ok)
