@@ -140,17 +140,17 @@ func TestSummarizeProviderCashFlowsAppliesDirectionAndDateFilters(t *testing.T) 
 }
 
 func TestListProviderFundingAllocationHistoryIncludesCounterpartyName(t *testing.T) {
-	require.NoError(t, DB.AutoMigrate(&ProviderFundingAllocation{}, &User{}))
+	require.NoError(t, DB.AutoMigrate(&ProviderCashFlow{}, &User{}))
 	user := &User{Username: "cashflow-counterparty", DisplayName: "Cash Flow Recipient", Password: "test-password"}
 	require.NoError(t, DB.Create(user).Error)
-	allocation := &ProviderFundingAllocation{
-		UserID: user.Id, Reference: "cashflow-counterparty-reference", AmountMinor: 1250,
+	allocation := &ProviderCashFlow{
+		UserID: user.Id, Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation, Source: "allocation", Reference: "cashflow-counterparty-reference", AmountMinor: 1250,
 		Currency: "USD", Quota: 100, ExchangeRate: "1",
 		CreatedAt: 1, CreatedBy: "admin",
 	}
 	require.NoError(t, DB.Create(allocation).Error)
 	t.Cleanup(func() {
-		DB.Delete(&ProviderFundingAllocation{}, allocation.ID)
+		DB.Delete(&ProviderCashFlow{}, allocation.ID)
 		DB.Delete(&User{}, user.Id)
 	})
 
