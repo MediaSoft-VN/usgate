@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, closed]
+    types: [opened, synchronize]
 
 permissions:
   contents: read
@@ -11,12 +11,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Checkout the event commit in both jobs. A PR merge ref can disappear while
-# queued runs start, and a base branch can advance after the merge event.
 jobs:
   backend:
     name: Backend vet, build, and test
-    if: github.event.action != 'closed' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -70,7 +67,6 @@ jobs:
 
   frontend:
     name: Frontend typecheck and test
-    if: github.event.action != 'closed' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:

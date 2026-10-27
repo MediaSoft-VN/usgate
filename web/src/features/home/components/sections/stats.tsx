@@ -105,13 +105,13 @@ export function Stats(_props: StatsProps) {
   ]
 
   return (
-    <div className='border-border/40 bg-muted/10 relative z-10 border-y'>
-      <div className='mx-auto max-w-6xl px-6 py-10 md:py-12'>
+    <div className='border-border/50 relative z-10 border-y bg-blue-50/60 dark:bg-blue-950/10'>
+      <div className='mx-auto max-w-6xl px-6 py-8 md:py-10'>
         <div className='grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12'>
           {stats.map((s) => (
             <div
               key={s.label}
-              className='flex flex-col items-center text-center'
+              className='flex flex-col items-center text-center md:border-r md:border-blue-200/70 last:md:border-r-0 dark:md:border-blue-900/50'
             >
               <span className='text-2xl font-bold tracking-tight md:text-3xl'>
                 <Counter end={s.end} suffix={s.suffix} decimals={s.decimals} />

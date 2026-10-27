@@ -163,7 +163,13 @@ describe('administrator update entry', () => {
     })
     expect(buttons).toHaveLength(2)
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(within(buttons[0]).getByText('v1.0.0-rc.35')).toHaveClass('truncate')
+    expect(buttons[0]).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('v1.0.0-rc.35')
+    )
+    expect(
+      within(buttons[0]).queryByText('v1.0.0-rc.35')
+    ).not.toBeInTheDocument()
     expect(within(buttons[0]).getByText('Update available')).toHaveClass(
       'hidden',
       '@min-[22rem]/system-brand:inline-flex'
@@ -369,8 +375,8 @@ describe('administrator update entry', () => {
   })
 })
 
-describe('version label presentation', () => {
-  test('keeps the current version visible while checking and after finding no newer version', async () => {
+describe('version presentation', () => {
+  test('keeps the current version accessible but visually hidden while checking and after finding no newer version', async () => {
     let finishRequest: ((response: Response) => void) | undefined
     fetchMock.mockImplementation(
       () =>
@@ -384,7 +390,13 @@ describe('version label presentation', () => {
       name: 'System updates, current version: v1.0.0-rc.36',
     })
     expect(trigger).toHaveAttribute('aria-busy', 'true')
-    expect(within(trigger).getByText(release.tag_name)).toBeInTheDocument()
+    expect(trigger).toHaveAttribute(
+      'title',
+      expect.stringContaining(release.tag_name)
+    )
+    expect(
+      within(trigger).queryByText(release.tag_name)
+    ).not.toBeInTheDocument()
     expect(
       within(trigger).queryByText('Check for updates')
     ).not.toBeInTheDocument()
@@ -392,19 +404,27 @@ describe('version label presentation', () => {
       finishRequest?.(new Response(JSON.stringify([release])))
     })
     await waitFor(() => expect(trigger).toHaveAttribute('aria-busy', 'false'))
-    expect(within(trigger).getByText(release.tag_name)).toBeInTheDocument()
+    expect(
+      within(trigger).queryByText(release.tag_name)
+    ).not.toBeInTheDocument()
     expect(
       within(trigger).queryByText('Update available')
     ).not.toBeInTheDocument()
   })
 
-  test('shows an unknown-version label when the server has not supplied a version', async () => {
+  test('keeps the unknown-version description accessible without showing it in the header', async () => {
     client.setQueryData(STATUS_QUERY_KEY, { version: '' })
     render(<SystemUpdateAction presentation='version' />, { wrapper: Wrapper })
     const trigger = screen.getByRole('button', {
       name: 'System updates, current version: Unknown version',
     })
-    expect(within(trigger).getByText('Unknown version')).toBeInTheDocument()
+    expect(trigger).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('Unknown version')
+    )
+    expect(
+      within(trigger).queryByText('Unknown version')
+    ).not.toBeInTheDocument()
     await waitFor(() => expect(trigger).toHaveAttribute('aria-busy', 'false'))
     expect(
       within(trigger).queryByText('Update available')
@@ -418,7 +438,11 @@ describe('version label presentation', () => {
     const trigger = await screen.findByRole('button', {
       name: /System updates, current version: v1\.0\.0-rc\.35.*Failed to check for updates/s,
     })
-    expect(within(trigger).getByText('v1.0.0-rc.35')).toBeInTheDocument()
+    expect(within(trigger).queryByText('v1.0.0-rc.35')).not.toBeInTheDocument()
+    expect(trigger).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('v1.0.0-rc.35')
+    )
     expect(trigger).toHaveAttribute(
       'title',
       expect.stringContaining('Failed to check for updates')
@@ -429,7 +453,7 @@ describe('version label presentation', () => {
     ).toBeInTheDocument()
   })
 
-  test('keeps a long version accessible in the tooltip while constraining its visible label', async () => {
+  test('keeps a long version accessible in the tooltip without rendering a visible label', async () => {
     const version = 'v1.0.0+long-build-metadata-for-a-custom-deployment'
     client.setQueryData(STATUS_QUERY_KEY, { version })
     render(<SystemUpdateAction presentation='version' />, { wrapper: Wrapper })
@@ -437,11 +461,10 @@ describe('version label presentation', () => {
       name: `System updates, current version: ${version}`,
     })
     expect(trigger).toHaveAttribute('title', expect.stringContaining(version))
-    expect(within(trigger).getByText(version)).toHaveClass(
-      'truncate',
-      'max-w-32',
-      'hidden',
-      '@min-[22rem]/system-brand:inline'
+    expect(within(trigger).queryByText(version)).not.toBeInTheDocument()
+    expect(trigger).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining(version)
     )
     await waitFor(() => expect(trigger).toHaveAttribute('aria-busy', 'false'))
   })
