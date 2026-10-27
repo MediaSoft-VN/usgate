@@ -211,10 +211,11 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	certRenewalDir := filepath.Join(root, "renewal")
 	certLiveDir := filepath.Join(root, "live")
 	certManifestDir := filepath.Join(root, "manifests")
-	for _, dir := range []string{siteDir, enabledDir, binDir, certRenewalDir} {
+	acmeWebrootDir := filepath.Join(root, "webroot")
+	for _, dir := range []string{siteDir, enabledDir, binDir, certRenewalDir, acmeWebrootDir} {
 		require.NoError(t, os.MkdirAll(dir, 0o755))
 	}
-	config := fmt.Sprintf("APP_PORT=%q\nCERTBOT_EMAIL=%q\nNGINX_SITES_AVAILABLE=%q\nNGINX_SITES_ENABLED=%q\nDOMAIN_LOCK_FILE=%q\nCERT_RENEWAL_DIR=%q\nCERT_LIVE_DIR=%q\nCERT_MANIFEST_DIR=%q\n", "3000", "ops@example.com", siteDir, enabledDir, filepath.Join(root, "lock"), certRenewalDir, certLiveDir, certManifestDir)
+	config := fmt.Sprintf("APP_PORT=%q\nCERTBOT_EMAIL=%q\nNGINX_SITES_AVAILABLE=%q\nNGINX_SITES_ENABLED=%q\nDOMAIN_LOCK_FILE=%q\nCERT_RENEWAL_DIR=%q\nCERT_LIVE_DIR=%q\nCERT_MANIFEST_DIR=%q\nACME_WEBROOT_DIR=%q\n", "3000", "ops@example.com", siteDir, enabledDir, filepath.Join(root, "lock"), certRenewalDir, certLiveDir, certManifestDir, acmeWebrootDir)
 	configPath := filepath.Join(root, "provisioner.env")
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
 	fakeCommands := map[string]string{
@@ -280,6 +281,7 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	require.Contains(t, string(contents), "proxy_set_header Host $host;")
 	require.Contains(t, string(contents), "listen 443 ssl;")
 	require.Contains(t, string(contents), "/etc/letsencrypt/live/partner-app.example.com/fullchain.pem")
+	require.Contains(t, string(contents), "root "+acmeWebrootDir+";")
 	target, err := os.Readlink(partnerLink)
 	require.NoError(t, err)
 	require.Equal(t, partnerConfig, target)
