@@ -629,14 +629,7 @@ export function OverviewDashboard() {
 
   return (
     <SectionPageLayout>
-      <SectionPageLayout.Title>
-        <span className='flex flex-col gap-1'>
-          <span>{t('Overview')}</span>
-          <span className='text-muted-foreground text-xs font-normal tracking-normal sm:text-sm'>
-            {t('Usage at a glance')}
-          </span>
-        </span>
-      </SectionPageLayout.Title>
+      <SectionPageLayout.Title>{t('Overview')}</SectionPageLayout.Title>
       <SectionPageLayout.Actions>
         {setupStatusReady && setupComplete && (
           <Button

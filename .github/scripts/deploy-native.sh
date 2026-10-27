@@ -222,7 +222,7 @@ fi
 
 healthy=false
 for _ in {1..30}; do
-  if curl --fail --silent --show-error "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null; then
+  if curl --fail --silent "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null; then
     healthy=true
     break
   fi

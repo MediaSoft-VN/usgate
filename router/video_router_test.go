@@ -28,7 +28,9 @@ func TestGetOpenAIVideoRouteRendersJimengTask(t *testing.T) {
 	t.Setenv("SQL_DSN", "")
 	require.NoError(t, model.InitDB())
 	database := model.DB
-	require.NoError(t, database.AutoMigrate(&model.User{}, &model.Token{}, &model.Channel{}, &model.Task{}))
+	require.NoError(t, database.AutoMigrate(&model.User{}, &model.Token{}, &model.Channel{}, &model.Task{}, &model.Option{},
+		&model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
+	require.NoError(t, model.EnsureLegacyAccessTokenRetireAt(common.GetTimestamp()))
 	t.Cleanup(func() {
 		sqlDB, closeErr := database.DB()
 		require.NoError(t, closeErr)
@@ -48,6 +50,7 @@ func TestGetOpenAIVideoRouteRendersJimengTask(t *testing.T) {
 		Quota:       100,
 		Group:       "default",
 		AuthVersion: 1,
+		AffCode:     "jimeng-fetch-user-aff",
 	}).Error)
 	require.NoError(t, database.Create(&model.Token{
 		Id:             1,

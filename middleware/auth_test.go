@@ -33,7 +33,8 @@ func setupDashboardAuthMiddlewareTest(t *testing.T) {
 	previousSecret := common.SessionSecret
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.AuditLog{}, &model.UserAccessToken{}, &model.Option{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.AuditLog{}, &model.UserAccessToken{}, &model.Option{},
+		&model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
 	model.DB = db
 	model.LOG_DB = db
 	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
@@ -392,7 +393,7 @@ func TestUserAuthAppliesAccessTokenRouteRules(t *testing.T) {
 	assert.Equal(t, http.StatusOK, middlewareBearerRequest(router, "/api/user/self", profile).Code, "the deadline only retires legacy tokens")
 }
 
-func TestAccessTokenIdentityAndSingleLookup(t *testing.T) {
+func TestAccessTokenIdentityUsesSingleCredentialLookup(t *testing.T) {
 	setupDashboardAuthMiddlewareTest(t)
 	gin.SetMode(gin.TestMode)
 	legacy := "middleware-identity-legacy"
@@ -447,9 +448,9 @@ func TestAccessTokenIdentityAndSingleLookup(t *testing.T) {
 			if test.stepUp {
 				assert.Equal(t, service.AuthIdentity{UserID: user.Id, SessionID: model.AccessTokenSessionID(token.Id), UserAuthVersion: user.AuthVersion, SessionVersion: model.AccessTokenSessionVersion}, body.Identity)
 			}
-			// The access audit and authentication share one lookup: the
-			// credential query plus the owner's user row.
-			assert.Len(t, queries, 2)
+			// Credential authentication and the owner's user row are each
+			// queried once; tenant context separately resolves the request host.
+			assert.Len(t, queries, 3)
 			assert.Equal(t, test.tokenTable, countQueries("user_access_tokens", "token_hash"))
 			assert.Equal(t, test.legacyQuery, countQueries("users", "access_token = "))
 		})

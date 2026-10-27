@@ -22,6 +22,7 @@ lock_file=${DOMAIN_LOCK_FILE:-/run/lock/new-api-tenant-domain.lock}
 cert_renewal_dir=${CERT_RENEWAL_DIR:-/etc/letsencrypt/renewal}
 cert_live_dir=${CERT_LIVE_DIR:-/etc/letsencrypt/live}
 cert_manifest_dir=${CERT_MANIFEST_DIR:-/etc/new-api/partner-domain-certificates}
+acme_webroot_dir=${ACME_WEBROOT_DIR:-/var/www/html}
 
 if [[ $# != 2 ]]; then
   exit 2
@@ -91,7 +92,7 @@ case ${operation} in
     if [[ -f ${cert_renewal_file} ]]; then
       had_certificate=true
     fi
-    install -d -m 0755 /var/www/html/.well-known/acme-challenge
+    install -d -m 0755 "${acme_webroot_dir}/.well-known/acme-challenge"
     install -d -m 0755 "${site_dir}" "${enabled_dir}"
     if [[ -e ${site_file} ]] && ! site_is_managed; then
       exit 1
@@ -121,7 +122,7 @@ server {
     client_max_body_size 100m;
 
     location /.well-known/acme-challenge/ {
-        root /var/www/html;
+        root ${acme_webroot_dir};
     }
     location / {
         return 503;
@@ -141,7 +142,7 @@ NGINX
     printf '%s\n' "${hostname}" >"${manifest_tmp}"
     chmod 0600 "${manifest_tmp}"
     mv -f "${manifest_tmp}" "${cert_manifest}"
-    if ! "${certbot_bin}" certonly --webroot --webroot-path /var/www/html \
+    if ! "${certbot_bin}" certonly --webroot --webroot-path "${acme_webroot_dir}" \
       --non-interactive --agree-tos --no-eff-email --email "${CERTBOT_EMAIL}" \
       --cert-name "${cert_name}" -d "${hostname}" \
       >/dev/null 2>&1; then
@@ -168,7 +169,7 @@ server {
     client_max_body_size 100m;
 
     location /.well-known/acme-challenge/ {
-        root /var/www/html;
+        root ${acme_webroot_dir};
     }
     location / {
         return 301 https://\$host\$request_uri;
