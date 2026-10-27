@@ -8,6 +8,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
 )
 
@@ -57,6 +58,87 @@ func (d postgresMigrationDialector) Migrator(db *gorm.DB) gorm.Migrator {
 }
 
 type postgresSchemaMigrator struct{ postgres.Migrator }
+
+func (m postgresSchemaMigrator) CreateConstraint(value any, name string) error {
+	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
+		constraint, table := m.Migrator.GuessConstraintInterfaceAndTable(stmt, name)
+		if constraint == nil {
+			return m.Migrator.CreateConstraint(value, name)
+		}
+		uniqueConstraint, isUnique := constraint.(*schema.UniqueConstraint)
+
+		schemaName, tableName := m.CurrentSchema(stmt, table)
+		schemaNameValue, _ := schemaName.(string)
+		tableNameValue, ok := tableName.(string)
+		if !ok {
+			return m.Migrator.CreateConstraint(value, name)
+		}
+		constraintName := constraint.GetName()
+		tableClause := m.CurrentTable(stmt)
+
+		return m.DB.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec("LOCK TABLE ? IN ACCESS EXCLUSIVE MODE", m.CurrentTable(stmt)).Error; err != nil {
+				return err
+			}
+
+			var constraintExists bool
+			if err := tx.Raw(`
+SELECT EXISTS (
+  SELECT 1
+  FROM pg_catalog.pg_constraint AS constraint_meta
+  JOIN pg_catalog.pg_class AS table_meta ON table_meta.oid = constraint_meta.conrelid
+  JOIN pg_catalog.pg_namespace AS schema_meta ON schema_meta.oid = table_meta.relnamespace
+  WHERE schema_meta.nspname = COALESCE(NULLIF(?, ''), CURRENT_SCHEMA())
+    AND table_meta.relname = ?
+    AND constraint_meta.conname = ?
+)`, schemaNameValue, tableNameValue, constraintName).Scan(&constraintExists).Error; err != nil {
+				return err
+			}
+			if constraintExists {
+				return nil
+			}
+
+			var existingIndex string
+			if isUnique {
+				if err := tx.Raw(`
+SELECT index_meta.relname
+FROM pg_catalog.pg_class AS index_meta
+JOIN pg_catalog.pg_namespace AS schema_meta ON schema_meta.oid = index_meta.relnamespace
+JOIN pg_catalog.pg_index AS index_data ON index_data.indexrelid = index_meta.oid
+JOIN pg_catalog.pg_class AS table_meta ON table_meta.oid = index_data.indrelid
+JOIN pg_catalog.pg_attribute AS attribute_meta
+  ON attribute_meta.attrelid = table_meta.oid
+ AND attribute_meta.attnum = ANY(index_data.indkey)
+LEFT JOIN pg_catalog.pg_constraint AS constraint_meta ON constraint_meta.conindid = index_meta.oid
+WHERE schema_meta.nspname = COALESCE(NULLIF(?, ''), CURRENT_SCHEMA())
+  AND table_meta.relname = ?
+  AND index_meta.relname = ?
+  AND index_meta.relkind = 'i'
+  AND index_data.indisunique
+  AND index_data.indisvalid
+  AND index_data.indpred IS NULL
+  AND index_data.indexprs IS NULL
+  AND index_data.indnatts = 1
+  AND attribute_meta.attname = ?
+  AND constraint_meta.oid IS NULL
+LIMIT 1`, schemaNameValue, tableNameValue, uniqueConstraint.Name, uniqueConstraint.Field.DBName).Scan(&existingIndex).Error; err != nil {
+					return err
+				}
+			}
+			if existingIndex != "" {
+				return tx.Exec(
+					"ALTER TABLE ? ADD CONSTRAINT ? UNIQUE USING INDEX ?",
+					tableClause,
+					clause.Column{Name: constraintName},
+					clause.Column{Name: existingIndex},
+				).Error
+			}
+
+			constraintSQL, values := constraint.Build()
+			return tx.Exec("ALTER TABLE ? ADD "+constraintSQL, append([]any{tableClause}, values...)...).Error
+		})
+	})
+}
 
 func (m postgresSchemaMigrator) MigrateColumn(value any, field *schema.Field, column gorm.ColumnType) error {
 	if column.DatabaseTypeName() == "bpchar" && strings.HasPrefix(strings.ToLower(string(field.DataType)), "char(") {
