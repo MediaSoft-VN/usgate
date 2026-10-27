@@ -44,6 +44,7 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
   const handleSignOut = async () => {
     setIsSigningOut(true)
     setLogoutInProgress(true)
+    let signedOut = false
     await queryClient.cancelQueries()
     try {
       const response = await logout()
@@ -53,12 +54,13 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
       }
 
       clearAuthenticatedClientState(queryClient)
+      signedOut = true
       toast.success(t('Signed out'))
       void navigate({ to: '/sign-in', replace: true })
     } catch (error: unknown) {
       handleServerError(error, t('Failed to sign out session'))
     } finally {
-      setLogoutInProgress(false)
+      if (!signedOut) setLogoutInProgress(false)
       setIsSigningOut(false)
     }
   }

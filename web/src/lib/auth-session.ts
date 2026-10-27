@@ -162,6 +162,7 @@ export function applyAuthBundle(
   synchronizeTabs = true
 ): void {
   const previousSID = useAuthStore.getState().auth.session?.sid
+  setLogoutInProgress(false)
   authEpoch += 1
   useAuthStore.getState().auth.setBundle(bundle)
   if (synchronizeTabs && previousSID !== bundle.session.sid) {

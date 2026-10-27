@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 
+import { isLogoutInProgress } from './auth-session'
 import { handleServerError } from './handle-server-error'
 import { getServerErrorStatus } from './server-error-message'
 
@@ -50,14 +51,20 @@ export function createAppQueryClient(
     mutationCache: new MutationCache({
       onError: (error, _variables, _context, mutation) => {
         // A mutation-specific callback owns its fallback or inline error state.
-        if (mutation.meta?.errorToast !== false && !mutation.options.onError) {
+        if (
+          !isLogoutInProgress() &&
+          mutation.meta?.errorToast !== false &&
+          !mutation.options.onError
+        ) {
           handleServerError(error)
         }
       },
     }),
     queryCache: new QueryCache({
       onError: (error, query) => {
-        if (query.meta?.errorToast !== false) handleServerError(error)
+        if (!isLogoutInProgress() && query.meta?.errorToast !== false) {
+          handleServerError(error)
+        }
         if (getServerErrorStatus(error) === 500) onInternalServerError?.()
       },
     }),
