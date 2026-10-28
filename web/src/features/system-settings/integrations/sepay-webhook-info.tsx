@@ -32,7 +32,7 @@ export function SePayWebhookInfo(props: SePayWebhookInfoProps) {
     <Alert className='border-teal-200 bg-teal-50 text-teal-950 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-50'>
       <AlertDescription className='space-y-2 text-inherit'>
         <p>{t('Configure this endpoint in your SePay webhook settings.')}</p>
-        <div className='flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between'>
+        <div className='flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:items-center'>
           <span className='shrink-0 font-medium'>{t('Webhook URL:')}</span>
           <span className='flex min-w-0 items-center gap-2'>
             <code className='min-w-0 rounded bg-teal-100 px-1.5 py-0.5 text-xs break-all dark:bg-teal-900'>
