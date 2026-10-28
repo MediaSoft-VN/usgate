@@ -3,10 +3,12 @@ package model
 import (
 	"errors"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"golang.org/x/net/idna"
 	"golang.org/x/net/publicsuffix"
 	"gorm.io/gorm"
@@ -152,6 +154,33 @@ func NormalizeTenantHostname(host string) (string, error) {
 		return "", errors.New("invalid hostname")
 	}
 	return host, nil
+}
+
+// IsSystemServerHost reports whether a request/configured hostname is the
+// platform's canonical ServerAddress host. That host always serves the
+// platform even if an older tenant-domain row still claims it.
+func IsSystemServerHost(host string) bool {
+	serverAddress := strings.TrimSpace(system_setting.ServerAddress)
+	if serverAddress == "" {
+		return false
+	}
+	parsedAddress, err := url.Parse(serverAddress)
+	if err != nil {
+		return false
+	}
+	configuredHost := parsedAddress.Hostname()
+	if configuredHost == "" {
+		configuredHost = parsedAddress.Path
+	}
+	if requestHost, _, err := net.SplitHostPort(host); err == nil {
+		host = requestHost
+	}
+	configuredHost, err = NormalizeTenantHostname(configuredHost)
+	if err != nil {
+		return false
+	}
+	requestHost, err := NormalizeTenantHostname(host)
+	return err == nil && requestHost == configuredHost
 }
 
 func CreateTenantWithOwner(tx *gorm.DB, slug, name string, userID int) (*Tenant, error) {

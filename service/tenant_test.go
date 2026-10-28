@@ -13,6 +13,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -210,6 +211,11 @@ func TestOnlySystemAdminsCanUseUsGateDomains(t *testing.T) {
 
 	admin := model.User{Username: "reserved-domain-admin", Password: "unused", AffCode: "reserved-domain-admin-code", Status: common.UserStatusEnabled, Role: common.RoleAdminUser}
 	require.NoError(t, db.Create(&admin).Error)
+	previousServerAddress := system_setting.ServerAddress
+	system_setting.ServerAddress = "https://platform.example.com/"
+	t.Cleanup(func() { system_setting.ServerAddress = previousServerAddress })
+	_, err = CreateDomain(tenant.Id, admin.Id, "PLATFORM.EXAMPLE.COM.")
+	require.ErrorIs(t, err, ErrTenantDomainReserved)
 	for _, hostname := range []string{"usgate.ai", "api.usgate.ai"} {
 		created, createErr := CreateDomain(tenant.Id, admin.Id, hostname)
 		require.NoError(t, createErr)

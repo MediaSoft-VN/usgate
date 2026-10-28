@@ -7,6 +7,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
@@ -48,6 +49,15 @@ func TestResolveTenantContextUsesVerifiedHostAndActiveMembership(t *testing.T) {
 
 	outsiderContext := request("app.partner.example.com", outsider.Id)
 	require.ErrorIs(t, ResolveTenantContext(outsiderContext), model.ErrTenantForbidden)
+
+	previousServerAddress := system_setting.ServerAddress
+	system_setting.ServerAddress = "https://platform.example.com/"
+	t.Cleanup(func() { system_setting.ServerAddress = previousServerAddress })
+	require.NoError(t, db.Create(&model.TenantDomain{TenantId: tenant.Id, Hostname: "platform.example.com", Status: model.DomainVerified}).Error)
+	systemContext := request("PLATFORM.EXAMPLE.COM:443", outsider.Id)
+	require.NoError(t, ResolveTenantContext(systemContext))
+	_, ok = systemContext.Get(string(constant.ContextKeyTenantID))
+	require.False(t, ok)
 
 	mainContext := request("platform.example.com", outsider.Id)
 	require.NoError(t, ResolveTenantContext(mainContext))
