@@ -125,3 +125,38 @@ it.each([
     expect(screen.getByPlaceholderText('Minimum 1')).toBeVisible()
   }
 )
+
+it('shows SePay as a top-up method when online Epay is disabled', () => {
+  render(
+    <I18nextProvider i18n={i18n}>
+      <RechargeFormCard
+        topupInfo={{
+          enable_online_topup: false,
+          enable_sepay_topup: true,
+          enable_stripe_topup: false,
+          pay_methods: [{ name: 'SePay', type: 'sepay' }],
+          min_topup: 1,
+          stripe_min_topup: 1,
+          amount_options: [],
+          discount: {},
+        }}
+        presetAmounts={[]}
+        selectedPreset={null}
+        topupAmount={1}
+        paymentAmount={1}
+        calculating={false}
+        paymentLoading={null}
+        redemptionCode=''
+        redeeming={false}
+        onSelectPreset={vi.fn()}
+        onTopupAmountChange={vi.fn()}
+        onPaymentMethodSelect={vi.fn()}
+        onRedemptionCodeChange={vi.fn()}
+        onRedeem={vi.fn()}
+      />
+    </I18nextProvider>
+  )
+
+  expect(screen.getByRole('button', { name: 'SePay' })).toBeVisible()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
