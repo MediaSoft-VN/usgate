@@ -152,6 +152,7 @@ const BILLING_SECTIONS = [
     titleKey: 'Payment Gateway',
     build: (settings: BillingSettings) => (
       <PaymentSettingsSection
+        serverAddress={settings.ServerAddress ?? ''}
         defaultValues={{
           PayAddress: settings.PayAddress,
           EpayId: settings.EpayId,

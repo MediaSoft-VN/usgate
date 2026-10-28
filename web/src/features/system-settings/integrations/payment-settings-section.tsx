@@ -64,6 +64,8 @@ import { AmountDiscountVisualEditor } from "./amount-discount-visual-editor";
 import { AmountOptionsVisualEditor } from "./amount-options-visual-editor";
 import { CreemProductsVisualEditor } from "./creem-products-visual-editor";
 import { PaymentMethodsVisualEditor } from "./payment-methods-visual-editor";
+import { SePayWebhookInfo } from "./sepay-webhook-info";
+import { buildSePayWebhookUrl } from "./sepay-webhook-url";
 import {
   formatJsonForEditor,
   getJsonError,
@@ -206,6 +208,7 @@ type PaymentComplianceDefaults = {
 
 type PaymentSettingsSectionProps = {
   defaultValues: PaymentBaseFormValues;
+  serverAddress?: string;
   waffoDefaultValues: WaffoSettingsValues;
   waffoPancakeDefaultValues: WaffoPancakeSettingsValues;
   waffoPancakeProvisionedStoreID?: string;
@@ -224,6 +227,7 @@ function parseWaffoPayMethods(value: string): PayMethod[] {
 
 export function PaymentSettingsSection({
   defaultValues,
+  serverAddress = "",
   waffoDefaultValues,
   waffoPancakeDefaultValues,
   waffoPancakeProvisionedStoreID,
@@ -231,6 +235,11 @@ export function PaymentSettingsSection({
   complianceDefaults,
 }: PaymentSettingsSectionProps) {
   const { t } = useTranslation();
+  const sePayWebhookUrl = buildSePayWebhookUrl(
+    defaultValues.CustomCallbackAddress,
+    serverAddress,
+    typeof window === "undefined" ? "" : window.location.origin,
+  );
   const queryClient = useQueryClient();
   const updateOption = useUpdateOption();
   const initialFormValues = React.useMemo<PaymentFormValues>(
@@ -1346,14 +1355,7 @@ export function PaymentSettingsSection({
                     Configure SePay checkout and webhook integration
                   </p>
                 </div>
-                <div className="rounded-md bg-teal-50 p-4 text-sm text-teal-900 dark:bg-teal-950 dark:text-teal-100">
-                  <p>
-                    Webhook URL:{" "}
-                    <code className="rounded bg-teal-100 px-1 py-0.5 text-xs dark:bg-teal-900">
-                      {"<ServerAddress>/api/sepay/webhook"}
-                    </code>
-                  </p>
-                </div>
+                <SePayWebhookInfo webhookUrl={sePayWebhookUrl} />
                 <div className="grid gap-6 md:grid-cols-2">
                   <FormField
                     control={form.control}
