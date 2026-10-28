@@ -4,8 +4,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -138,6 +141,131 @@ type sePayWebhookPayload struct {
 	} `json:"transaction"`
 }
 
+type sePayTransactionWebhookPayload struct {
+	ID             int64  `json:"id"`
+	SubAccount     string `json:"subAccount"`
+	Code           string `json:"code"`
+	Content        string `json:"content"`
+	TransferType   string `json:"transferType"`
+	TransferAmount int64  `json:"transferAmount"`
+}
+
+var sePayOrderReferencePattern = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])((?:SUB)?USR[0-9]+SEPAY[0-9]+)(?:$|[^A-Za-z0-9])`)
+
+func sePayWebhookAuthorized(c *gin.Context, body []byte) bool {
+	secret := strings.TrimSpace(setting.SePayWebhookSecret)
+	if secret == "" {
+		return false
+	}
+
+	if hmac.Equal([]byte(c.GetHeader("X-Secret-Key")), []byte(secret)) {
+		return true
+	}
+
+	if scheme, apiKey, ok := strings.Cut(c.GetHeader("Authorization"), " "); ok &&
+		strings.EqualFold(scheme, "Apikey") && hmac.Equal([]byte(apiKey), []byte(secret)) {
+		return true
+	}
+
+	timestampHeader := c.GetHeader("X-SePay-Timestamp")
+	timestamp, err := strconv.ParseInt(timestampHeader, 10, 64)
+	if err != nil {
+		return false
+	}
+	now := time.Now().Unix()
+	if timestamp < now-300 || timestamp > now+300 {
+		return false
+	}
+	signature := c.GetHeader("X-SePay-Signature")
+	if !strings.HasPrefix(signature, "sha256=") {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(timestampHeader + "."))
+	_, _ = mac.Write(body)
+	expected := []byte("sha256=" + hex.EncodeToString(mac.Sum(nil)))
+	return hmac.Equal([]byte(signature), expected)
+}
+
+func sePayTransactionTradeNo(payload sePayTransactionWebhookPayload) string {
+	tradeNos := make(map[string]struct{})
+	for _, value := range []string{payload.Code, payload.Content, payload.SubAccount} {
+		for _, match := range sePayOrderReferencePattern.FindAllStringSubmatch(value, -1) {
+			tradeNos[strings.ToUpper(match[1])] = struct{}{}
+		}
+	}
+	if len(tradeNos) != 1 {
+		return ""
+	}
+	for tradeNo := range tradeNos {
+		return tradeNo
+	}
+	return ""
+}
+
+func sePayTransactionRequestHash(payload sePayTransactionWebhookPayload, tradeNo string) (string, error) {
+	canonical, err := common.Marshal(struct {
+		ID             int64  `json:"id"`
+		TradeNo        string `json:"trade_no"`
+		TransferType   string `json:"transfer_type"`
+		TransferAmount int64  `json:"transfer_amount"`
+	}{payload.ID, tradeNo, strings.ToLower(payload.TransferType), payload.TransferAmount})
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256(canonical)
+	return hex.EncodeToString(hash[:]), nil
+}
+
+func processSePayTransactionWebhook(c *gin.Context, payload sePayTransactionWebhookPayload) error {
+	if payload.ID <= 0 || payload.TransferAmount <= 0 || !strings.EqualFold(payload.TransferType, "in") {
+		return nil
+	}
+	tradeNo := sePayTransactionTradeNo(payload)
+	if tradeNo == "" {
+		return nil
+	}
+	amount := decimal.NewFromInt(payload.TransferAmount)
+	matched, exists := sePayWebhookAmountMatches(tradeNo, amount)
+	if !exists || !matched {
+		logger.LogWarn(c.Request.Context(), common.LogText("SePay transaction did not match a pending order transaction_id=%d", payload.ID))
+		return nil
+	}
+	requestHash, err := sePayTransactionRequestHash(payload, tradeNo)
+	if err != nil {
+		return err
+	}
+	key, replay, err := model.ClaimIdempotencyKey("sepay_webhook", strconv.FormatInt(payload.ID, 10), requestHash, 0)
+	if err != nil {
+		logger.LogWarn(c.Request.Context(), common.LogText("SePay transaction idempotency conflict transaction_id=%d", payload.ID))
+		return err
+	}
+	if replay && key.Status == model.IdempotencyCompleted {
+		return nil
+	}
+
+	if strings.HasPrefix(tradeNo, "SUBUSR") {
+		LockOrder(tradeNo)
+		err = model.CompleteSubscriptionOrder(tradeNo, common.GetJsonString(payload), sePayProvider, setting.SePayPaymentMethod)
+		UnlockOrder(tradeNo)
+	} else {
+		LockOrder(tradeNo)
+		_, err = model.RechargeTopUpWithProvider(tradeNo, sePayProvider, setting.SePayPaymentMethod, c.ClientIP())
+		UnlockOrder(tradeNo)
+	}
+	if err != nil {
+		_ = model.DB.Model(key).Update("status", model.IdempotencyFailed).Error
+		return err
+	}
+	if err := model.DB.Model(key).Updates(map[string]any{
+		"status": model.IdempotencyCompleted, "resource_type": "payment_order",
+		"resource_id": tradeNo, "completed_at": time.Now().Unix(),
+	}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 func sePayAmount(value any) (decimal.Decimal, bool) {
 	switch typed := value.(type) {
 	case string:
@@ -163,13 +291,31 @@ func sePayWebhookAmountMatches(tradeNo string, amount decimal.Decimal) (bool, bo
 }
 
 func SePayWebhook(c *gin.Context) {
-	if !isSePayTopUpEnabled() || !hmac.Equal([]byte(c.GetHeader("X-Secret-Key")), []byte(setting.SePayWebhookSecret)) {
+	if !isSePayTopUpEnabled() {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
+		return
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil || !sePayWebhookAuthorized(c, body) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
 	}
 	var payload sePayWebhookPayload
-	if err := common.DecodeJson(c.Request.Body, &payload); err != nil {
+	if err := common.Unmarshal(body, &payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false})
+		return
+	}
+	var transactionPayload sePayTransactionWebhookPayload
+	if err := common.Unmarshal(body, &transactionPayload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false})
+		return
+	}
+	if transactionPayload.ID != 0 {
+		if err := processSePayTransactionWebhook(c, transactionPayload); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true})
 		return
 	}
 	if payload.NotificationType != "ORDER_PAID" || payload.Order.Status != "CAPTURED" || payload.Transaction.Status != "APPROVED" {
