@@ -106,8 +106,11 @@ func InitOptionMap() {
 	common.OptionMap["SePayMerchantID"] = setting.SePayMerchantID
 	common.OptionMap["SePaySecretKey"] = setting.SePaySecretKey
 	common.OptionMap["SePayWebhookSecret"] = setting.SePayWebhookSecret
+	common.OptionMap["SePaySandboxMerchantID"] = setting.SePaySandboxMerchantID
+	common.OptionMap["SePaySandboxSecretKey"] = setting.SePaySandboxSecretKey
+	common.OptionMap["SePayLiveMerchantID"] = setting.SePayLiveMerchantID
+	common.OptionMap["SePayLiveSecretKey"] = setting.SePayLiveSecretKey
 	common.OptionMap["SePaySandbox"] = strconv.FormatBool(setting.SePaySandbox)
-	common.OptionMap["SePayPaymentMethod"] = setting.SePayPaymentMethod
 	common.OptionMap["SePayMinTopUp"] = strconv.Itoa(setting.SePayMinTopUp)
 	common.OptionMap["CreemApiKey"] = setting.CreemApiKey
 	common.OptionMap["CreemProducts"] = setting.CreemProducts
@@ -565,10 +568,16 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.SePaySecretKey = value
 	case "SePayWebhookSecret":
 		setting.SePayWebhookSecret = value
+	case "SePaySandboxMerchantID":
+		setting.SePaySandboxMerchantID = value
+	case "SePaySandboxSecretKey":
+		setting.SePaySandboxSecretKey = value
+	case "SePayLiveMerchantID":
+		setting.SePayLiveMerchantID = value
+	case "SePayLiveSecretKey":
+		setting.SePayLiveSecretKey = value
 	case "SePaySandbox":
 		setting.SePaySandbox = value == "true"
-	case "SePayPaymentMethod":
-		setting.SePayPaymentMethod = value
 	case "SePayMinTopUp":
 		setting.SePayMinTopUp, _ = strconv.Atoi(value)
 	case "CreemApiKey":

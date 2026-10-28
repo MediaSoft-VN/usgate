@@ -61,6 +61,8 @@ var accessTokenExemptRoutes = []string{
 	"POST /api/waffo/webhook",
 	"POST /api/waffo-pancake/webhook/:env",
 	"POST /api/sepay/webhook",
+	"POST /api/sepay/webhook/:mode",
+	"POST /api/sepay/ipn",
 	"GET /api/sepay/return",
 	"GET /api/user/epay/notify",
 	"POST /api/user/epay/notify",

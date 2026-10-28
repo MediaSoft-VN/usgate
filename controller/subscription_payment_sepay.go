@@ -10,7 +10,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -61,7 +60,7 @@ func SubscriptionRequestSePay(c *gin.Context) {
 	}
 	order := &model.SubscriptionOrder{
 		UserId: userID, PlanId: plan.Id, Money: providerMoney.InexactFloat64(), TradeNo: tradeNo,
-		PaymentMethod: setting.SePayPaymentMethod, PaymentProvider: model.PaymentProviderSePay,
+		PaymentMethod: sePayPaymentMethod, PaymentProvider: model.PaymentProviderSePay,
 		Currency: systemCurrency, ProviderCurrency: "VND", ExchangeRate: exchangeRate.String(),
 		ExchangeRateSource: operation_setting.GetGeneralSetting().ExchangeRateSource,
 		ExchangeRateType:   operation_setting.GetGeneralSetting().ExchangeRateType,

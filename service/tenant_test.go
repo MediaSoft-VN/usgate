@@ -100,10 +100,14 @@ func TestTenantDomainLifecycleRunsHostProvisioning(t *testing.T) {
 	model.DB = db
 	TenantDomainDNSResolver = tenantDNSResolverStub{ips: []net.IP{net.ParseIP("203.0.113.10")}}
 	var operations []string
+	failCheck := false
 	failProvision := true
 	failCleanup := false
 	TenantDomainHostOperation = func(operation, hostname string) error {
 		operations = append(operations, operation+":"+hostname)
+		if operation == "check" && failCheck {
+			return errors.New("hostname already exists in nginx")
+		}
 		if operation == "cleanup" && failCleanup {
 			return errors.New("host cleanup failure")
 		}
@@ -148,6 +152,14 @@ func TestTenantDomainLifecycleRunsHostProvisioning(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, model.DomainPending, updated.Status)
 	require.Equal(t, "cleanup:old.example.com", operations[1])
+	matchingResolver := TenantDomainDNSResolver
+	TenantDomainDNSResolver = tenantDNSResolverStub{}
+	failCheck = true
+	require.ErrorIs(t, VerifyDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation)
+	require.NoError(t, db.First(&stored, domain.Id).Error)
+	require.Equal(t, model.DomainPending, stored.Status)
+	failCheck = false
+	TenantDomainDNSResolver = matchingResolver
 	require.EqualError(t, VerifyDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation.Error())
 	require.NoError(t, db.First(&stored, domain.Id).Error)
 	require.Equal(t, model.DomainVerified, stored.Status)
@@ -160,7 +172,10 @@ func TestTenantDomainLifecycleRunsHostProvisioning(t *testing.T) {
 	require.Equal(t, []string{
 		"cleanup:old.example.com",
 		"cleanup:old.example.com",
+		"check:new.example.com",
+		"check:new.example.com",
 		"provision:new.example.com",
+		"check:new.example.com",
 		"provision:new.example.com",
 		"cleanup:new.example.com",
 		"cleanup:new.example.com",
@@ -212,14 +227,16 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	certLiveDir := filepath.Join(root, "live")
 	certManifestDir := filepath.Join(root, "manifests")
 	acmeWebrootDir := filepath.Join(root, "webroot")
+	effectiveConfig := filepath.Join(root, "nginx-config-dump")
 	for _, dir := range []string{siteDir, enabledDir, binDir, certRenewalDir, acmeWebrootDir} {
 		require.NoError(t, os.MkdirAll(dir, 0o755))
 	}
+	require.NoError(t, os.WriteFile(effectiveConfig, nil, 0o600))
 	config := fmt.Sprintf("APP_PORT=%q\nCERTBOT_EMAIL=%q\nNGINX_SITES_AVAILABLE=%q\nNGINX_SITES_ENABLED=%q\nDOMAIN_LOCK_FILE=%q\nCERT_RENEWAL_DIR=%q\nCERT_LIVE_DIR=%q\nCERT_MANIFEST_DIR=%q\nACME_WEBROOT_DIR=%q\n", "3000", "ops@example.com", siteDir, enabledDir, filepath.Join(root, "lock"), certRenewalDir, certLiveDir, certManifestDir, acmeWebrootDir)
 	configPath := filepath.Join(root, "provisioner.env")
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
 	fakeCommands := map[string]string{
-		"nginx":     "#!/bin/sh\nif [ \"$1\" = -t ] && [ -f \"$FAIL_NGINX_TEST_FILE\" ]; then exit 1; fi\nexit 0\n",
+		"nginx":     "#!/bin/sh\nif [ \"$1\" = -T ]; then cat \"$NGINX_CONFIG_DUMP\"; exit $?; fi\nif [ \"$1\" = -t ] && [ -f \"$FAIL_NGINX_TEST_FILE\" ]; then exit 1; fi\nexit 0\n",
 		"systemctl": "#!/bin/sh\nexit 0\n",
 		"curl":      "#!/bin/sh\nexit 0\n",
 		"certbot":   "#!/bin/sh\ncase \"$1\" in\n  certonly)\n    if [ -f \"$FAIL_CERTBOT_FILE\" ]; then exit 1; fi\n    mkdir -p \"$CERT_RENEWAL_DIR\" \"$CERT_LIVE_DIR/partner-app.example.com\"\n    printf 'authenticator = webroot\\n' > \"$CERT_RENEWAL_DIR/partner-app.example.com.conf\"\n    touch \"$CERT_STATE\" \"$CERT_LIVE_DIR/partner-app.example.com/cert.pem\"\n    ;;\n  delete)\n    if [ -f \"$FAIL_CERTBOT_DELETE_FILE\" ]; then exit 1; fi\n    rm -f \"$CERT_STATE\" \"$CERT_RENEWAL_DIR/partner-app.example.com.conf\" \"$CERT_LIVE_DIR/partner-app.example.com/cert.pem\"\n    ;;\n  *) exit 2 ;;\nesac\n",
@@ -252,6 +269,7 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 			"FAIL_NGINX_TEST_FILE="+failNginxTestFile,
 			"FAIL_CERTBOT_FILE="+failCertbotFile,
 			"FAIL_CERTBOT_DELETE_FILE="+failCertbotDeleteFile,
+			"NGINX_CONFIG_DUMP="+effectiveConfig,
 			"CERT_RENEWAL_DIR="+certRenewalDir,
 			"CERT_LIVE_DIR="+certLiveDir,
 			"CERT_SAN=DNS:app.example.com",
@@ -265,6 +283,13 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	}
 
 	require.NoError(t, os.WriteFile(failCertbotFile, nil, 0o600))
+	run("check", false)
+	require.NoError(t, os.WriteFile(effectiveConfig, []byte("# configuration file /etc/nginx/sites-enabled/new-api.conf:\nserver {\n    server_name app.example.com;\n}\n"), 0o600))
+	run("check", true)
+	require.NoFileExists(t, filepath.Join(siteDir, "partner-app.example.com.conf"))
+	run("provision", true)
+	require.NoFileExists(t, filepath.Join(siteDir, "partner-app.example.com.conf"))
+	require.NoError(t, os.WriteFile(effectiveConfig, nil, 0o600))
 	run("provision", true)
 	partnerConfig := filepath.Join(siteDir, "partner-app.example.com.conf")
 	partnerLink := filepath.Join(enabledDir, filepath.Base(partnerConfig))
@@ -287,6 +312,9 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	require.Equal(t, partnerConfig, target)
 	require.FileExists(t, certState)
 	require.FileExists(t, filepath.Join(certLiveDir, "partner-app.example.com", "cert.pem"))
+	require.NoError(t, os.WriteFile(effectiveConfig, []byte(fmt.Sprintf("# configuration file %s:\nserver {\n    server_name app.example.com;\n}\n", partnerLink)), 0o600))
+	run("check", false)
+	require.NoError(t, os.WriteFile(effectiveConfig, nil, 0o600))
 
 	wrongCertificate := exec.Command("bash", helper, "cleanup", "app.example.com")
 	wrongCertificate.Env = append(os.Environ(),

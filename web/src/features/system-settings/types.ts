@@ -291,6 +291,7 @@ export type ModelSettings = {
 }
 
 export type BillingSettings = {
+  ServerAddress: string
   QuotaForNewUser: number
   QuotaForInviter: number
   QuotaForInvitee: number
@@ -353,8 +354,11 @@ export type BillingSettings = {
   SePayMerchantID: string
   SePaySecretKey: string
   SePayWebhookSecret: string
+  SePaySandboxMerchantID: string
+  SePaySandboxSecretKey: string
+  SePayLiveMerchantID: string
+  SePayLiveSecretKey: string
   SePaySandbox: boolean
-  SePayPaymentMethod: string
   SePayMinTopUp: number
   CreemApiKey: string
   CreemWebhookSecret: string

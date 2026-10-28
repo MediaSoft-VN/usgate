@@ -152,6 +152,7 @@ const BILLING_SECTIONS = [
     titleKey: 'Payment Gateway',
     build: (settings: BillingSettings) => (
       <PaymentSettingsSection
+        serverAddress={settings.ServerAddress ?? ''}
         defaultValues={{
           PayAddress: settings.PayAddress,
           EpayId: settings.EpayId,
@@ -168,11 +169,23 @@ const BILLING_SECTIONS = [
           StripeUnitPrice: settings.StripeUnitPrice,
           StripeMinTopUp: settings.StripeMinTopUp,
           StripePromotionCodesEnabled: settings.StripePromotionCodesEnabled,
-          SePayMerchantID: settings.SePayMerchantID ?? '',
-          SePaySecretKey: settings.SePaySecretKey ?? '',
-          SePayWebhookSecret: settings.SePayWebhookSecret ?? '',
+          SePaySandboxMerchantID:
+            settings.SePaySandboxMerchantID ||
+            (settings.SePaySandbox ? settings.SePayMerchantID : '') ||
+            '',
+          SePaySandboxSecretKey:
+            settings.SePaySandboxSecretKey ||
+            (settings.SePaySandbox ? settings.SePaySecretKey : '') ||
+            '',
+          SePayLiveMerchantID:
+            settings.SePayLiveMerchantID ||
+            (!settings.SePaySandbox ? settings.SePayMerchantID : '') ||
+            '',
+          SePayLiveSecretKey:
+            settings.SePayLiveSecretKey ||
+            (!settings.SePaySandbox ? settings.SePaySecretKey : '') ||
+            '',
           SePaySandbox: settings.SePaySandbox ?? true,
-          SePayPaymentMethod: settings.SePayPaymentMethod ?? 'BANK_TRANSFER',
           SePayMinTopUp: settings.SePayMinTopUp ?? 1,
           CreemApiKey: settings.CreemApiKey,
           CreemWebhookSecret: settings.CreemWebhookSecret,

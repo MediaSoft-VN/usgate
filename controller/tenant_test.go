@@ -105,7 +105,7 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	verifyContext.Set("id", owner.Id)
 	VerifyTenantDomain(verifyContext)
 	require.Equal(t, 200, verifyRecorder.Code)
-	require.Equal(t, []string{"provision:app.example.com"}, domainOperations)
+	require.Equal(t, []string{"check:app.example.com", "provision:app.example.com"}, domainOperations)
 
 	deniedDeleteRecorder := httptest.NewRecorder()
 	deniedDeleteContext, _ := gin.CreateTestContext(deniedDeleteRecorder)
@@ -124,7 +124,7 @@ func TestTenantDomainManagementUsesMembershipAcrossApplicationHosts(t *testing.T
 	deleteContext.Set("id", owner.Id)
 	DeleteTenantDomain(deleteContext)
 	require.Equal(t, 200, deleteRecorder.Code)
-	require.Equal(t, []string{"provision:app.example.com", "cleanup:app.example.com"}, domainOperations)
+	require.Equal(t, []string{"check:app.example.com", "provision:app.example.com", "cleanup:app.example.com"}, domainOperations)
 
 	forbiddenRecorder := httptest.NewRecorder()
 	forbiddenContext, _ := gin.CreateTestContext(forbiddenRecorder)

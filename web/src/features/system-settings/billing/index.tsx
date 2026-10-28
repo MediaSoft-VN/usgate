@@ -25,6 +25,7 @@ import {
 } from './section-registry.tsx'
 
 const defaultBillingSettings: BillingSettings = {
+  ServerAddress: '',
   QuotaForNewUser: 0,
   QuotaForInviter: 0,
   QuotaForInvitee: 0,
@@ -88,8 +89,11 @@ const defaultBillingSettings: BillingSettings = {
   SePayMerchantID: '',
   SePaySecretKey: '',
   SePayWebhookSecret: '',
+  SePaySandboxMerchantID: '',
+  SePaySandboxSecretKey: '',
+  SePayLiveMerchantID: '',
+  SePayLiveSecretKey: '',
   SePaySandbox: true,
-  SePayPaymentMethod: 'BANK_TRANSFER',
   SePayMinTopUp: 1,
   CreemApiKey: '',
   CreemWebhookSecret: '',
