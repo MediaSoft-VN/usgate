@@ -26,6 +26,9 @@ func TenantContext() gin.HandlerFunc {
 // verified tenant domain is used. It never reads tenant identity from a
 // request header, query parameter, or client state.
 func ResolveTenantContext(c *gin.Context) error {
+	if model.IsSystemServerHost(c.Request.Host) {
+		return nil
+	}
 	tenant, err := model.ResolveVerifiedTenantForHost(c.Request.Host)
 	if errors.Is(err, model.ErrTenantNotFound) {
 		return nil

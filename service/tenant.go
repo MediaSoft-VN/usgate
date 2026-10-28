@@ -132,6 +132,9 @@ func UpdateDomain(domainID, tenantID, userID int, hostname string) (*model.Tenan
 }
 
 func validatePartnerDomainOwner(hostname string, userID int) error {
+	if model.IsSystemServerHost(hostname) {
+		return ErrTenantDomainReserved
+	}
 	if model.IsAdmin(userID) {
 		return nil
 	}
