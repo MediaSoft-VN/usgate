@@ -3,6 +3,7 @@ package controller
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
@@ -37,19 +38,28 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 	previousMerchantID := setting.SePayMerchantID
 	previousSecretKey := setting.SePaySecretKey
 	previousWebhookSecret := setting.SePayWebhookSecret
+	previousSandboxMode := setting.SePaySandbox
+	previousSandboxMerchantID, previousSandboxSecretKey := setting.SePaySandboxMerchantID, setting.SePaySandboxSecretKey
+	previousLiveMerchantID, previousLiveSecretKey := setting.SePayLiveMerchantID, setting.SePayLiveSecretKey
 	t.Cleanup(func() {
 		setting.SePayMerchantID = previousMerchantID
 		setting.SePaySecretKey = previousSecretKey
 		setting.SePayWebhookSecret = previousWebhookSecret
+		setting.SePaySandbox = previousSandboxMode
+		setting.SePaySandboxMerchantID, setting.SePaySandboxSecretKey = previousSandboxMerchantID, previousSandboxSecretKey
+		setting.SePayLiveMerchantID, setting.SePayLiveSecretKey = previousLiveMerchantID, previousLiveSecretKey
 	})
 	setting.SePayMerchantID = "merchant-test"
 	setting.SePaySecretKey = "checkout-secret"
 	setting.SePayWebhookSecret = "webhook-secret"
+	setting.SePaySandbox = true
+	setting.SePaySandboxMerchantID, setting.SePaySandboxSecretKey = "", ""
+	setting.SePayLiveMerchantID, setting.SePayLiveSecretKey = "", ""
 	user := model.User{Username: "sepay-user", Password: "test-password", Status: common.UserStatusEnabled}
 	require.NoError(t, db.Create(&user).Error)
 	topUp := &model.TopUp{
 		UserId: user.Id, Amount: 1, Money: 50000, TradeNo: "USR1SEPAY123",
-		PaymentMethod: setting.SePayPaymentMethod, PaymentProvider: model.PaymentProviderSePay,
+		PaymentMethod: sePayPaymentMethod, PaymentProvider: model.PaymentProviderSePay,
 		Status: common.TopUpStatusPending,
 	}
 	require.NoError(t, db.Create(topUp).Error)
@@ -57,10 +67,29 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 }
 
 func sendSePayWebhook(body string, authorization string) *httptest.ResponseRecorder {
+	return sendSePayWebhookForMode(body, authorization, "")
+}
+
+func sendSePayIPN(body string, authorization string) *httptest.ResponseRecorder {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/webhook", strings.NewReader(body))
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/ipn", strings.NewReader(body))
+	c.Request.Header.Set("Authorization", authorization)
+	SePayIPN(c)
+	return recorder
+}
+
+func sendSePayWebhookForMode(body string, authorization string, mode string) *httptest.ResponseRecorder {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	path := "/api/sepay/webhook"
+	if mode != "" {
+		path += "/" + mode
+	}
+	c.Request = httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	c.Params = gin.Params{{Key: "mode", Value: mode}}
 	c.Request.Header.Set("Authorization", authorization)
 	SePayWebhook(c)
 	return recorder
@@ -89,6 +118,41 @@ func TestSePayTransactionWebhookCreditsMatchingOrderOnce(t *testing.T) {
 	var idempotency model.IdempotencyKey
 	require.NoError(t, db.Where("scope = ? AND key = ?", "sepay_webhook", "92704").First(&idempotency).Error)
 	require.Equal(t, model.IdempotencyCompleted, idempotency.Status)
+}
+
+func TestSePayPaymentSuccessIPNCreditsMatchingOrder(t *testing.T) {
+	db, user, topUp := setupSePayWebhookTest(t)
+	body := `{"timestamp":1793155971,"notification_type":"PAYMENT_SUCCESS","order":{"id":"aa658c15-d27a-11f1-8895-0afffe87053b","order_id":"TEST_ORDER_1793155971","order_status":"CAPTURED","order_currency":"VND","order_amount":50000,"order_invoice_number":"USR1SEPAY123","custom_data":[],"order_description":"SePay IPN test"},"transaction":{"id":"aa659519-d27a-11f1-8895-0afffe87053b","payment_method":"BANK_TRANSFER","transaction_id":"TEST_TXN_1793155971","transaction_type":"CAPTURE","transaction_date":"2026-10-28 09:52:51","transaction_status":"APPROVED","transaction_amount":50000,"transaction_currency":"VND"},"customer":null,"agreement":null}`
+
+	response := sendSePayIPN(body, "Apikey webhook-secret")
+	require.Equal(t, http.StatusOK, response.Code)
+	require.JSONEq(t, `{"success":true}`, response.Body.String())
+
+	var updatedTopUp model.TopUp
+	require.NoError(t, db.First(&updatedTopUp, topUp.Id).Error)
+	require.Equal(t, common.TopUpStatusSuccess, updatedTopUp.Status)
+	var updatedUser model.User
+	require.NoError(t, db.First(&updatedUser, user.Id).Error)
+	require.Greater(t, updatedUser.Quota, user.Quota)
+}
+
+func TestSePayWebhookWizardSampleAcknowledgedWithoutCredit(t *testing.T) {
+	db, user, topUp := setupSePayWebhookTest(t)
+	body := `{"timestamp":1793155971,"notification_type":"PAYMENT_SUCCESS","order":{"id":"aa658c15-d27a-11f1-8895-0afffe87053b","order_id":"TEST_ORDER_1793155971","order_status":"CAPTURED","order_currency":"VND","order_amount":50000,"order_invoice_number":"INV-20261028-075491","custom_data":{"test_mode":true,"webhook_test":true},"user_agent":{},"ip_address":"123.24.143.114","order_description":"Thông báo IPN thử nghiệm từ Trình hướng dẫn tích hợp SePay"},"transaction":{"id":"aa659519-d27a-11f1-8895-0afffe87053b","payment_method":"BANK_TRANSFER","transaction_id":"TEST_TXN_1793155971","transaction_type":"CAPTURE","transaction_date":"2026-10-28 09:52:51","transaction_status":"APPROVED","transaction_amount":50000,"transaction_currency":"VND","authentication_status":null,"card_number":null,"card_holder_name":null,"card_expiry":null,"card_funding_method":null,"card_brand":null},"customer":null,"agreement":null}`
+
+	webhookResponse := sendSePayWebhook(body, "Apikey webhook-secret")
+	require.Equal(t, http.StatusBadRequest, webhookResponse.Code)
+
+	response := sendSePayIPN(body, "Apikey webhook-secret")
+	require.Equal(t, http.StatusOK, response.Code)
+	require.JSONEq(t, `{"success":true}`, response.Body.String())
+
+	var unchangedTopUp model.TopUp
+	require.NoError(t, db.First(&unchangedTopUp, topUp.Id).Error)
+	require.Equal(t, common.TopUpStatusPending, unchangedTopUp.Status)
+	var unchangedUser model.User
+	require.NoError(t, db.First(&unchangedUser, user.Id).Error)
+	require.Equal(t, user.Quota, unchangedUser.Quota)
 }
 
 func TestSePayTransactionWebhookDoesNotCreditUnmatchedTransfer(t *testing.T) {
@@ -139,8 +203,8 @@ func TestSePayWebhookHMACAuthenticatesFreshRawBody(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/webhook", strings.NewReader(body))
 	c.Request.Header.Set("X-SePay-Timestamp", timestamp)
 	c.Request.Header.Set("X-SePay-Signature", signature)
-	require.True(t, sePayWebhookAuthorized(c, []byte(body)))
-	require.False(t, sePayWebhookAuthorized(c, []byte(body+" ")))
+	require.True(t, sePayNotificationAuthorized(c, []byte(body), setting.SePayWebhookSecret))
+	require.False(t, sePayNotificationAuthorized(c, []byte(body+" "), setting.SePayWebhookSecret))
 
 	staleTimestamp := strconv.FormatInt(time.Now().Add(-6*time.Minute).Unix(), 10)
 	staleMAC := hmac.New(sha256.New, []byte(setting.SePayWebhookSecret))
@@ -148,5 +212,64 @@ func TestSePayWebhookHMACAuthenticatesFreshRawBody(t *testing.T) {
 	require.NoError(t, err)
 	c.Request.Header.Set("X-SePay-Timestamp", staleTimestamp)
 	c.Request.Header.Set("X-SePay-Signature", "sha256="+hex.EncodeToString(staleMAC.Sum(nil)))
-	require.False(t, sePayWebhookAuthorized(c, []byte(body)))
+	require.False(t, sePayNotificationAuthorized(c, []byte(body), setting.SePayWebhookSecret))
+}
+
+func TestSePayWebhookCredentialsAreIsolatedByMode(t *testing.T) {
+	setupSePayWebhookTest(t)
+	setting.SePaySandboxMerchantID = "sandbox-merchant"
+	setting.SePaySandboxSecretKey = "sandbox-key"
+	setting.SePayLiveMerchantID = "live-merchant"
+	setting.SePayLiveSecretKey = "live-key"
+	body := `{"id":92708,"code":"unmatched","transferType":"in","transferAmount":50000}`
+
+	sandboxAccepted := sendSePayWebhookForMode(body, "Apikey sandbox-key", "sandbox")
+	require.Equal(t, http.StatusOK, sandboxAccepted.Code)
+	sharedSandboxAccepted := sendSePayWebhook(body, "Apikey sandbox-key")
+	require.Equal(t, http.StatusOK, sharedSandboxAccepted.Code)
+	sandboxRejectsLiveSecret := sendSePayWebhookForMode(body, "Apikey live-key", "sandbox")
+	require.Equal(t, http.StatusUnauthorized, sandboxRejectsLiveSecret.Code)
+	liveAccepted := sendSePayWebhookForMode(body, "Apikey live-key", "live")
+	require.Equal(t, http.StatusOK, liveAccepted.Code)
+	sharedLiveAccepted := sendSePayWebhook(body, "Apikey live-key")
+	require.Equal(t, http.StatusOK, sharedLiveAccepted.Code)
+	sharedRejectsWrongSecret := sendSePayWebhook(body, "Apikey wrong-webhook")
+	require.Equal(t, http.StatusUnauthorized, sharedRejectsWrongSecret.Code)
+	liveRejectsSandboxSecret := sendSePayWebhookForMode(body, "Apikey sandbox-key", "live")
+	require.Equal(t, http.StatusUnauthorized, liveRejectsSandboxSecret.Code)
+	unknownMode := sendSePayWebhookForMode(body, "Apikey sandbox-key", "other")
+	require.Equal(t, http.StatusUnauthorized, unknownMode.Code)
+}
+
+func TestSePayCheckoutUsesCredentialsForSelectedMode(t *testing.T) {
+	setupSePayWebhookTest(t)
+	setting.SePaySandboxMerchantID = "sandbox-merchant"
+	setting.SePaySandboxSecretKey = "sandbox-key"
+	setting.SePayLiveMerchantID = "live-merchant"
+	setting.SePayLiveSecretKey = "live-key"
+
+	setting.SePaySandbox = true
+	sandboxCheckout := buildSePayCheckout("order-1", 100, "test", "")
+	require.Equal(t, "sandbox-merchant", sandboxCheckout.Params["merchant"])
+	require.Equal(t, "https://pay-sandbox.sepay.vn/v1/checkout/init", sandboxCheckout.URL)
+	signedFields := []string{
+		"order_amount", "merchant", "currency", "operation", "order_description",
+		"order_invoice_number", "customer_id", "payment_method", "success_url",
+		"error_url", "cancel_url",
+	}
+	var signedParts []string
+	for _, field := range signedFields {
+		if value, ok := sandboxCheckout.Params[field]; ok {
+			signedParts = append(signedParts, field+"="+value)
+		}
+	}
+	expectedSignature := hmac.New(sha256.New, []byte("sandbox-key"))
+	_, err := expectedSignature.Write([]byte(strings.Join(signedParts, ",")))
+	require.NoError(t, err)
+	require.Equal(t, base64.StdEncoding.EncodeToString(expectedSignature.Sum(nil)), sandboxCheckout.Params["signature"])
+
+	setting.SePaySandbox = false
+	liveCheckout := buildSePayCheckout("order-2", 100, "test", "")
+	require.Equal(t, "live-merchant", liveCheckout.Params["merchant"])
+	require.Equal(t, "https://pay.sepay.vn/v1/checkout/init", liveCheckout.URL)
 }

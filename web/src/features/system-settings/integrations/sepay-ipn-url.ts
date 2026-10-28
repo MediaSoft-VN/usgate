@@ -18,12 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { removeTrailingSlash } from './utils'
 
-export function buildSePayWebhookUrl(
+export function buildSePayIPNUrl(
   customCallbackAddress: string,
   serverAddress: string,
   browserOrigin: string
 ) {
   const baseAddress =
     customCallbackAddress.trim() || serverAddress.trim() || browserOrigin.trim()
-  return `${removeTrailingSlash(baseAddress)}/api/sepay/webhook`
+  return `${removeTrailingSlash(baseAddress)}/api/sepay/ipn`
 }

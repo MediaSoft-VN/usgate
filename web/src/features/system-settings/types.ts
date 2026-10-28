@@ -354,8 +354,11 @@ export type BillingSettings = {
   SePayMerchantID: string
   SePaySecretKey: string
   SePayWebhookSecret: string
+  SePaySandboxMerchantID: string
+  SePaySandboxSecretKey: string
+  SePayLiveMerchantID: string
+  SePayLiveSecretKey: string
   SePaySandbox: boolean
-  SePayPaymentMethod: string
   SePayMinTopUp: number
   CreemApiKey: string
   CreemWebhookSecret: string

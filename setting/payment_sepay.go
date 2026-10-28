@@ -4,7 +4,10 @@ var (
 	SePayMerchantID    = ""
 	SePaySecretKey     = ""
 	SePayWebhookSecret = ""
+	SePaySandboxMerchantID    = ""
+	SePaySandboxSecretKey     = ""
+	SePayLiveMerchantID       = ""
+	SePayLiveSecretKey        = ""
 	SePaySandbox       = true
-	SePayPaymentMethod = "BANK_TRANSFER"
 	SePayMinTopUp      = 1
 )

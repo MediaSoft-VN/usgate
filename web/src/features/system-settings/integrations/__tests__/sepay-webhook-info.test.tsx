@@ -19,43 +19,42 @@ For commercial licensing, please contact support@quantumnous.com
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { SePayWebhookInfo } from '../sepay-webhook-info'
-import { buildSePayWebhookUrl } from '../sepay-webhook-url'
+import { SePayIPNInfo } from '../sepay-ipn-info'
+import { buildSePayIPNUrl } from '../sepay-ipn-url'
 
 describe('SePay webhook setup information', () => {
   it('uses the configured callback base before the server or browser address', () => {
     expect(
-      buildSePayWebhookUrl(
+      buildSePayIPNUrl(
         'https://callback.example.com///',
         'https://server.example.com',
         'https://browser.example.com'
       )
-    ).toBe('https://callback.example.com/api/sepay/webhook')
-    expect(buildSePayWebhookUrl('', 'https://server.example.com/', '')).toBe(
-      'https://server.example.com/api/sepay/webhook'
+    ).toBe('https://callback.example.com/api/sepay/ipn')
+    expect(buildSePayIPNUrl('', 'https://server.example.com/', '')).toBe(
+      'https://server.example.com/api/sepay/ipn'
     )
-    expect(buildSePayWebhookUrl('', '', 'https://browser.example.com')).toBe(
-      'https://browser.example.com/api/sepay/webhook'
+    expect(buildSePayIPNUrl('', '', 'https://browser.example.com')).toBe(
+      'https://browser.example.com/api/sepay/ipn'
     )
   })
 
-  it('shows the endpoint, authentication options, and transfer matching rules', () => {
-    const webhookUrl = 'https://gateway.example.com/api/sepay/webhook'
-    render(<SePayWebhookInfo webhookUrl={webhookUrl} />)
+  it('shows the shared endpoint and lets admins copy it', () => {
+    const ipnUrl = 'https://gateway.example.com/api/sepay/ipn'
+    render(<SePayIPNInfo ipnUrl={ipnUrl} />)
 
-    expect(screen.getByText(webhookUrl)).toBeInTheDocument()
+    expect(screen.getByText(ipnUrl)).toBeInTheDocument()
+    expect(screen.getByText('IPN URL:')).toBeInTheDocument()
+    expect(screen.getByText('SePay IPN callback URL')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /SePay.*Open SePay website/ })
+    ).toHaveAttribute('href', 'https://my.sepay.vn/login')
     expect(
       screen.getByRole('button', { name: 'Copy webhook URL' })
     ).toBeEnabled()
     expect(
-      screen.getByText(
-        'Authenticate with API Key (Authorization: Apikey <Webhook secret>) or HMAC-SHA256 using X-SePay-Timestamp and X-SePay-Signature.'
-      )
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Send application/json. The transfer code or content must contain the order number, and the transfer amount must match exactly.'
-      )
-    ).toBeInTheDocument()
+      screen.queryByText(/Authenticate using the mode SECRET KEY/)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Send application\/json/)).not.toBeInTheDocument()
   })
 })

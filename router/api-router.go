@@ -88,6 +88,8 @@ func SetApiRouter(router *gin.Engine) {
 		// in Pancake's matching webhook slot; handler enforces env match.
 		apiRouter.POST("/waffo-pancake/webhook/:env", anonymousRequestBodyLimit, controller.WaffoPancakeWebhook)
 		apiRouter.POST("/sepay/webhook", anonymousRequestBodyLimit, controller.SePayWebhook)
+		apiRouter.POST("/sepay/webhook/:mode", anonymousRequestBodyLimit, controller.SePayWebhook)
+		apiRouter.POST("/sepay/ipn", anonymousRequestBodyLimit, controller.SePayIPN)
 		apiRouter.GET("/sepay/return", controller.SePayReturn)
 
 		// Universal secure verification routes

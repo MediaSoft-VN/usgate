@@ -24,6 +24,80 @@ import (
 )
 
 const sePayProvider = model.PaymentProviderSePay
+const sePayPaymentMethod = "BANK_TRANSFER"
+
+type sePayCredentials struct {
+	merchantID          string
+	secretKey           string
+	legacyWebhookSecret string
+}
+
+func sePayCredentialsForMode(mode string) (sePayCredentials, bool) {
+	var credentials sePayCredentials
+	var sandbox bool
+	switch mode {
+	case "":
+		sandbox = setting.SePaySandbox
+	case "sandbox":
+		sandbox = true
+	case "live":
+		sandbox = false
+	default:
+		return sePayCredentials{}, false
+	}
+
+	if sandbox {
+		credentials = sePayCredentials{
+			merchantID: setting.SePaySandboxMerchantID,
+			secretKey:  setting.SePaySandboxSecretKey,
+		}
+	} else {
+		credentials = sePayCredentials{
+			merchantID: setting.SePayLiveMerchantID,
+			secretKey:  setting.SePayLiveSecretKey,
+		}
+	}
+	if sandbox == setting.SePaySandbox {
+		credentials.legacyWebhookSecret = setting.SePayWebhookSecret
+		if credentials.merchantID == "" {
+			credentials.merchantID = setting.SePayMerchantID
+		}
+		if credentials.secretKey == "" {
+			credentials.secretKey = setting.SePaySecretKey
+		}
+	}
+	return credentials, true
+}
+
+func isSePayModeConfigured(mode string) bool {
+	credentials, validMode := sePayCredentialsForMode(mode)
+	return validMode && strings.TrimSpace(credentials.merchantID) != "" &&
+		strings.TrimSpace(credentials.secretKey) != ""
+}
+
+func sePayNotificationCredentials(c *gin.Context, body []byte, mode string) (sePayCredentials, bool) {
+	if mode != "" {
+		credentials, validMode := sePayCredentialsForMode(mode)
+		return credentials, validMode && isSePayModeConfigured(mode) &&
+			(sePayNotificationAuthorized(c, body, credentials.secretKey) ||
+				sePayNotificationAuthorized(c, body, credentials.legacyWebhookSecret))
+	}
+
+	preferredMode := "sandbox"
+	otherMode := "live"
+	if !setting.SePaySandbox {
+		preferredMode, otherMode = otherMode, preferredMode
+	}
+	for _, candidateMode := range []string{preferredMode, otherMode} {
+		credentials, _ := sePayCredentialsForMode(candidateMode)
+		if isSePayModeConfigured(candidateMode) &&
+			(sePayNotificationAuthorized(c, body, credentials.secretKey) ||
+				sePayNotificationAuthorized(c, body, credentials.legacyWebhookSecret)) {
+			return credentials, true
+		}
+	}
+	return sePayCredentials{}, false
+}
 
 type sePayCheckout struct {
 	URL    string
@@ -38,12 +112,13 @@ func sePayCheckoutURL() string {
 }
 
 func buildSePayCheckout(tradeNo string, amount float64, description string, customerID string) sePayCheckout {
+	credentials, _ := sePayCredentialsForMode("")
 	callbackAddress := strings.TrimRight(service.GetCallbackAddress(), "/")
 	returnURL := callbackAddress + "/api/sepay/return"
 	params := map[string]string{
-		"merchant":             setting.SePayMerchantID,
+		"merchant":             credentials.merchantID,
 		"operation":            "PURCHASE",
-		"payment_method":       setting.SePayPaymentMethod,
+		"payment_method":       sePayPaymentMethod,
 		"order_invoice_number": tradeNo,
 		"order_amount":         strconv.FormatFloat(amount, 'f', 2, 64),
 		"currency":             "VND",
@@ -57,8 +132,8 @@ func buildSePayCheckout(tradeNo string, amount float64, description string, cust
 	}
 
 	fields := []string{
-		"merchant", "operation", "payment_method", "order_amount", "currency",
-		"order_invoice_number", "order_description", "customer_id", "success_url",
+		"order_amount", "merchant", "currency", "operation", "order_description",
+		"order_invoice_number", "customer_id", "payment_method", "success_url",
 		"error_url", "cancel_url",
 	}
 	parts := make([]string, 0, len(fields))
@@ -68,7 +143,7 @@ func buildSePayCheckout(tradeNo string, amount float64, description string, cust
 			parts = append(parts, field+"="+value)
 		}
 	}
-	hash := hmac.New(sha256.New, []byte(setting.SePaySecretKey))
+	hash := hmac.New(sha256.New, []byte(credentials.secretKey))
 	_, _ = hash.Write([]byte(strings.Join(parts, ",")))
 	params["signature"] = base64.StdEncoding.EncodeToString(hash.Sum(nil))
 	return sePayCheckout{URL: sePayCheckoutURL(), Params: params}
@@ -113,7 +188,7 @@ func RequestSePay(c *gin.Context) {
 	}
 	topUp := &model.TopUp{
 		UserId: userID, Amount: amount, Money: providerMoneyFloat, TradeNo: tradeNo,
-		PaymentMethod: setting.SePayPaymentMethod, PaymentProvider: sePayProvider,
+		PaymentMethod: sePayPaymentMethod, PaymentProvider: sePayProvider,
 		Currency: systemCurrency, ProviderCurrency: "VND", ExchangeRate: exchangeRate.String(),
 		ExchangeRateSource: operation_setting.GetGeneralSetting().ExchangeRateSource,
 		ExchangeRateType:   operation_setting.GetGeneralSetting().ExchangeRateType,
@@ -128,13 +203,14 @@ func RequestSePay(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }
 
-type sePayWebhookPayload struct {
+type sePayIPNPayload struct {
 	Timestamp        int64  `json:"timestamp"`
 	NotificationType string `json:"notification_type"`
 	Order            struct {
 		InvoiceNumber string `json:"order_invoice_number"`
 		Status        string `json:"order_status"`
 		Amount        any    `json:"order_amount"`
+		CustomData    any    `json:"custom_data"`
 	} `json:"order"`
 	Transaction struct {
 		Status string `json:"transaction_status"`
@@ -152,8 +228,8 @@ type sePayTransactionWebhookPayload struct {
 
 var sePayOrderReferencePattern = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])((?:SUB)?USR[0-9]+SEPAY[0-9]+)(?:$|[^A-Za-z0-9])`)
 
-func sePayWebhookAuthorized(c *gin.Context, body []byte) bool {
-	secret := strings.TrimSpace(setting.SePayWebhookSecret)
+func sePayNotificationAuthorized(c *gin.Context, body []byte, secretKey string) bool {
+	secret := strings.TrimSpace(secretKey)
 	if secret == "" {
 		return false
 	}
@@ -246,11 +322,11 @@ func processSePayTransactionWebhook(c *gin.Context, payload sePayTransactionWebh
 
 	if strings.HasPrefix(tradeNo, "SUBUSR") {
 		LockOrder(tradeNo)
-		err = model.CompleteSubscriptionOrder(tradeNo, common.GetJsonString(payload), sePayProvider, setting.SePayPaymentMethod)
+		err = model.CompleteSubscriptionOrder(tradeNo, common.GetJsonString(payload), sePayProvider, sePayPaymentMethod)
 		UnlockOrder(tradeNo)
 	} else {
 		LockOrder(tradeNo)
-		_, err = model.RechargeTopUpWithProvider(tradeNo, sePayProvider, setting.SePayPaymentMethod, c.ClientIP())
+		_, err = model.RechargeTopUpWithProvider(tradeNo, sePayProvider, sePayPaymentMethod, c.ClientIP())
 		UnlockOrder(tradeNo)
 	}
 	if err != nil {
@@ -290,35 +366,34 @@ func sePayWebhookAmountMatches(tradeNo string, amount decimal.Decimal) (bool, bo
 	return false, false
 }
 
-func SePayWebhook(c *gin.Context) {
-	if !isSePayTopUpEnabled() {
+func SePayIPN(c *gin.Context) {
+	mode := c.Param("mode")
+	if !isPaymentComplianceConfirmed() {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
 	}
 	body, err := io.ReadAll(c.Request.Body)
-	if err != nil || !sePayWebhookAuthorized(c, body) {
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
 	}
-	var payload sePayWebhookPayload
+	if _, authorized := sePayNotificationCredentials(c, body, mode); !authorized {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
+		return
+	}
+	var payload sePayIPNPayload
 	if err := common.Unmarshal(body, &payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false})
 		return
 	}
-	var transactionPayload sePayTransactionWebhookPayload
-	if err := common.Unmarshal(body, &transactionPayload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false})
-		return
-	}
-	if transactionPayload.ID != 0 {
-		if err := processSePayTransactionWebhook(c, transactionPayload); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false})
-			return
-		}
+	if (payload.NotificationType != "ORDER_PAID" && payload.NotificationType != "PAYMENT_SUCCESS") ||
+		payload.Order.Status != "CAPTURED" || payload.Transaction.Status != "APPROVED" {
 		c.JSON(http.StatusOK, gin.H{"success": true})
 		return
 	}
-	if payload.NotificationType != "ORDER_PAID" || payload.Order.Status != "CAPTURED" || payload.Transaction.Status != "APPROVED" {
+	customData, _ := payload.Order.CustomData.(map[string]any)
+	webhookTest, _ := customData["webhook_test"].(bool)
+	if webhookTest {
 		c.JSON(http.StatusOK, gin.H{"success": true})
 		return
 	}
@@ -329,7 +404,7 @@ func SePayWebhook(c *gin.Context) {
 	}
 	matched, exists := sePayWebhookAmountMatches(payload.Order.InvoiceNumber, amount)
 	if !exists || !matched {
-		logger.LogWarn(c.Request.Context(), common.LogText("SePay webhook amount mismatch or order missing trade_no=%s", payload.Order.InvoiceNumber))
+		logger.LogWarn(c.Request.Context(), common.LogText("SePay IPN amount mismatch or order missing trade_no=%s", payload.Order.InvoiceNumber))
 		c.JSON(http.StatusBadRequest, gin.H{"success": false})
 		return
 	}
@@ -339,17 +414,44 @@ func SePayWebhook(c *gin.Context) {
 	if strings.HasPrefix(tradeNo, "SUBUSR") {
 		LockOrder(tradeNo)
 		defer UnlockOrder(tradeNo)
-		if err := model.CompleteSubscriptionOrder(tradeNo, providerPayload, sePayProvider, setting.SePayPaymentMethod); err != nil {
+		if err := model.CompleteSubscriptionOrder(tradeNo, providerPayload, sePayProvider, sePayPaymentMethod); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false})
 			return
 		}
 	} else {
 		LockOrder(tradeNo)
 		defer UnlockOrder(tradeNo)
-		if _, err := model.RechargeTopUpWithProvider(tradeNo, sePayProvider, setting.SePayPaymentMethod, c.ClientIP()); err != nil {
+		if _, err := model.RechargeTopUpWithProvider(tradeNo, sePayProvider, sePayPaymentMethod, c.ClientIP()); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false})
 			return
 		}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func SePayWebhook(c *gin.Context) {
+	mode := c.Param("mode")
+	if !isPaymentComplianceConfirmed() {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
+		return
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
+		return
+	}
+	if _, authorized := sePayNotificationCredentials(c, body, mode); !authorized {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
+		return
+	}
+	var payload sePayTransactionWebhookPayload
+	if err := common.Unmarshal(body, &payload); err != nil || payload.ID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false})
+		return
+	}
+	if err := processSePayTransactionWebhook(c, payload); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
