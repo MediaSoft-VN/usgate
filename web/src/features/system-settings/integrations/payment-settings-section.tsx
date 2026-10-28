@@ -1348,7 +1348,7 @@ export function PaymentSettingsSection({
             </TabsContent>
 
             <TabsContent value="sepay" className={paymentTabContentClassName}>
-              <div className="space-y-4">
+              <div className="mx-auto w-full max-w-5xl space-y-4">
                 <div>
                   <h3 className="text-lg font-medium">SePay Gateway</h3>
                   <p className="text-muted-foreground text-sm">
