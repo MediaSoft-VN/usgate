@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -99,6 +100,40 @@ func sePayNotificationCredentials(c *gin.Context, body []byte, mode string) (seP
 		}
 	}
 	return sePayCredentials{}, false
+}
+
+// SePay publishes these IPN and webhook sender addresses at
+// https://developer.sepay.vn/vi/dia-chi-ip.
+var sePayNotificationSourceIPs = []string{
+	"172.236.138.20",
+	"172.233.83.68",
+	"171.244.35.2",
+	"151.158.108.68",
+	"151.158.109.79",
+	"103.255.238.139",
+	"45.57.137.67",
+	"2400:8905::2000:8cff:fe98:45cd",
+	"2600:3c15::2000:8aff:fedd:874b",
+}
+
+func sePayIPNAuthorized(c *gin.Context, body []byte) bool {
+	if _, authorized := sePayNotificationCredentials(c, body, ""); authorized {
+		return true
+	}
+	if c.GetHeader("X-Secret-Key") != "" || c.GetHeader("Authorization") != "" ||
+		c.GetHeader("X-SePay-Timestamp") != "" || c.GetHeader("X-SePay-Signature") != "" {
+		return false
+	}
+	sourceIP := net.ParseIP(c.ClientIP())
+	if sourceIP == nil {
+		return false
+	}
+	for _, allowedIP := range sePayNotificationSourceIPs {
+		if sourceIP.Equal(net.ParseIP(allowedIP)) {
+			return true
+		}
+	}
+	return false
 }
 
 type sePayCheckout struct {
@@ -448,7 +483,6 @@ func sePayWebhookAmountMatches(tradeNo string, amount decimal.Decimal) (bool, bo
 }
 
 func SePayIPN(c *gin.Context) {
-	mode := c.Param("mode")
 	if !isPaymentComplianceConfirmed() {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
@@ -458,7 +492,7 @@ func SePayIPN(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
 	}
-	if _, authorized := sePayNotificationCredentials(c, body, mode); !authorized {
+	if !sePayIPNAuthorized(c, body) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
 	}

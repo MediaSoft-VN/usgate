@@ -84,6 +84,16 @@ func sendSePayIPN(body string, authorization string) *httptest.ResponseRecorder 
 	return recorder
 }
 
+func sendUnauthenticatedSePayIPN(body string, remoteAddr string) *httptest.ResponseRecorder {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/ipn", strings.NewReader(body))
+	c.Request.RemoteAddr = remoteAddr
+	SePayIPN(c)
+	return recorder
+}
+
 func sendSePayWebhookForMode(body string, authorization string, mode string) *httptest.ResponseRecorder {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
@@ -138,6 +148,44 @@ func TestSePayPaymentSuccessIPNCreditsMatchingOrder(t *testing.T) {
 	var updatedUser model.User
 	require.NoError(t, db.First(&updatedUser, user.Id).Error)
 	require.Greater(t, updatedUser.Quota, user.Quota)
+}
+
+func TestSePayIPNAcceptsUnauthenticatedRequestFromPublishedSourceIP(t *testing.T) {
+	db, user, topUp := setupSePayWebhookTest(t)
+	body := `{"timestamp":1793155971,"notification_type":"ORDER_PAID","order":{"id":"aa658c15-d27a-11f1-8895-0afffe87053b","order_id":"TEST_ORDER_1793155971","order_status":"CAPTURED","order_currency":"VND","order_amount":"50000.00","order_invoice_number":"USR1SEPAY123","custom_data":[],"order_description":"SePay IPN test"},"transaction":{"id":"aa659519-d27a-11f1-8895-0afffe87053b","payment_method":"BANK_TRANSFER","transaction_id":"TEST_TXN_1793155971","transaction_type":"PAYMENT","transaction_date":"2026-10-28 09:52:51","transaction_status":"APPROVED","transaction_amount":"50000","transaction_currency":"VND"},"customer":{"id":"customer-id","customer_id":"1"},"agreement":null}`
+
+	response := sendUnauthenticatedSePayIPN(body, "172.236.138.20:443")
+	require.Equal(t, http.StatusOK, response.Code)
+	require.JSONEq(t, `{"success":true}`, response.Body.String())
+
+	var settledTopUp model.TopUp
+	require.NoError(t, db.First(&settledTopUp, topUp.Id).Error)
+	require.Equal(t, common.TopUpStatusSuccess, settledTopUp.Status)
+	var creditedUser model.User
+	require.NoError(t, db.First(&creditedUser, user.Id).Error)
+	require.Greater(t, creditedUser.Quota, user.Quota)
+}
+
+func TestSePayIPNRejectsUnauthenticatedRequestFromUntrustedIP(t *testing.T) {
+	setupSePayWebhookTest(t)
+	body := `{"timestamp":1793155971,"notification_type":"ORDER_PAID","order":{"order_status":"CAPTURED","order_currency":"VND","order_amount":"50000.00","order_invoice_number":"USR1SEPAY123"},"transaction":{"transaction_status":"APPROVED"}}`
+
+	response := sendUnauthenticatedSePayIPN(body, "198.51.100.10:443")
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+}
+
+func TestSePayIPNRejectsInvalidSecretEvenFromPublishedSourceIP(t *testing.T) {
+	setupSePayWebhookTest(t)
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/ipn", strings.NewReader(`{}`))
+	c.Request.RemoteAddr = "172.236.138.20:443"
+	c.Request.Header.Set("X-Secret-Key", "wrong-secret")
+
+	SePayIPN(c)
+
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
 
 func TestSePayWebhookWizardSampleAcknowledgedWithoutCredit(t *testing.T) {
