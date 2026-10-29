@@ -168,7 +168,9 @@ func RequestSePay(c *gin.Context) {
 		paymentError(c, common.NewMessage("Failed to get the user group"))
 		return
 	}
-	payMoney := getPayMoney(req.Amount, group)
+	// Price is Epay's local-currency multiplier. SePay instead prices in the
+	// system currency and converts to VND using the configured exchange rate.
+	payMoney := getTopUpAmountInSystemCurrency(req.Amount, group).InexactFloat64()
 	if payMoney < 0.01 {
 		paymentError(c, common.NewMessage("Payment amount is too low"))
 		return

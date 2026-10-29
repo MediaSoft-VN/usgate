@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
@@ -272,4 +273,58 @@ func TestSePayCheckoutUsesCredentialsForSelectedMode(t *testing.T) {
 	liveCheckout := buildSePayCheckout("order-2", 100, "test", "")
 	require.Equal(t, "live-merchant", liveCheckout.Params["merchant"])
 	require.Equal(t, "https://pay.sepay.vn/v1/checkout/init", liveCheckout.URL)
+}
+
+func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testing.T) {
+	db, user, _ := setupSePayWebhookTest(t)
+	previousMainDBType, previousLogDBType := common.MainDatabaseType(), common.LogDatabaseType()
+	previousMasterNode := common.IsMasterNode
+	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
+	common.IsMasterNode = false
+	t.Setenv("LOG_SQL_DSN", "")
+	require.NoError(t, model.InitLogDB())
+	t.Cleanup(func() {
+		common.SetDatabaseTypes(previousMainDBType, previousLogDBType)
+		common.IsMasterNode = previousMasterNode
+	})
+
+	previousPrice := operation_setting.Price
+	previousGeneralSettings := *operation_setting.GetGeneralSetting()
+	previousPaymentSettings := *operation_setting.GetPaymentSetting()
+	previousTopupGroupRatio := common.TopupGroupRatio2JSONString()
+	t.Cleanup(func() {
+		operation_setting.Price = previousPrice
+		*operation_setting.GetGeneralSetting() = previousGeneralSettings
+		*operation_setting.GetPaymentSetting() = previousPaymentSettings
+		common.UpdateTopupGroupRatioByJSONString(previousTopupGroupRatio)
+	})
+
+	operation_setting.Price = 7.3
+	operation_setting.GetGeneralSetting().QuotaDisplayType = operation_setting.QuotaDisplayTypeUSD
+	operation_setting.GetGeneralSetting().ExchangeRateSource = model.ExchangeRateSourceManual
+	operation_setting.GetGeneralSetting().ManualExchangeRates = `{"USD":"26000"}`
+	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{10: 0.5}
+	require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1,"vip":2}`))
+	user.Group = "vip"
+	require.NoError(t, db.Save(&user).Error)
+
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Set("id", user.Id)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/pay", strings.NewReader(`{"amount":10}`))
+	RequestSePay(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var response struct {
+		Data map[string]string `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Equal(t, "260000.00", response.Data["order_amount"])
+	require.Equal(t, float64(73), getPayMoney(10, "vip"), "Epay keeps applying its configured Price multiplier")
+
+	var topUp model.TopUp
+	require.NoError(t, db.Where("user_id = ?", user.Id).Order("id DESC").First(&topUp).Error)
+	require.Equal(t, float64(260000), topUp.Money)
+	require.Equal(t, "26000", topUp.ExchangeRate)
 }
