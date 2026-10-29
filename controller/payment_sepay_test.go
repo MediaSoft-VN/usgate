@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
@@ -250,7 +251,8 @@ func TestSePayCheckoutUsesCredentialsForSelectedMode(t *testing.T) {
 	setting.SePayLiveSecretKey = "live-key"
 
 	setting.SePaySandbox = true
-	sandboxCheckout := buildSePayCheckout("order-1", 100, "test", "")
+	sandboxCheckout := buildSePayCheckout("order-1", decimal.NewFromInt(100), "test", "")
+	require.Equal(t, "100", sandboxCheckout.Params["order_amount"])
 	require.Equal(t, "sandbox-merchant", sandboxCheckout.Params["merchant"])
 	require.Equal(t, "https://pay-sandbox.sepay.vn/v1/checkout/init", sandboxCheckout.URL)
 	signedFields := []string{
@@ -270,7 +272,7 @@ func TestSePayCheckoutUsesCredentialsForSelectedMode(t *testing.T) {
 	require.Equal(t, base64.StdEncoding.EncodeToString(expectedSignature.Sum(nil)), sandboxCheckout.Params["signature"])
 
 	setting.SePaySandbox = false
-	liveCheckout := buildSePayCheckout("order-2", 100, "test", "")
+	liveCheckout := buildSePayCheckout("order-2", decimal.NewFromInt(100), "test", "")
 	require.Equal(t, "live-merchant", liveCheckout.Params["merchant"])
 	require.Equal(t, "https://pay.sepay.vn/v1/checkout/init", liveCheckout.URL)
 }
@@ -302,7 +304,7 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	operation_setting.Price = 7.3
 	operation_setting.GetGeneralSetting().QuotaDisplayType = operation_setting.QuotaDisplayTypeUSD
 	operation_setting.GetGeneralSetting().ExchangeRateSource = model.ExchangeRateSourceManual
-	operation_setting.GetGeneralSetting().ManualExchangeRates = `{"USD":"26000"}`
+	operation_setting.GetGeneralSetting().ManualExchangeRates = `{"USD":"26000.05"}`
 	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{10: 0.5}
 	require.NoError(t, common.UpdateTopupGroupRatioByJSONString(`{"default":1,"vip":2}`))
 	user.Group = "vip"
@@ -318,7 +320,7 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 		Data string `json:"data"`
 	}
 	require.NoError(t, common.Unmarshal(amountRecorder.Body.Bytes(), &amountResponse))
-	require.Equal(t, "260000.00", amountResponse.Data)
+	require.Equal(t, "260001", amountResponse.Data)
 
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
@@ -331,11 +333,11 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 		Data map[string]string `json:"data"`
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
-	require.Equal(t, "260000.00", response.Data["order_amount"])
+	require.Equal(t, "260001", response.Data["order_amount"])
 	require.Equal(t, float64(73), getPayMoney(10, "vip"), "Epay keeps applying its configured Price multiplier")
 
 	var topUp model.TopUp
 	require.NoError(t, db.Where("user_id = ?", user.Id).Order("id DESC").First(&topUp).Error)
-	require.Equal(t, float64(260000), topUp.Money)
-	require.Equal(t, "26000", topUp.ExchangeRate)
+	require.Equal(t, float64(260001), topUp.Money)
+	require.Equal(t, "26000.05", topUp.ExchangeRate)
 }

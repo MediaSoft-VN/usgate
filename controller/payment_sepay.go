@@ -110,7 +110,7 @@ func calculateSePayAmount(amount int64, group string) (decimal.Decimal, decimal.
 		systemAmount,
 		operation_setting.GetFinancialCurrencyCode(),
 	)
-	return systemAmount, providerAmount, exchangeRate, err
+	return systemAmount, providerAmount.Round(0), exchangeRate, err
 }
 
 func sePayCheckoutURL() string {
@@ -120,7 +120,7 @@ func sePayCheckoutURL() string {
 	return "https://pay.sepay.vn/v1/checkout/init"
 }
 
-func buildSePayCheckout(tradeNo string, amount float64, description string, customerID string) sePayCheckout {
+func buildSePayCheckout(tradeNo string, amount decimal.Decimal, description string, customerID string) sePayCheckout {
 	credentials, _ := sePayCredentialsForMode("")
 	callbackAddress := strings.TrimRight(service.GetCallbackAddress(), "/")
 	returnURL := callbackAddress + "/api/sepay/return"
@@ -129,7 +129,7 @@ func buildSePayCheckout(tradeNo string, amount float64, description string, cust
 		"operation":            "PURCHASE",
 		"payment_method":       sePayPaymentMethod,
 		"order_invoice_number": tradeNo,
-		"order_amount":         strconv.FormatFloat(amount, 'f', 2, 64),
+		"order_amount":         amount.Round(0).StringFixed(0),
 		"currency":             "VND",
 		"order_description":    description,
 		"success_url":          returnURL,
@@ -186,7 +186,7 @@ func RequestSePayAmount(c *gin.Context) {
 		paymentError(c, common.NewMessage("Exchange rate is not available"))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "success", "data": providerAmount.StringFixed(2)})
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": providerAmount.StringFixed(0)})
 }
 
 func RequestSePay(c *gin.Context) {
@@ -238,7 +238,7 @@ func RequestSePay(c *gin.Context) {
 		paymentError(c, common.NewMessage("Failed to create order"))
 		return
 	}
-	checkout := buildSePayCheckout(tradeNo, providerMoneyFloat, fmt.Sprintf("Top-up %s", tradeNo), strconv.Itoa(userID))
+	checkout := buildSePayCheckout(tradeNo, providerMoney, fmt.Sprintf("Top-up %s", tradeNo), strconv.Itoa(userID))
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }
 
