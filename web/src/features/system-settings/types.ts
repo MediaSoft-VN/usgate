@@ -360,6 +360,7 @@ export type BillingSettings = {
   SePaySandboxSecretKey: string
   SePayLiveMerchantID: string
   SePayLiveSecretKey: string
+  SePayIPNAllowedIPs: string
   SePaySandbox: boolean
   SePayMinTopUp: number
   CreemApiKey: string

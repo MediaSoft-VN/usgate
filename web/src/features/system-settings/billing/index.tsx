@@ -95,6 +95,7 @@ const defaultBillingSettings: BillingSettings = {
   SePaySandboxSecretKey: '',
   SePayLiveMerchantID: '',
   SePayLiveSecretKey: '',
+  SePayIPNAllowedIPs: '',
   SePaySandbox: true,
   SePayMinTopUp: 1,
   CreemApiKey: '',

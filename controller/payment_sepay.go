@@ -7,8 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -102,18 +102,25 @@ func sePayNotificationCredentials(c *gin.Context, body []byte, mode string) (seP
 	return sePayCredentials{}, false
 }
 
-// SePay publishes these IPN and webhook sender addresses at
-// https://developer.sepay.vn/vi/dia-chi-ip.
-var sePayNotificationSourceIPs = []string{
-	"172.236.138.20",
-	"172.233.83.68",
-	"171.244.35.2",
-	"151.158.108.68",
-	"151.158.109.79",
-	"103.255.238.139",
-	"45.57.137.67",
-	"2400:8905::2000:8cff:fe98:45cd",
-	"2600:3c15::2000:8aff:fedd:874b",
+func sePayIPNAllowedPrefixes(config string) ([]netip.Prefix, error) {
+	var prefixes []netip.Prefix
+	for lineNumber, line := range strings.Split(config, "\n") {
+		entry := strings.TrimSpace(line)
+		if entry == "" {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(entry)
+		if err != nil {
+			address, addressErr := netip.ParseAddr(entry)
+			if addressErr != nil {
+				return nil, fmt.Errorf("invalid SePay IPN allowlist entry on line %d", lineNumber+1)
+			}
+			address = address.Unmap()
+			prefix = netip.PrefixFrom(address, address.BitLen())
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
 }
 
 func sePayIPNAuthorized(c *gin.Context, body []byte) bool {
@@ -124,12 +131,19 @@ func sePayIPNAuthorized(c *gin.Context, body []byte) bool {
 		c.GetHeader("X-SePay-Timestamp") != "" || c.GetHeader("X-SePay-Signature") != "" {
 		return false
 	}
-	sourceIP := net.ParseIP(c.ClientIP())
-	if sourceIP == nil {
+	sourceIP, err := netip.ParseAddr(c.ClientIP())
+	if err != nil {
 		return false
 	}
-	for _, allowedIP := range sePayNotificationSourceIPs {
-		if sourceIP.Equal(net.ParseIP(allowedIP)) {
+	prefixes, err := sePayIPNAllowedPrefixes(setting.SePayIPNAllowedIPs)
+	if err != nil {
+		return false
+	}
+	if len(prefixes) == 0 {
+		return true
+	}
+	for _, prefix := range prefixes {
+		if prefix.Contains(sourceIP.Unmap()) {
 			return true
 		}
 	}

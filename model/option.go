@@ -111,6 +111,7 @@ func InitOptionMap() {
 	common.OptionMap["SePaySandboxSecretKey"] = setting.SePaySandboxSecretKey
 	common.OptionMap["SePayLiveMerchantID"] = setting.SePayLiveMerchantID
 	common.OptionMap["SePayLiveSecretKey"] = setting.SePayLiveSecretKey
+	common.OptionMap["SePayIPNAllowedIPs"] = setting.SePayIPNAllowedIPs
 	common.OptionMap["SePaySandbox"] = strconv.FormatBool(setting.SePaySandbox)
 	common.OptionMap["SePayMinTopUp"] = strconv.Itoa(setting.SePayMinTopUp)
 	common.OptionMap["CreemApiKey"] = setting.CreemApiKey
@@ -583,6 +584,8 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.SePayLiveMerchantID = value
 	case "SePayLiveSecretKey":
 		setting.SePayLiveSecretKey = value
+	case "SePayIPNAllowedIPs":
+		setting.SePayIPNAllowedIPs = value
 	case "SePaySandbox":
 		setting.SePaySandbox = value == "true"
 	case "SePayMinTopUp":

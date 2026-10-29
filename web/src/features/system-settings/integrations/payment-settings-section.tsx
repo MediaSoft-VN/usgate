@@ -46,6 +46,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { getPaymentErrorTranslation } from '@/features/wallet/lib/payment'
 import { handleServerError } from '@/lib/handle-server-error'
 import { cn } from '@/lib/utils'
@@ -156,6 +157,7 @@ const paymentSchema = z.object({
   SePaySandboxSecretKey: z.string(),
   SePayLiveMerchantID: z.string(),
   SePayLiveSecretKey: z.string(),
+  SePayIPNAllowedIPs: z.string(),
   SePaySandbox: z.boolean(),
   SePayMinTopUp: z.coerce.number().min(0),
   CreemApiKey: z.string(),
@@ -455,6 +457,7 @@ export function PaymentSettingsSection({
       SePaySandboxSecretKey: values.SePaySandboxSecretKey.trim(),
       SePayLiveMerchantID: values.SePayLiveMerchantID.trim(),
       SePayLiveSecretKey: values.SePayLiveSecretKey.trim(),
+      SePayIPNAllowedIPs: values.SePayIPNAllowedIPs.trim(),
       SePaySandbox: values.SePaySandbox,
       SePayMinTopUp: values.SePayMinTopUp,
       CreemApiKey: values.CreemApiKey.trim(),
@@ -506,6 +509,7 @@ export function PaymentSettingsSection({
       SePaySandboxSecretKey: initialRef.current.SePaySandboxSecretKey.trim(),
       SePayLiveMerchantID: initialRef.current.SePayLiveMerchantID.trim(),
       SePayLiveSecretKey: initialRef.current.SePayLiveSecretKey.trim(),
+      SePayIPNAllowedIPs: initialRef.current.SePayIPNAllowedIPs.trim(),
       SePaySandbox: initialRef.current.SePaySandbox,
       SePayMinTopUp: initialRef.current.SePayMinTopUp,
       CreemApiKey: initialRef.current.CreemApiKey.trim(),
@@ -648,6 +652,12 @@ export function PaymentSettingsSection({
     }
     if (sanitized.SePaySandbox !== initial.SePaySandbox) {
       updates.push({ key: 'SePaySandbox', value: sanitized.SePaySandbox })
+    }
+    if (sanitized.SePayIPNAllowedIPs !== initial.SePayIPNAllowedIPs) {
+      updates.push({
+        key: 'SePayIPNAllowedIPs',
+        value: sanitized.SePayIPNAllowedIPs,
+      })
     }
     if (sanitized.SePayMinTopUp !== initial.SePayMinTopUp) {
       updates.push({ key: 'SePayMinTopUp', value: sanitized.SePayMinTopUp })
@@ -1330,6 +1340,28 @@ export function PaymentSettingsSection({
                   </p>
                 </div>
                 <SePayIPNInfo ipnUrl={sePayIPNUrl} />
+                <FormField
+                  control={form.control}
+                  name='SePayIPNAllowedIPs'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Allowed SePay IPs/CIDRs')}</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          rows={4}
+                          placeholder={'203.0.113.10\n2001:db8::/32'}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'Enter one IP address or CIDR per line. When empty, unauthenticated IPNs are accepted from any source.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className='grid gap-4 xl:grid-cols-2'>
                   <SePayCredentialGroup mode='sandbox'>
                     <FormField
