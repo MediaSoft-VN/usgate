@@ -58,6 +58,7 @@ func SubscriptionRequestSePay(c *gin.Context) {
 		common.ApiErrorT(c, "Exchange rate is not available")
 		return
 	}
+	providerMoney = providerMoney.Round(0)
 	order := &model.SubscriptionOrder{
 		UserId: userID, PlanId: plan.Id, Money: providerMoney.InexactFloat64(), TradeNo: tradeNo,
 		PaymentMethod: sePayPaymentMethod, PaymentProvider: model.PaymentProviderSePay,
@@ -71,6 +72,6 @@ func SubscriptionRequestSePay(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to create order")
 		return
 	}
-	checkout := buildSePayCheckout(tradeNo, providerMoney.InexactFloat64(), "Subscription "+strings.TrimSpace(plan.Title), strconv.Itoa(userID))
+	checkout := buildSePayCheckout(tradeNo, providerMoney, "Subscription "+strings.TrimSpace(plan.Title), strconv.Itoa(userID))
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }

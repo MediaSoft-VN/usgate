@@ -83,6 +83,18 @@ export async function calculateAmount(
 }
 
 /**
+ * Calculate the SePay amount in VND
+ */
+export async function calculateSePayAmount(
+  request: AmountRequest
+): Promise<AmountResponse> {
+  const res = await api.post('/api/user/sepay/amount', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
+}
+
+/**
  * Calculate payment amount for Stripe payment
  */
 export async function calculateStripeAmount(

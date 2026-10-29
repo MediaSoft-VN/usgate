@@ -46,6 +46,12 @@ type ScheduledSystemTaskHandler interface {
 	NewPayload() any
 }
 
+// ScheduledSystemTaskDueChecker lets calendar-based handlers decide when a
+// task is due using the latest persisted run, rather than a fixed interval.
+type ScheduledSystemTaskDueChecker interface {
+	IsDue(now time.Time, latest *model.SystemTask) bool
+}
+
 var (
 	systemTaskHandlersMu sync.RWMutex
 	systemTaskHandlers   = map[string]SystemTaskHandler{}
@@ -284,9 +290,13 @@ func runSystemTaskScheduler() {
 			if latest.Status == model.SystemTaskStatusPending || latest.Status == model.SystemTaskStatusRunning {
 				continue // an active row already exists
 			}
-			if now-latest.UpdatedAt < int64(scheduled.Interval().Seconds()) {
-				continue // not due yet
+		}
+		if dueChecker, ok := scheduled.(ScheduledSystemTaskDueChecker); ok {
+			if !dueChecker.IsDue(time.Now(), latest) {
+				continue
 			}
+		} else if latest != nil && now-latest.UpdatedAt < int64(scheduled.Interval().Seconds()) {
+			continue // not due yet
 		}
 		if _, err := model.CreateSystemTask(scheduled.Type(), scheduled.NewPayload(), nil); err != nil {
 			activeTask, activeErr := model.GetActiveSystemTask(scheduled.Type())

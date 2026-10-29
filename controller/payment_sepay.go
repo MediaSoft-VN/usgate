@@ -104,6 +104,15 @@ type sePayCheckout struct {
 	Params map[string]string
 }
 
+func calculateSePayAmount(amount int64, group string) (decimal.Decimal, decimal.Decimal, decimal.Decimal, error) {
+	systemAmount := getTopUpAmountInSystemCurrency(amount, group)
+	providerAmount, exchangeRate, err := service.ConvertToVND(
+		systemAmount,
+		operation_setting.GetFinancialCurrencyCode(),
+	)
+	return systemAmount, providerAmount.Round(0), exchangeRate, err
+}
+
 func sePayCheckoutURL() string {
 	if setting.SePaySandbox {
 		return "https://pay-sandbox.sepay.vn/v1/checkout/init"
@@ -111,7 +120,7 @@ func sePayCheckoutURL() string {
 	return "https://pay.sepay.vn/v1/checkout/init"
 }
 
-func buildSePayCheckout(tradeNo string, amount float64, description string, customerID string) sePayCheckout {
+func buildSePayCheckout(tradeNo string, amount decimal.Decimal, description string, customerID string) sePayCheckout {
 	credentials, _ := sePayCredentialsForMode("")
 	callbackAddress := strings.TrimRight(service.GetCallbackAddress(), "/")
 	returnURL := callbackAddress + "/api/sepay/return"
@@ -120,7 +129,7 @@ func buildSePayCheckout(tradeNo string, amount float64, description string, cust
 		"operation":            "PURCHASE",
 		"payment_method":       sePayPaymentMethod,
 		"order_invoice_number": tradeNo,
-		"order_amount":         strconv.FormatFloat(amount, 'f', 2, 64),
+		"order_amount":         amount.Round(0).StringFixed(0),
 		"currency":             "VND",
 		"order_description":    description,
 		"success_url":          returnURL,
@@ -149,6 +158,37 @@ func buildSePayCheckout(tradeNo string, amount float64, description string, cust
 	return sePayCheckout{URL: sePayCheckoutURL(), Params: params}
 }
 
+func RequestSePayAmount(c *gin.Context) {
+	if !isSePayTopUpEnabled() {
+		paymentError(c, common.NewMessage("Payment information has not been configured by administrator"))
+		return
+	}
+	var req AmountRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Amount < int64(setting.SePayMinTopUp) {
+		paymentError(c, common.NewMessage("Invalid parameters"))
+		return
+	}
+	userID := c.GetInt("id")
+	if rejectInvalidTopUpQuota(c, userID, req.Amount) {
+		return
+	}
+	group, err := model.GetUserGroup(userID, true)
+	if err != nil {
+		paymentError(c, common.NewMessage("Failed to get the user group"))
+		return
+	}
+	systemAmount, providerAmount, _, err := calculateSePayAmount(req.Amount, group)
+	if systemAmount.LessThan(decimal.NewFromFloat(0.01)) {
+		paymentError(c, common.NewMessage("Payment amount is too low"))
+		return
+	}
+	if err != nil {
+		paymentError(c, common.NewMessage("Exchange rate is not available"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": providerAmount.StringFixed(0)})
+}
+
 func RequestSePay(c *gin.Context) {
 	if !isSePayTopUpEnabled() {
 		paymentError(c, common.NewMessage("Payment information has not been configured by administrator"))
@@ -168,18 +208,17 @@ func RequestSePay(c *gin.Context) {
 		paymentError(c, common.NewMessage("Failed to get the user group"))
 		return
 	}
-	payMoney := getPayMoney(req.Amount, group)
-	if payMoney < 0.01 {
+	systemAmount, providerMoney, exchangeRate, err := calculateSePayAmount(req.Amount, group)
+	if systemAmount.LessThan(decimal.NewFromFloat(0.01)) {
 		paymentError(c, common.NewMessage("Payment amount is too low"))
 		return
 	}
-	systemCurrency := operation_setting.GetFinancialCurrencyCode()
-	providerMoney, exchangeRate, err := service.ConvertToVND(decimal.NewFromFloat(payMoney), systemCurrency)
 	if err != nil {
 		paymentError(c, common.NewMessage("Exchange rate is not available"))
 		return
 	}
 	providerMoneyFloat := providerMoney.InexactFloat64()
+	systemCurrency := operation_setting.GetFinancialCurrencyCode()
 
 	tradeNo := fmt.Sprintf("USR%dSEPAY%d", userID, time.Now().UnixNano())
 	amount := req.Amount
@@ -199,7 +238,7 @@ func RequestSePay(c *gin.Context) {
 		paymentError(c, common.NewMessage("Failed to create order"))
 		return
 	}
-	checkout := buildSePayCheckout(tradeNo, providerMoneyFloat, fmt.Sprintf("Top-up %s", tradeNo), strconv.Itoa(userID))
+	checkout := buildSePayCheckout(tradeNo, providerMoney, fmt.Sprintf("Top-up %s", tradeNo), strconv.Itoa(userID))
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }
 

@@ -41,6 +41,7 @@ const defaultBillingSettings: BillingSettings = {
   'general_setting.custom_currency_exchange_rate': 1,
   'general_setting.exchange_rate_source': 'vietcombank',
   'general_setting.exchange_rate_type': 'sell',
+  'general_setting.exchange_rate_sync_time': '10:00',
   'general_setting.manual_exchange_rates': '{}',
 
   DisplayInCurrencyEnabled: true,
