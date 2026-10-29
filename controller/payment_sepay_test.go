@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/shopspring/decimal"
@@ -277,6 +279,70 @@ func TestSePayCheckoutUsesCredentialsForSelectedMode(t *testing.T) {
 	require.Equal(t, "https://pay.sepay.vn/v1/checkout/init", liveCheckout.URL)
 }
 
+func TestSePayTopUpReturnURLsCarryResultAndLocalFrontendOrigin(t *testing.T) {
+	previousServerAddress := system_setting.ServerAddress
+	system_setting.ServerAddress = "http://localhost:3000"
+	t.Cleanup(func() { system_setting.ServerAddress = previousServerAddress })
+
+	for _, testCase := range []struct {
+		name   string
+		status string
+	}{
+		{name: "success waits for IPN confirmation", status: "pending"},
+		{name: "provider error", status: "fail"},
+		{name: "customer cancellation", status: "cancel"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			returnURL := sePayTopUpReturnURL(
+				"http://localhost:3000/api/sepay/return",
+				testCase.status,
+				"USR7SEPAY123",
+				"http://localhost:5173",
+			)
+			parsedURL, err := url.Parse(returnURL)
+			require.NoError(t, err)
+			require.Equal(t, "http://localhost:3000/api/sepay/return", parsedURL.Scheme+"://"+parsedURL.Host+parsedURL.Path)
+			require.Equal(t, testCase.status, parsedURL.Query().Get("pay"))
+			require.Equal(t, "USR7SEPAY123", parsedURL.Query().Get("trade_no"))
+			require.Equal(t, "http://localhost:5173", parsedURL.Query().Get("return_origin"))
+		})
+	}
+}
+
+func TestSePayReturnRedirectsToValidatedFrontendWithStatus(t *testing.T) {
+	previousServerAddress := system_setting.ServerAddress
+	system_setting.ServerAddress = "http://localhost:3000"
+	t.Cleanup(func() { system_setting.ServerAddress = previousServerAddress })
+	gin.SetMode(gin.TestMode)
+
+	for _, testCase := range []struct {
+		name         string
+		query        string
+		wantLocation string
+	}{
+		{
+			name:         "local frontend return preserves pending order",
+			query:        "pay=pending&trade_no=USR7SEPAY123&return_origin=http%3A%2F%2Flocalhost%3A5173",
+			wantLocation: "http://localhost:5173/wallet?pay=pending&trade_no=USR7SEPAY123",
+		},
+		{
+			name:         "untrusted return origin falls back to configured server",
+			query:        "pay=fail&trade_no=USR7SEPAY123&return_origin=https%3A%2F%2Fevil.example",
+			wantLocation: "http://localhost:3000/wallet?pay=fail&trade_no=USR7SEPAY123",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, "/api/sepay/return?"+testCase.query, nil)
+			SePayReturn(c)
+
+			require.Equal(t, http.StatusFound, recorder.Code)
+			require.Equal(t, testCase.wantLocation, recorder.Header().Get("Location"))
+		})
+	}
+}
+
 func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testing.T) {
 	db, user, _ := setupSePayWebhookTest(t)
 	previousMainDBType, previousLogDBType := common.MainDatabaseType(), common.LogDatabaseType()
@@ -293,13 +359,19 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	previousPrice := operation_setting.Price
 	previousGeneralSettings := *operation_setting.GetGeneralSetting()
 	previousPaymentSettings := *operation_setting.GetPaymentSetting()
+	previousCallbackAddress := operation_setting.CustomCallbackAddress
+	previousServerAddress := system_setting.ServerAddress
 	previousTopupGroupRatio := common.TopupGroupRatio2JSONString()
 	t.Cleanup(func() {
 		operation_setting.Price = previousPrice
 		*operation_setting.GetGeneralSetting() = previousGeneralSettings
 		*operation_setting.GetPaymentSetting() = previousPaymentSettings
+		operation_setting.CustomCallbackAddress = previousCallbackAddress
+		system_setting.ServerAddress = previousServerAddress
 		common.UpdateTopupGroupRatioByJSONString(previousTopupGroupRatio)
 	})
+	operation_setting.CustomCallbackAddress = ""
+	system_setting.ServerAddress = "http://localhost:3000"
 
 	operation_setting.Price = 7.3
 	operation_setting.GetGeneralSetting().QuotaDisplayType = operation_setting.QuotaDisplayTypeUSD
@@ -326,6 +398,7 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	c, _ := gin.CreateTestContext(recorder)
 	c.Set("id", user.Id)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/pay", strings.NewReader(`{"amount":10}`))
+	c.Request.Header.Set("Origin", "http://localhost:5173")
 	RequestSePay(c)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
@@ -334,6 +407,17 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 	require.Equal(t, "260001", response.Data["order_amount"])
+	for key, status := range map[string]string{
+		"success_url": "pending",
+		"error_url":   "fail",
+		"cancel_url":  "cancel",
+	} {
+		returnURL, err := url.Parse(response.Data[key])
+		require.NoError(t, err)
+		require.Equal(t, status, returnURL.Query().Get("pay"))
+		require.Equal(t, "http://localhost:5173", returnURL.Query().Get("return_origin"))
+		require.NotEmpty(t, returnURL.Query().Get("trade_no"))
+	}
 	require.Equal(t, float64(73), getPayMoney(10, "vip"), "Epay keeps applying its configured Price multiplier")
 
 	var topUp model.TopUp

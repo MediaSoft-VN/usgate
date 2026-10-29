@@ -30,6 +30,10 @@ import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
 import { TransferDialog } from './components/dialogs/transfer-dialog'
 import { RechargeFormCard } from './components/recharge-form-card'
+import {
+  SePayReturnNotice,
+  type SePayReturnDisplayStatus,
+} from './components/sepay-return-notice'
 import { SubscriptionPlansCard } from './components/subscription-plans-card'
 import { WalletStatsCard } from './components/wallet-stats-card'
 import { DEFAULT_DISCOUNT_RATE, PAYMENT_TYPES } from './constants'
@@ -41,6 +45,7 @@ import {
   useCreemPayment,
   useWaffoPayment,
   useWaffoPancakePayment,
+  useSePayReturnStatus,
 } from './hooks'
 import {
   getDefaultPaymentType,
@@ -57,6 +62,8 @@ import type {
 
 interface WalletProps {
   initialShowHistory?: boolean
+  paymentReturnStatus?: 'pending' | 'fail' | 'cancel'
+  paymentReturnTradeNo?: string
 }
 
 export function Wallet(props: WalletProps) {
@@ -83,6 +90,10 @@ export function Wallet(props: WalletProps) {
   const { status } = useStatus()
   const { currency } = useSystemConfig()
   const { topupInfo, presetAmounts, loading: topupLoading } = useTopupInfo()
+  const sePayOrderStatus = useSePayReturnStatus(
+    props.paymentReturnTradeNo,
+    Boolean(props.paymentReturnStatus)
+  )
 
   // Calculate effective exchange rate - when display type is USD, use rate of 1
   const effectiveUsdExchangeRate = useMemo(() => {
@@ -125,6 +136,22 @@ export function Wallet(props: WalletProps) {
     }
   }, [])
 
+  let paymentReturnDisplayStatus: SePayReturnDisplayStatus | undefined =
+    props.paymentReturnStatus
+  if (sePayOrderStatus.data === 'success') {
+    paymentReturnDisplayStatus = 'success'
+  } else if (sePayOrderStatus.data === 'failed') {
+    paymentReturnDisplayStatus = 'fail'
+  } else if (sePayOrderStatus.data === 'expired') {
+    paymentReturnDisplayStatus = 'expired'
+  }
+
+  useEffect(() => {
+    if (paymentReturnDisplayStatus === 'success') {
+      void fetchUser()
+    }
+  }, [fetchUser, paymentReturnDisplayStatus])
+
   useEffect(() => {
     fetchUser()
   }, [fetchUser])
@@ -132,9 +159,19 @@ export function Wallet(props: WalletProps) {
   useEffect(() => {
     if (props.initialShowHistory) {
       setBillingDialogOpen(true)
-      window.history.replaceState({}, '', window.location.pathname)
     }
-  }, [props.initialShowHistory])
+    if (props.initialShowHistory || props.paymentReturnStatus) {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.delete('show_history')
+      currentUrl.searchParams.delete('pay')
+      currentUrl.searchParams.delete('trade_no')
+      window.history.replaceState(
+        {},
+        '',
+        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
+      )
+    }
+  }, [props.initialShowHistory, props.paymentReturnStatus])
 
   // Initialize topup amount when topup info is loaded
   const topupAmountInitializedRef = useRef(false)
@@ -288,6 +325,12 @@ export function Wallet(props: WalletProps) {
         <SectionPageLayout.Title>{t('Wallet')}</SectionPageLayout.Title>
         <SectionPageLayout.Content>
           <div className='mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5'>
+            {paymentReturnDisplayStatus && (
+              <SePayReturnNotice
+                status={paymentReturnDisplayStatus}
+                tradeNo={props.paymentReturnTradeNo}
+              />
+            )}
             <WalletStatsCard user={user} loading={userLoading} />
 
             <div
