@@ -307,6 +307,7 @@ export type BillingSettings = {
   'general_setting.custom_currency_exchange_rate': number
   'general_setting.exchange_rate_source': string
   'general_setting.exchange_rate_type': string
+  'general_setting.exchange_rate_sync_time': string
   'general_setting.manual_exchange_rates': string
   DisplayInCurrencyEnabled: boolean
   DisplayTokenStatEnabled: boolean

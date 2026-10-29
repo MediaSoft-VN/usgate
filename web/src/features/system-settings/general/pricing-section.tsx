@@ -95,6 +95,7 @@ const createPricingSchema = (t: (key: string) => string) =>
           .optional(),
         exchange_rate_source: z.enum(['vietcombank', 'manual']),
         exchange_rate_type: z.enum(['cash', 'transfer', 'sell']),
+        exchange_rate_sync_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
         manual_exchange_rates: z.string(),
       }),
     })
@@ -217,6 +218,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
   const displayType = form.watch('general_setting.quota_display_type') ?? 'USD'
   const exchangeRateSource =
     form.watch('general_setting.exchange_rate_source') ?? 'vietcombank'
+  const automaticRateSyncEnabled = exchangeRateSource === 'vietcombank'
   const displayInCurrencyEnabled = form.watch('DisplayInCurrencyEnabled')
 
   const handleSyncRates = async () => {
@@ -571,6 +573,35 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name='general_setting.exchange_rate_sync_time'
+                render={({ field }) => (
+                  <FormItem className='max-w-sm'>
+                    <FormLabel>{t('Daily sync time')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='time'
+                        step={60}
+                        value={field.value || '10:00'}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        disabled={!automaticRateSyncEnabled}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {automaticRateSyncEnabled
+                        ? t(
+                            "Automatic VND rate sync runs at this time in the server's local timezone when Vietcombank is selected."
+                          )
+                        : t('Automatic sync is unavailable for manual rates.')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               {exchangeRateSource === 'manual' && (
                 <FormField
                   control={form.control}

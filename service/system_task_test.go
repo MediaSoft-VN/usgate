@@ -55,6 +55,13 @@ func (h *stubScheduledHandler) Enabled() bool           { return h.enabled }
 func (h *stubScheduledHandler) Interval() time.Duration { return h.interval }
 func (h *stubScheduledHandler) NewPayload() any         { return nil }
 
+type stubDueCheckerHandler struct {
+	stubScheduledHandler
+	due bool
+}
+
+func (h *stubDueCheckerHandler) IsDue(_ time.Time, _ *model.SystemTask) bool { return h.due }
+
 func countSystemTasks(t *testing.T, taskType string) int64 {
 	t.Helper()
 	var count int64
@@ -105,6 +112,21 @@ func TestSystemTaskSchedulerSkipsDisabled(t *testing.T) {
 
 	runSystemTaskScheduler()
 	assert.Equal(t, int64(0), countSystemTasks(t, handler.taskType))
+}
+
+func TestSystemTaskSchedulerUsesDueChecker(t *testing.T) {
+	truncate(t)
+
+	handler := &stubDueCheckerHandler{
+		stubScheduledHandler: stubScheduledHandler{taskType: "test_due_checker", enabled: true, interval: 24 * time.Hour},
+	}
+	withSystemTaskRegistry(t, handler)
+	runSystemTaskScheduler()
+	require.Equal(t, int64(0), countSystemTasks(t, handler.taskType))
+
+	handler.due = true
+	runSystemTaskScheduler()
+	require.Equal(t, int64(1), countSystemTasks(t, handler.taskType))
 }
 
 func TestSystemTaskClaimPassDispatchesByType(t *testing.T) {

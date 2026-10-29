@@ -24,6 +24,8 @@ type GeneralSetting struct {
 	ExchangeRateSource string `json:"exchange_rate_source"`
 	// ExchangeRateType selects cash, transfer, or sell from the bank response.
 	ExchangeRateType string `json:"exchange_rate_type"`
+	// ExchangeRateSyncTime is the daily sync time in the server's local timezone.
+	ExchangeRateSyncTime string `json:"exchange_rate_sync_time"`
 	// ManualExchangeRates is a JSON object keyed by quote currency code.
 	ManualExchangeRates string `json:"manual_exchange_rates"`
 	CustomCurrencyCode  string `json:"custom_currency_code"`
@@ -39,6 +41,7 @@ var generalSetting = GeneralSetting{
 	CustomCurrencyExchangeRate: 1.0,
 	ExchangeRateSource:         "vietcombank",
 	ExchangeRateType:           "sell",
+	ExchangeRateSyncTime:       "10:00",
 	ManualExchangeRates:        "{}",
 	CustomCurrencyCode:         "CUSTOM",
 }
