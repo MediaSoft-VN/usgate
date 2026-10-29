@@ -61,7 +61,8 @@ function isSafariBrowser(): boolean {
  */
 export function submitPaymentForm(
   url: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  fieldOrder?: readonly string[]
 ): void {
   const form = document.createElement('form')
   form.action = url
@@ -72,8 +73,17 @@ export function submitPaymentForm(
     form.target = '_blank'
   }
 
-  // Add form parameters
-  Object.entries(params).forEach(([key, value]) => {
+  // Add form parameters in the requested order when a provider's signature
+  // protocol depends on the input order.
+  const entries = fieldOrder
+    ? [
+        ...fieldOrder.flatMap((key) =>
+          Object.hasOwn(params, key) ? [[key, params[key]] as const] : []
+        ),
+        ...Object.entries(params).filter(([key]) => !fieldOrder.includes(key)),
+      ]
+    : Object.entries(params)
+  entries.forEach(([key, value]) => {
     const input = document.createElement('input')
     input.type = 'hidden'
     input.name = key
@@ -84,6 +94,28 @@ export function submitPaymentForm(
   document.body.appendChild(form)
   form.submit()
   document.body.removeChild(form)
+}
+
+const sePayCheckoutFieldOrder = [
+  'order_amount',
+  'merchant',
+  'currency',
+  'operation',
+  'order_description',
+  'order_invoice_number',
+  'customer_id',
+  'payment_method',
+  'success_url',
+  'error_url',
+  'cancel_url',
+  'signature',
+] as const
+
+export function submitSePayPaymentForm(
+  url: string,
+  params: Record<string, unknown>
+): void {
+  submitPaymentForm(url, params, sePayCheckoutFieldOrder)
 }
 
 /**

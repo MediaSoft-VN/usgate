@@ -16,10 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { describe, expect, test } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+
+import { api } from '@/lib/api'
 
 import { PAYMENT_TYPES } from '../constants'
-import { requestPaymentAmount } from './use-payment'
+import { requestPaymentAmount, usePayment } from './use-payment'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('payment amount routing', () => {
   test('uses the dedicated Waffo amount calculator', async () => {
@@ -70,4 +77,57 @@ describe('payment amount routing', () => {
     expect(amount).toBe(130000)
     expect(calls).toEqual(['sepay:5'])
   })
+})
+
+test('posts SePay checkout fields in the documented order', async () => {
+  let submittedFieldNames: string[] = []
+  vi.spyOn(api, 'post').mockResolvedValue({
+    data: {
+      message: 'success',
+      data: {
+        success_url: 'https://gateway.example/api/sepay/return',
+        signature: 'signed',
+        payment_method: 'BANK_TRANSFER',
+        order_invoice_number: 'USR1SEPAY123',
+        order_description: 'Top-up',
+        operation: 'PURCHASE',
+        currency: 'VND',
+        merchant: 'merchant',
+        order_amount: '50000',
+        cancel_url: 'https://gateway.example/api/sepay/return',
+        error_url: 'https://gateway.example/api/sepay/return',
+        customer_id: '1',
+      },
+      url: 'https://pay-sandbox.sepay.vn/v1/checkout/init',
+    },
+  })
+  vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(function (
+    this: HTMLFormElement
+  ) {
+    submittedFieldNames = [...this.elements].map(
+      (element) => (element as HTMLInputElement).name
+    )
+  })
+
+  const { result } = renderHook(() => usePayment())
+  let succeeded = false
+  await act(async () => {
+    succeeded = await result.current.processPayment(10, PAYMENT_TYPES.SEPAY)
+  })
+
+  expect(succeeded).toBe(true)
+  expect(submittedFieldNames).toEqual([
+    'order_amount',
+    'merchant',
+    'currency',
+    'operation',
+    'order_description',
+    'order_invoice_number',
+    'customer_id',
+    'payment_method',
+    'success_url',
+    'error_url',
+    'cancel_url',
+    'signature',
+  ])
 })
