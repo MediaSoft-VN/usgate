@@ -108,6 +108,8 @@ const BILLING_SECTIONS = [
               settings['general_setting.exchange_rate_type'] === 'transfer'
                 ? settings['general_setting.exchange_rate_type']
                 : 'sell',
+            exchange_rate_fee_ratio:
+              settings['general_setting.exchange_rate_fee_ratio'] ?? 0,
             exchange_rate_sync_time:
               settings['general_setting.exchange_rate_sync_time'] ?? '10:00',
             manual_exchange_rates:

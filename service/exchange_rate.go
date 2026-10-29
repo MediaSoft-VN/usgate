@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -101,6 +102,15 @@ func ConvertToVND(amount decimal.Decimal, currency string) (decimal.Decimal, dec
 	rate, err := CurrentExchangeRate(currency)
 	if err != nil {
 		return decimal.Zero, decimal.Zero, err
+	}
+	settings := operation_setting.GetGeneralSetting()
+	if settings.ExchangeRateSource == model.ExchangeRateSourceVietcombank &&
+		!strings.EqualFold(strings.TrimSpace(currency), "VND") {
+		feeRatio := settings.ExchangeRateFeeRatio
+		if math.IsNaN(feeRatio) || math.IsInf(feeRatio, 0) || feeRatio < 0 || feeRatio > 1 {
+			return decimal.Zero, decimal.Zero, fmt.Errorf("invalid Vietcombank VND conversion fee ratio")
+		}
+		rate = rate.Mul(decimal.NewFromInt(1).Add(decimal.NewFromFloat(feeRatio)))
 	}
 	return amount.Mul(rate), rate, nil
 }

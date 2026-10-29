@@ -95,6 +95,10 @@ const createPricingSchema = (t: (key: string) => string) =>
           .optional(),
         exchange_rate_source: z.enum(['vietcombank', 'manual']),
         exchange_rate_type: z.enum(['cash', 'transfer', 'sell']),
+        exchange_rate_fee_ratio: z.coerce
+          .number()
+          .min(0, t('Fee must be between 0 and 1'))
+          .max(1, t('Fee must be between 0 and 1')),
         exchange_rate_sync_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
         manual_exchange_rates: z.string(),
       }),
@@ -573,6 +577,31 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name='general_setting.exchange_rate_fee_ratio'
+                render={({ field }) => (
+                  <FormItem className='max-w-sm'>
+                    <FormLabel>{t('Vietcombank VND conversion fee')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        max={1}
+                        step='0.001'
+                        {...safeNumberFieldProps(field)}
+                        disabled={!automaticRateSyncEnabled}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Added to VND conversion amounts when Vietcombank rates are used. 1 means 100%.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name='general_setting.exchange_rate_sync_time'

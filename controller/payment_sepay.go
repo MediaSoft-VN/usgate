@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 )
@@ -121,9 +123,27 @@ func sePayCheckoutURL() string {
 }
 
 func buildSePayCheckout(tradeNo string, amount decimal.Decimal, description string, customerID string) sePayCheckout {
-	credentials, _ := sePayCredentialsForMode("")
 	callbackAddress := strings.TrimRight(service.GetCallbackAddress(), "/")
 	returnURL := callbackAddress + "/api/sepay/return"
+	return buildSePayCheckoutWithReturnURLs(tradeNo, amount, description, customerID, returnURL, returnURL, returnURL)
+}
+
+func buildSePayTopUpCheckout(tradeNo string, amount decimal.Decimal, description string, customerID string, returnOrigin string) sePayCheckout {
+	callbackAddress := strings.TrimRight(service.GetCallbackAddress(), "/")
+	callbackURL := callbackAddress + "/api/sepay/return"
+	return buildSePayCheckoutWithReturnURLs(
+		tradeNo,
+		amount,
+		description,
+		customerID,
+		sePayTopUpReturnURL(callbackURL, "pending", tradeNo, returnOrigin),
+		sePayTopUpReturnURL(callbackURL, "fail", tradeNo, returnOrigin),
+		sePayTopUpReturnURL(callbackURL, "cancel", tradeNo, returnOrigin),
+	)
+}
+
+func buildSePayCheckoutWithReturnURLs(tradeNo string, amount decimal.Decimal, description string, customerID string, successURL string, errorURL string, cancelURL string) sePayCheckout {
+	credentials, _ := sePayCredentialsForMode("")
 	params := map[string]string{
 		"merchant":             credentials.merchantID,
 		"operation":            "PURCHASE",
@@ -132,9 +152,9 @@ func buildSePayCheckout(tradeNo string, amount decimal.Decimal, description stri
 		"order_amount":         amount.Round(0).StringFixed(0),
 		"currency":             "VND",
 		"order_description":    description,
-		"success_url":          returnURL,
-		"error_url":            returnURL,
-		"cancel_url":           returnURL,
+		"success_url":          successURL,
+		"error_url":            errorURL,
+		"cancel_url":           cancelURL,
 	}
 	if customerID != "" {
 		params["customer_id"] = customerID
@@ -156,6 +176,21 @@ func buildSePayCheckout(tradeNo string, amount decimal.Decimal, description stri
 	_, _ = hash.Write([]byte(strings.Join(parts, ",")))
 	params["signature"] = base64.StdEncoding.EncodeToString(hash.Sum(nil))
 	return sePayCheckout{URL: sePayCheckoutURL(), Params: params}
+}
+
+func sePayTopUpReturnURL(callbackURL string, status string, tradeNo string, returnOrigin string) string {
+	parsed, err := url.Parse(callbackURL)
+	if err != nil {
+		return callbackURL
+	}
+	query := parsed.Query()
+	query.Set("pay", status)
+	query.Set("trade_no", tradeNo)
+	if validatedOrigin := validatedPaymentReturnOrigin(returnOrigin); validatedOrigin != "" {
+		query.Set("return_origin", validatedOrigin)
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
 }
 
 func RequestSePayAmount(c *gin.Context) {
@@ -238,7 +273,13 @@ func RequestSePay(c *gin.Context) {
 		paymentError(c, common.NewMessage("Failed to create order"))
 		return
 	}
-	checkout := buildSePayCheckout(tradeNo, providerMoney, fmt.Sprintf("Top-up %s", tradeNo), strconv.Itoa(userID))
+	checkout := buildSePayTopUpCheckout(
+		tradeNo,
+		providerMoney,
+		fmt.Sprintf("Top-up %s", tradeNo),
+		strconv.Itoa(userID),
+		c.GetHeader("Origin"),
+	)
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }
 
@@ -266,6 +307,7 @@ type sePayTransactionWebhookPayload struct {
 }
 
 var sePayOrderReferencePattern = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])((?:SUB)?USR[0-9]+SEPAY[0-9]+)(?:$|[^A-Za-z0-9])`)
+var sePayTopUpTradeNoPattern = regexp.MustCompile(`(?i)^USR[0-9]+SEPAY[0-9]+$`)
 
 func sePayNotificationAuthorized(c *gin.Context, body []byte, secretKey string) bool {
 	secret := strings.TrimSpace(secretKey)
@@ -496,5 +538,21 @@ func SePayWebhook(c *gin.Context) {
 }
 
 func SePayReturn(c *gin.Context) {
-	c.Redirect(http.StatusFound, paymentReturnPath("/wallet?pay=pending"))
+	status := c.Query("pay")
+	if status != "fail" && status != "cancel" {
+		status = "pending"
+	}
+	tradeNo := strings.TrimSpace(c.Query("trade_no"))
+	if !sePayTopUpTradeNoPattern.MatchString(tradeNo) {
+		tradeNo = ""
+	}
+	baseAddress := validatedPaymentReturnOrigin(c.Query("return_origin"))
+	if baseAddress == "" {
+		baseAddress = strings.TrimRight(system_setting.ServerAddress, "/")
+	}
+	query := url.Values{"pay": {status}}
+	if tradeNo != "" {
+		query.Set("trade_no", tradeNo)
+	}
+	c.Redirect(http.StatusFound, baseAddress+"/wallet?"+query.Encode())
 }

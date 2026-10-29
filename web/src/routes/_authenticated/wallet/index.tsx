@@ -23,6 +23,8 @@ import { Wallet } from '@/features/wallet'
 
 const walletSearchSchema = z.object({
   show_history: z.boolean().optional(),
+  pay: z.enum(['pending', 'fail', 'cancel']).optional(),
+  trade_no: z.string().max(128).optional(),
 })
 
 export const Route = createFileRoute('/_authenticated/wallet/')({
@@ -31,6 +33,12 @@ export const Route = createFileRoute('/_authenticated/wallet/')({
 })
 
 function RouteComponent() {
-  const { show_history } = Route.useSearch()
-  return <Wallet initialShowHistory={show_history} />
+  const search = Route.useSearch()
+  return (
+    <Wallet
+      initialShowHistory={search.show_history}
+      paymentReturnStatus={search.pay}
+      paymentReturnTradeNo={search.trade_no}
+    />
+  )
 }

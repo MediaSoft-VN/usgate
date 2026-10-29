@@ -38,6 +38,7 @@ import {
   isWaffoPayment,
   isWaffoPancakePayment,
   submitPaymentForm,
+  submitSePayPaymentForm,
 } from '../lib'
 import type { AmountRequest, AmountResponse } from '../types'
 
@@ -148,7 +149,11 @@ export function usePayment() {
         if (!isStripe && response.data) {
           const url = (response as unknown as { url?: string }).url
           if (url) {
-            submitPaymentForm(url, response.data)
+            if (paymentType === PAYMENT_TYPES.SEPAY) {
+              submitSePayPaymentForm(url, response.data)
+            } else {
+              submitPaymentForm(url, response.data)
+            }
             toast.success(i18next.t('Redirecting to payment page...'))
             return true
           }
