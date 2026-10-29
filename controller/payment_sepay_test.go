@@ -309,6 +309,17 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	require.NoError(t, db.Save(&user).Error)
 
 	gin.SetMode(gin.TestMode)
+	amountRecorder := httptest.NewRecorder()
+	amountContext, _ := gin.CreateTestContext(amountRecorder)
+	amountContext.Set("id", user.Id)
+	amountContext.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/amount", strings.NewReader(`{"amount":10}`))
+	RequestSePayAmount(amountContext)
+	var amountResponse struct {
+		Data string `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(amountRecorder.Body.Bytes(), &amountResponse))
+	require.Equal(t, "260000.00", amountResponse.Data)
+
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Set("id", user.Id)

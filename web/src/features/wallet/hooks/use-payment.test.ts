@@ -29,6 +29,10 @@ describe('payment amount routing', () => {
         calls.push('regular')
         return { success: true, data: '1' }
       },
+      sepay: async () => {
+        calls.push('sepay')
+        return { success: true, data: '260000' }
+      },
       stripe: async () => {
         calls.push('stripe')
         return { success: true, data: '2' }
@@ -45,5 +49,25 @@ describe('payment amount routing', () => {
 
     expect(amount).toBe(18.75)
     expect(calls).toEqual(['waffo:120'])
+  })
+
+  test('uses the SePay VND amount calculator for the confirmation amount', async () => {
+    const calls: string[] = []
+    const amount = await requestPaymentAmount(5, PAYMENT_TYPES.SEPAY, {
+      regular: async () => {
+        calls.push('regular')
+        return { success: true, data: '36.5' }
+      },
+      sepay: async (request) => {
+        calls.push(`sepay:${request.amount}`)
+        return { success: true, data: '130000' }
+      },
+      stripe: async () => ({ success: true, data: '2' }),
+      waffo: async () => ({ success: true, data: '3' }),
+      waffoPancake: async () => ({ success: true, data: '4' }),
+    })
+
+    expect(amount).toBe(130000)
+    expect(calls).toEqual(['sepay:5'])
   })
 })
