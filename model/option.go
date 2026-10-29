@@ -2,6 +2,7 @@ package model
 
 import (
 	"maps"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -248,6 +249,12 @@ func validateOptionValue(key string, value string) error {
 	}
 	if err := operation_setting.ValidateQuotaOption(key, value); err != nil {
 		return err
+	}
+	if key == "general_setting.exchange_rate_fee_ratio" {
+		feeRatio, err := strconv.ParseFloat(value, 64)
+		if err != nil || math.IsNaN(feeRatio) || math.IsInf(feeRatio, 0) || feeRatio < 0 || feeRatio > 1 {
+			return common.NewMessage("Vietcombank VND conversion fee must be between 0 and 1")
+		}
 	}
 	if key == "EmailProvider" || key == "ResendApiKey" || key == "ResendFrom" {
 		if key == "EmailProvider" && value != "smtp" && value != "resend" {

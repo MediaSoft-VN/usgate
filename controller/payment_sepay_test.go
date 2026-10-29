@@ -27,7 +27,7 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.IdempotencyKey{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.IdempotencyKey{}, &model.Log{}, &model.ExchangeRate{}))
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	model.DB, model.LOG_DB = db, db
 	previousRDB, previousRedisEnabled := common.RDB, common.RedisEnabled
@@ -340,4 +340,55 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	require.NoError(t, db.Where("user_id = ?", user.Id).Order("id DESC").First(&topUp).Error)
 	require.Equal(t, float64(260001), topUp.Money)
 	require.Equal(t, "26000.05", topUp.ExchangeRate)
+
+	settings := operation_setting.GetGeneralSetting()
+	settings.ExchangeRateSource = model.ExchangeRateSourceVietcombank
+	settings.ExchangeRateType = model.ExchangeRateTypeSell
+	settings.ExchangeRateFeeRatio = 0.1
+	require.NoError(t, model.SaveExchangeRate(&model.ExchangeRate{
+		BaseCurrency:  "VND",
+		QuoteCurrency: "USD",
+		Rate:          "26000.05",
+		Source:        model.ExchangeRateSourceVietcombank,
+		RateType:      model.ExchangeRateTypeSell,
+		EffectiveDate: time.Now().Format("2006-01-02"),
+	}))
+
+	feeRecorder := httptest.NewRecorder()
+	feeContext, _ := gin.CreateTestContext(feeRecorder)
+	feeContext.Set("id", user.Id)
+	feeContext.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/amount", strings.NewReader(`{"amount":10}`))
+	RequestSePayAmount(feeContext)
+	require.NoError(t, common.Unmarshal(feeRecorder.Body.Bytes(), &amountResponse))
+	require.Equal(t, "286001", amountResponse.Data, "a 10% Vietcombank fee is added to the VND amount")
+
+	feeCheckoutRecorder := httptest.NewRecorder()
+	feeCheckoutContext, _ := gin.CreateTestContext(feeCheckoutRecorder)
+	feeCheckoutContext.Set("id", user.Id)
+	feeCheckoutContext.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/pay", strings.NewReader(`{"amount":10}`))
+	RequestSePay(feeCheckoutContext)
+	require.Equal(t, http.StatusOK, feeCheckoutRecorder.Code)
+	var feeCheckoutResponse struct {
+		Data map[string]string `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(feeCheckoutRecorder.Body.Bytes(), &feeCheckoutResponse))
+	require.Equal(t, "286001", feeCheckoutResponse.Data["order_amount"])
+
+	settings.ExchangeRateFeeRatio = 1
+	fullFeeRecorder := httptest.NewRecorder()
+	fullFeeContext, _ := gin.CreateTestContext(fullFeeRecorder)
+	fullFeeContext.Set("id", user.Id)
+	fullFeeContext.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/amount", strings.NewReader(`{"amount":10}`))
+	RequestSePayAmount(fullFeeContext)
+	require.NoError(t, common.Unmarshal(fullFeeRecorder.Body.Bytes(), &amountResponse))
+	require.Equal(t, "520001", amountResponse.Data, "a 100% fee doubles the VND conversion amount")
+
+	settings.ExchangeRateFeeRatio = 0
+	noFeeRecorder := httptest.NewRecorder()
+	noFeeContext, _ := gin.CreateTestContext(noFeeRecorder)
+	noFeeContext.Set("id", user.Id)
+	noFeeContext.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/amount", strings.NewReader(`{"amount":10}`))
+	RequestSePayAmount(noFeeContext)
+	require.NoError(t, common.Unmarshal(noFeeRecorder.Body.Bytes(), &amountResponse))
+	require.Equal(t, "260001", amountResponse.Data, "zero fee preserves the provider conversion amount")
 }

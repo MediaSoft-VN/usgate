@@ -65,6 +65,7 @@ function PricingFixture() {
               custom_currency_exchange_rate: 1,
               exchange_rate_source: 'vietcombank',
               exchange_rate_type: 'sell',
+              exchange_rate_fee_ratio: 0,
               exchange_rate_sync_time: '10:00',
               manual_exchange_rates: '{}',
             },
@@ -121,8 +122,12 @@ it('saves the configured daily sync time and disables it for manual rates', asyn
 
   const user = userEvent.setup()
   const syncTime = await screen.findByLabelText('Daily sync time')
+  const conversionFee = await screen.findByRole('spinbutton', {
+    name: 'Vietcombank VND conversion fee',
+  })
   expect(syncTime).toHaveValue('10:00')
   fireEvent.change(syncTime, { target: { value: '11:30' } })
+  fireEvent.change(conversionFee, { target: { value: '0.1' } })
   await user.click(screen.getByRole('button', { name: 'Save Changes' }))
 
   await waitFor(() =>
@@ -131,10 +136,17 @@ it('saves the configured daily sync time and disables it for manual rates', asyn
       value: '11:30',
     })
   )
+  await waitFor(() =>
+    expect(api.put).toHaveBeenCalledWith('/api/option/', {
+      key: 'general_setting.exchange_rate_fee_ratio',
+      value: '0.1',
+    })
+  )
 
   await user.click(screen.getByRole('combobox', { name: 'Rate Source' }))
   await user.click(screen.getByRole('option', { name: 'Manual Rates' }))
   expect(syncTime).toBeDisabled()
+  expect(conversionFee).toBeDisabled()
   expect(
     screen.getByText('Automatic sync is unavailable for manual rates.')
   ).toBeVisible()
