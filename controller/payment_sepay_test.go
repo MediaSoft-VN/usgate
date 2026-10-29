@@ -344,7 +344,7 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	settings := operation_setting.GetGeneralSetting()
 	settings.ExchangeRateSource = model.ExchangeRateSourceVietcombank
 	settings.ExchangeRateType = model.ExchangeRateTypeSell
-	settings.ExchangeRateFeeRatio = 0.1
+	settings.ExchangeRateFeeRatio = 0.001
 	require.NoError(t, model.SaveExchangeRate(&model.ExchangeRate{
 		BaseCurrency:  "VND",
 		QuoteCurrency: "USD",
@@ -360,7 +360,7 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 	feeContext.Request = httptest.NewRequest(http.MethodPost, "/api/user/sepay/amount", strings.NewReader(`{"amount":10}`))
 	RequestSePayAmount(feeContext)
 	require.NoError(t, common.Unmarshal(feeRecorder.Body.Bytes(), &amountResponse))
-	require.Equal(t, "286001", amountResponse.Data, "a 10% Vietcombank fee is added to the VND amount")
+	require.Equal(t, "260261", amountResponse.Data, "a 0.1% Vietcombank fee is added before rounding the VND amount")
 
 	feeCheckoutRecorder := httptest.NewRecorder()
 	feeCheckoutContext, _ := gin.CreateTestContext(feeCheckoutRecorder)
@@ -372,7 +372,7 @@ func TestSePayTopUpAmountIgnoresEpayPriceAndConvertsWithVNDExchangeRate(t *testi
 		Data map[string]string `json:"data"`
 	}
 	require.NoError(t, common.Unmarshal(feeCheckoutRecorder.Body.Bytes(), &feeCheckoutResponse))
-	require.Equal(t, "286001", feeCheckoutResponse.Data["order_amount"])
+	require.Equal(t, "260261", feeCheckoutResponse.Data["order_amount"])
 
 	settings.ExchangeRateFeeRatio = 1
 	fullFeeRecorder := httptest.NewRecorder()

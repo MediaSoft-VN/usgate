@@ -588,7 +588,7 @@ export function PricingSection({ defaultValues }: PricingSectionProps) {
                         type='number'
                         min={0}
                         max={1}
-                        step='0.01'
+                        step='0.001'
                         {...safeNumberFieldProps(field)}
                         disabled={!automaticRateSyncEnabled}
                       />

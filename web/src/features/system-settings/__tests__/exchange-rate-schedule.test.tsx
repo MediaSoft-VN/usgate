@@ -127,7 +127,9 @@ it('saves the configured daily sync time and disables it for manual rates', asyn
   })
   expect(syncTime).toHaveValue('10:00')
   fireEvent.change(syncTime, { target: { value: '11:30' } })
-  fireEvent.change(conversionFee, { target: { value: '0.1' } })
+  fireEvent.change(conversionFee, { target: { value: '0.001' } })
+  expect(conversionFee).toHaveValue(0.001)
+  expect((conversionFee as HTMLInputElement).validity.valid).toBe(true)
   await user.click(screen.getByRole('button', { name: 'Save Changes' }))
 
   await waitFor(() =>
@@ -139,7 +141,7 @@ it('saves the configured daily sync time and disables it for manual rates', asyn
   await waitFor(() =>
     expect(api.put).toHaveBeenCalledWith('/api/option/', {
       key: 'general_setting.exchange_rate_fee_ratio',
-      value: '0.1',
+      value: '0.001',
     })
   )
 
