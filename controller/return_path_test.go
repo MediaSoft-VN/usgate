@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -67,6 +68,25 @@ func TestPaymentReturnPathUsesVerifiedTenantHostOnly(t *testing.T) {
 
 	assert.Equal(t, "https://shop.example.org/wallet", paymentReturnPathForRequest(requestContext("shop.example.org:443"), "/wallet"))
 	assert.Equal(t, "https://newapi.example.com/wallet", paymentReturnPathForRequest(requestContext("unverified.example.org"), "/wallet"))
+	apiRequest := requestContext("newapi.example.com")
+	apiRequest.Request.Header.Set("Origin", "https://shop.example.org")
+	assert.Equal(t, "https://shop.example.org", paymentReturnOriginForRequest(apiRequest, topUp.TradeNo))
+	returnURL := sePayTopUpReturnURL(
+		"https://newapi.example.com/api/sepay/return",
+		"pending",
+		topUp.TradeNo,
+		paymentReturnOriginForRequest(apiRequest, topUp.TradeNo),
+	)
+	assert.Contains(t, returnURL, "return_origin=https%3A%2F%2Fshop.example.org")
+	returnRecorder := httptest.NewRecorder()
+	returnContext, _ := gin.CreateTestContext(returnRecorder)
+	returnContext.Request = httptest.NewRequest(http.MethodGet, returnURL, nil)
+	SePayReturn(returnContext)
+	assert.Equal(t, http.StatusFound, returnRecorder.Code)
+	assert.Equal(t, "https://shop.example.org/wallet?pay=pending&trade_no="+topUp.TradeNo, returnRecorder.Header().Get("Location"))
+	unverifiedOriginRequest := requestContext("newapi.example.com")
+	unverifiedOriginRequest.Request.Header.Set("Origin", "https://unverified.example.org")
+	assert.Empty(t, paymentReturnOriginForRequest(unverifiedOriginRequest, topUp.TradeNo))
 	spoofedHost := requestContext("unverified.example.org")
 	spoofedHost.Request.Header.Set("X-Forwarded-Host", "shop.example.org")
 	assert.Equal(t, "https://newapi.example.com/wallet", paymentReturnPathForRequest(spoofedHost, "/wallet"))

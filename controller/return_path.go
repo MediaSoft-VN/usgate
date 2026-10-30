@@ -22,11 +22,13 @@ func paymentReturnPathForRequest(c *gin.Context, suffix string) string {
 	return paymentReturnPath(suffix)
 }
 
-func paymentReturnOriginForRequest(c *gin.Context) string {
+func paymentReturnOriginForRequest(c *gin.Context, tradeNo string) string {
 	if origin := verifiedTenantReturnOrigin(c.Request.Host); origin != "" {
-		return origin
+		if validatedOrigin := validatedPaymentReturnOrigin(origin, tradeNo); validatedOrigin != "" {
+			return validatedOrigin
+		}
 	}
-	return validatedPaymentReturnOrigin(c.GetHeader("Origin"), "")
+	return validatedPaymentReturnOrigin(c.GetHeader("Origin"), tradeNo)
 }
 
 func verifiedTenantReturnOrigin(requestHost string) string {
