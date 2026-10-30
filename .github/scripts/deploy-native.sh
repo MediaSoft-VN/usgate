@@ -119,16 +119,22 @@ sudo -n test -s "${client_release_dir}/index.html"
 sudo -n ln -sfn "${client_release_dir}" "${APP_DIR}/client/current"
 
 service_port=""
+service_pid=""
+service_active=false
 if sudo -n systemctl is-active --quiet new-api; then
+  service_active=true
+  service_pid="$(sudo -n systemctl show -p MainPID --value new-api)"
+  if [[ ! ${service_pid} =~ ^[1-9][0-9]*$ ]]; then
+    service_pid=""
+  fi
   service_port="$(sudo -n sed -nE 's/^[[:space:]]*ExecStart=.*--port[[:space:]]+([0-9]+).*/\1/p' \
     "${service_file}" 2>/dev/null | sed -n '1p')"
   if [[ -z ${service_port} && -f ${port_file} ]]; then
     service_port="$(sudo -n cat "${port_file}")"
   fi
 fi
-
-# Keep the port already used by the running service. APP_PORT and .app-port
-# are only preferences when no existing service is active.
+# Keep the port already configured for the running service. APP_PORT and
+# .app-port are preferences only when no existing service is active.
 preferred_port="${service_port:-${APP_PORT}}"
 if [[ -z ${preferred_port} && -f ${port_file} ]]; then
   preferred_port="$(sudo -n cat "${port_file}")"
@@ -140,32 +146,21 @@ if (( preferred_port < 1 || preferred_port > 65535 )); then
   exit 1
 fi
 
-# The preferred port is retained whenever possible; otherwise the first free
-# port in the next 20 ports is selected. A running new-api service is never
-# stopped just to probe its port.
-if ! command -v ss >/dev/null 2>&1; then
-  echo "The ss command is required for automatic port selection" >&2
-  sudo -n systemctl start new-api 2>/dev/null || true
-  exit 1
-fi
-
 selected_port=""
-last_port=$((preferred_port + 19))
-if (( last_port > 65535 )); then
-  last_port=65535
-fi
-for ((candidate = preferred_port; candidate <= last_port; candidate++)); do
-  if ! ss -ltnH "sport = :${candidate}" | grep -q .; then
-    selected_port=${candidate}
-    break
+if selected_port="$(select_deployment_port "${service_active}" "${preferred_port}" "${service_pid}")"; then
+  :
+else
+  selection_status=$?
+  if [[ ${selection_status} == 2 ]]; then
+    echo "The ss command is required for automatic port selection" >&2
+  else
+    echo "No free application port found" >&2
   fi
-done
-if [[ -z ${selected_port} ]]; then
-  echo "No free application port found" >&2
   sudo -n systemctl start new-api 2>/dev/null || true
   exit 1
 fi
 APP_PORT=${selected_port}
+echo "Using application port ${APP_PORT}"
 printf '%s\n' "${APP_PORT}" | sudo -n tee "${port_file}" >/dev/null
 sudo -n chown "${APP_USER}:${app_group}" "${port_file}"
 sudo -n chmod 0644 "${port_file}"
