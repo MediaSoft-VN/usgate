@@ -118,27 +118,21 @@ sudo -n chown -R "${APP_USER}:${app_group}" "${client_release_dir}"
 sudo -n test -s "${client_release_dir}/index.html"
 sudo -n ln -sfn "${client_release_dir}" "${APP_DIR}/client/current"
 
-nginx_upstream_port=""
-if nginx_upstream_port="$(nginx_domain_loopback_upstream_port "${DOMAIN}")"; then
-  :
-fi
-
 service_port=""
+service_pid=""
 service_active=false
 if sudo -n systemctl is-active --quiet new-api; then
   service_active=true
+  service_pid="$(sudo -n systemctl show -p MainPID --value new-api)"
+  if [[ ! ${service_pid} =~ ^[1-9][0-9]*$ ]]; then
+    service_pid=""
+  fi
   service_port="$(sudo -n sed -nE 's/^[[:space:]]*ExecStart=.*--port[[:space:]]+([0-9]+).*/\1/p' \
     "${service_file}" 2>/dev/null | sed -n '1p')"
   if [[ -z ${service_port} && -f ${port_file} ]]; then
     service_port="$(sudo -n cat "${port_file}")"
   fi
 fi
-if [[ -n ${nginx_upstream_port} ]]; then
-  # Keep the running service aligned with an existing Nginx reverse-proxy
-  # target, including recovery from a previous deploy that changed its port.
-  service_port=${nginx_upstream_port}
-fi
-
 # Keep the port already configured for the running service. APP_PORT and
 # .app-port are preferences only when no existing service is active.
 preferred_port="${service_port:-${APP_PORT}}"
@@ -153,7 +147,7 @@ if (( preferred_port < 1 || preferred_port > 65535 )); then
 fi
 
 selected_port=""
-if selected_port="$(select_deployment_port "${service_active}" "${preferred_port}")"; then
+if selected_port="$(select_deployment_port "${service_active}" "${preferred_port}" "${service_pid}")"; then
   :
 else
   selection_status=$?
