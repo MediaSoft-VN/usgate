@@ -4,6 +4,7 @@ set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${script_dir}/nginx-domain-conflict.sh"
+source "${script_dir}/deploy-port.sh"
 
 test_dir=$(mktemp -d)
 trap 'rm -rf "${test_dir}"' EXIT
@@ -28,6 +29,9 @@ cat >"${dump_file}" <<'CONFIG'
 # configuration file /etc/nginx/conf.d/tenant.conf:
 server {
     server_name App.Example.Com;
+    location / {
+        proxy_pass http://127.0.0.1:3342;
+    }
 }
 # configuration file /etc/nginx/conf.d/wildcard.conf:
 server {
@@ -37,6 +41,8 @@ CONFIG
 
 nginx_server_name_configured app.example.com
 nginx_server_name_configured api.example.net
+[[ $(nginx_domain_loopback_upstream_port app.example.com) == 3342 ]]
+[[ $(select_deployment_port true "$(nginx_domain_loopback_upstream_port app.example.com)") == 3342 ]]
 if nginx_server_name_configured unused.example.org; then
   echo 'unexpected Nginx hostname collision' >&2
   exit 1

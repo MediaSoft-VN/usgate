@@ -41,6 +41,68 @@ nginx_server_name_configured() {
   '
 }
 
+nginx_domain_loopback_upstream_port() {
+  local hostname=$1
+  local config_dump
+
+  config_dump=$(sudo -n nginx -T 2>/dev/null) || return 2
+  printf '%s\n' "${config_dump}" | awk -v hostname="${hostname}" '
+    function name_matches(name, host, suffix) {
+      name = tolower(name)
+      if (name == host) return 1
+      if (substr(name, 1, 2) == "*.") {
+        suffix = substr(name, 2)
+        return length(host) > length(suffix) && substr(host, length(host) - length(suffix) + 1) == suffix
+      }
+      if (substr(name, 1, 1) == ".") {
+        suffix = name
+        return host == substr(suffix, 2) || (length(host) > length(suffix) && substr(host, length(host) - length(suffix) + 1) == suffix)
+      }
+      return 0
+    }
+    BEGIN { hostname = tolower(hostname); depth = 0 }
+    {
+      line = $0
+      sub(/#.*/, "", line)
+      if (!in_server && line ~ /^[[:space:]]*server[[:space:]]*\{/) {
+        in_server = 1
+        server_depth = depth + 1
+        server_matches = 0
+        for (port in server_ports) delete server_ports[port]
+      }
+      if (in_server) {
+        if (line ~ /^[[:space:]]*server_name[[:space:]]/) {
+          names = line
+          sub(/^[[:space:]]*server_name[[:space:]]+/, "", names)
+          sub(/;.*/, "", names)
+          count = split(names, name_list, /[[:space:]]+/)
+          for (i = 1; i <= count; i++) if (name_matches(name_list[i], hostname)) server_matches = 1
+        }
+        if (line ~ /^[[:space:]]*proxy_pass[[:space:]]+http:\/\/127\.0\.0\.1:[0-9]+/) {
+          port = line
+          sub(/^.*http:\/\/127\.0\.0\.1:/, "", port)
+          sub(/[^0-9].*$/, "", port)
+          server_ports[port] = 1
+        }
+      }
+      opens = gsub(/\{/, "{", line)
+      closes = gsub(/\}/, "}", line)
+      depth += opens - closes
+      if (in_server && depth < server_depth) {
+        if (server_matches) for (port in server_ports) ports[port] = 1
+        in_server = 0
+      }
+    }
+    END {
+      count = 0
+      for (port in ports) { selected = port; count++ }
+      if (count == 1) { print selected; exit 0 }
+      if (count > 1) exit 3
+      exit 1
+    }
+  '
+}
+
 ensure_nginx_domain_vhost() {
   local hostname=$1
   local app_port=$2
