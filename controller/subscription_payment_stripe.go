@@ -79,7 +79,14 @@ func SubscriptionRequestStripePay(c *gin.Context) {
 	reference := fmt.Sprintf("sub-stripe-ref-%d-%d-%s", user.Id, time.Now().UnixMilli(), randstr.String(4))
 	referenceId := "sub_ref_" + common.Sha1([]byte(reference))
 
-	payLink, err := genStripeSubscriptionLink(referenceId, user.StripeCustomer, user.Email, plan.StripePriceId)
+	payLink, err := genStripeSubscriptionLink(
+		referenceId,
+		user.StripeCustomer,
+		user.Email,
+		plan.StripePriceId,
+		paymentReturnPathForRequest(c, "/wallet"),
+		paymentReturnPathForRequest(c, "/wallet"),
+	)
 	if err != nil {
 		logger.LogError(c.Request.Context(), common.LogText("Stripe failed to create subscription payment link trade_no=%s plan_id=%d error=%q", referenceId, plan.Id, err.Error()))
 		paymentError(c, common.NewMessage("Failed to start payment"))
@@ -109,13 +116,13 @@ func SubscriptionRequestStripePay(c *gin.Context) {
 	})
 }
 
-func genStripeSubscriptionLink(referenceId string, customerId string, email string, priceId string) (string, error) {
+func genStripeSubscriptionLink(referenceId string, customerId string, email string, priceId string, successURL string, cancelURL string) (string, error) {
 	stripe.Key = setting.StripeApiSecret
 
 	params := &stripe.CheckoutSessionParams{
 		ClientReferenceID: stripe.String(referenceId),
-		SuccessURL:        stripe.String(paymentReturnPath("/wallet")),
-		CancelURL:         stripe.String(paymentReturnPath("/wallet")),
+		SuccessURL:        stripe.String(successURL),
+		CancelURL:         stripe.String(cancelURL),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(priceId),

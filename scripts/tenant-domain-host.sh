@@ -12,8 +12,7 @@ fi
 # This root-owned file is created by install-tenant-domain-provisioner.sh.
 # shellcheck source=/dev/null
 source "${config_file}"
-site_dir=${NGINX_SITES_AVAILABLE:-/etc/nginx/sites-available}
-enabled_dir=${NGINX_SITES_ENABLED:-/etc/nginx/sites-enabled}
+site_dir=${NGINX_CONF_DIR:-/etc/nginx/conf.d}
 nginx_bin=${NGINX_BIN:-nginx}
 systemctl_bin=${SYSTEMCTL_BIN:-systemctl}
 certbot_bin=${CERTBOT_BIN:-certbot}
@@ -47,7 +46,6 @@ readonly cert_renewal_file="${cert_renewal_dir}/${cert_name}.conf"
 readonly cert_file="${cert_live_dir}/${cert_name}/cert.pem"
 readonly cert_manifest="${cert_manifest_dir}/${cert_name}"
 readonly site_file="${site_dir}/partner-${hostname}.conf"
-readonly enabled_file="${enabled_dir}/partner-${hostname}.conf"
 
 site_is_managed() {
   [[ -f ${site_file} ]] && grep -Fqx "${marker}" "${site_file}"
@@ -56,9 +54,8 @@ site_is_managed() {
 nginx_config_has_hostname() {
   local effective_config owned_config=""
   effective_config=$("${nginx_bin}" -T 2>/dev/null) || return 2
-  if site_is_managed && [[ -L ${enabled_file} ]] &&
-    [[ $(readlink "${enabled_file}") == "${site_file}" ]]; then
-    owned_config=${enabled_file}
+  if site_is_managed; then
+    owned_config=${site_file}
   fi
   printf '%s\n' "${effective_config}" | awk -v hostname="${hostname}" -v owned_config="${owned_config}" '
     /^# configuration file / {
@@ -119,9 +116,6 @@ restore_previous_site() {
   else
     rm -f "${site_file}"
   fi
-  if [[ ${had_enabled} != true ]]; then
-    rm -f "${enabled_file}"
-  fi
   "${nginx_bin}" -t >/dev/null 2>&1 && "${systemctl_bin}" reload nginx >/dev/null 2>&1 || true
   rm -f "${previous_file}"
 }
@@ -145,23 +139,15 @@ case ${operation} in
       had_certificate=true
     fi
     install -d -m 0755 "${acme_webroot_dir}/.well-known/acme-challenge"
-    install -d -m 0755 "${site_dir}" "${enabled_dir}"
+    install -d -m 0755 "${site_dir}"
     if [[ -e ${site_file} ]] && ! site_is_managed; then
-      exit 1
-    fi
-    if [[ -e ${enabled_file} && ! -L ${enabled_file} ]] ||
-      [[ -L ${enabled_file} && $(readlink "${enabled_file}") != "${site_file}" ]]; then
       exit 1
     fi
     previous_file=$(mktemp)
     had_previous=false
-    had_enabled=false
     if [[ -e ${site_file} ]]; then
       cp -p "${site_file}" "${previous_file}"
       had_previous=true
-    fi
-    if [[ -L ${enabled_file} ]]; then
-      had_enabled=true
     fi
     if [[ ${had_previous} != true ]]; then
       temp_file=$(mktemp "${site_dir}/.partner-domain.XXXXXX")
@@ -184,7 +170,6 @@ NGINX
       chmod 0644 "${temp_file}"
       mv -f "${temp_file}" "${site_file}"
     fi
-    ln -sfn "${site_file}" "${enabled_file}"
     if ! "${nginx_bin}" -t >/dev/null 2>&1 || ! "${systemctl_bin}" reload nginx >/dev/null 2>&1; then
       restore_previous_site
       exit 1
@@ -276,25 +261,18 @@ NGINX
         exit 1
       fi
     fi
-    if [[ -e ${enabled_file} && ! -L ${enabled_file} ]] ||
-      [[ -L ${enabled_file} && $(readlink "${enabled_file}") != "${site_file}" ]]; then
-      exit 1
-    fi
     backup_dir=""
-    if [[ -e ${site_file} || -L ${enabled_file} ]]; then
+    if [[ -e ${site_file} ]]; then
       backup_dir=$(mktemp -d)
       if [[ -e ${site_file} ]]; then cp -p "${site_file}" "${backup_dir}/site"; fi
-      if [[ -L ${enabled_file} ]]; then cp -P "${enabled_file}" "${backup_dir}/enabled"; fi
-      rm -f "${enabled_file}" "${site_file}"
+      rm -f "${site_file}"
       if ! "${nginx_bin}" -t >/dev/null 2>&1; then
         if [[ -f ${backup_dir}/site ]]; then cp -p "${backup_dir}/site" "${site_file}"; fi
-        if [[ -L ${backup_dir}/enabled ]]; then cp -P "${backup_dir}/enabled" "${enabled_file}"; fi
         rm -rf "${backup_dir}"
         exit 1
       fi
       if ! "${systemctl_bin}" reload nginx >/dev/null 2>&1; then
         if [[ -f ${backup_dir}/site ]]; then cp -p "${backup_dir}/site" "${site_file}"; fi
-        if [[ -L ${backup_dir}/enabled ]]; then cp -P "${backup_dir}/enabled" "${enabled_file}"; fi
         "${nginx_bin}" -t >/dev/null 2>&1 && "${systemctl_bin}" reload nginx >/dev/null 2>&1 || true
         rm -rf "${backup_dir}"
         exit 1
@@ -304,7 +282,6 @@ NGINX
       if ! "${certbot_bin}" delete --cert-name "${cert_name}" --non-interactive >/dev/null 2>&1; then
         if [[ -f ${cert_renewal_file} && -n ${backup_dir} ]]; then
           if [[ -f ${backup_dir}/site ]]; then cp -p "${backup_dir}/site" "${site_file}"; fi
-          if [[ -L ${backup_dir}/enabled ]]; then cp -P "${backup_dir}/enabled" "${enabled_file}"; fi
           "${nginx_bin}" -t >/dev/null 2>&1 && "${systemctl_bin}" reload nginx >/dev/null 2>&1 || true
         fi
         [[ -z ${backup_dir} ]] || rm -rf "${backup_dir}"

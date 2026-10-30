@@ -189,6 +189,7 @@ const BILLING_SECTIONS = [
             settings.SePayLiveSecretKey ||
             (!settings.SePaySandbox ? settings.SePaySecretKey : '') ||
             '',
+          SePayIPNAllowedIPs: settings.SePayIPNAllowedIPs ?? '',
           SePaySandbox: settings.SePaySandbox ?? true,
           SePayMinTopUp: settings.SePayMinTopUp ?? 1,
           CreemApiKey: settings.CreemApiKey,

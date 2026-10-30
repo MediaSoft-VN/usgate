@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -20,7 +21,6 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
-	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 )
@@ -101,6 +101,54 @@ func sePayNotificationCredentials(c *gin.Context, body []byte, mode string) (seP
 	return sePayCredentials{}, false
 }
 
+func sePayIPNAllowedPrefixes(config string) ([]netip.Prefix, error) {
+	var prefixes []netip.Prefix
+	for lineNumber, line := range strings.Split(config, "\n") {
+		entry := strings.TrimSpace(line)
+		if entry == "" {
+			continue
+		}
+		prefix, err := netip.ParsePrefix(entry)
+		if err != nil {
+			address, addressErr := netip.ParseAddr(entry)
+			if addressErr != nil {
+				return nil, fmt.Errorf("invalid SePay IPN allowlist entry on line %d", lineNumber+1)
+			}
+			address = address.Unmap()
+			prefix = netip.PrefixFrom(address, address.BitLen())
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
+}
+
+func sePayIPNAuthorized(c *gin.Context, body []byte) bool {
+	if _, authorized := sePayNotificationCredentials(c, body, ""); authorized {
+		return true
+	}
+	if c.GetHeader("X-Secret-Key") != "" || c.GetHeader("Authorization") != "" ||
+		c.GetHeader("X-SePay-Timestamp") != "" || c.GetHeader("X-SePay-Signature") != "" {
+		return false
+	}
+	sourceIP, err := netip.ParseAddr(c.ClientIP())
+	if err != nil {
+		return false
+	}
+	prefixes, err := sePayIPNAllowedPrefixes(setting.SePayIPNAllowedIPs)
+	if err != nil {
+		return false
+	}
+	if len(prefixes) == 0 {
+		return true
+	}
+	for _, prefix := range prefixes {
+		if prefix.Contains(sourceIP.Unmap()) {
+			return true
+		}
+	}
+	return false
+}
+
 type sePayCheckout struct {
 	URL    string
 	Params map[string]string
@@ -125,6 +173,11 @@ func sePayCheckoutURL() string {
 func buildSePayCheckout(tradeNo string, amount decimal.Decimal, description string, customerID string) sePayCheckout {
 	callbackAddress := strings.TrimRight(service.GetCallbackAddress(), "/")
 	returnURL := callbackAddress + "/api/sepay/return"
+	return buildSePayCheckoutWithReturnURLs(tradeNo, amount, description, customerID, returnURL, returnURL, returnURL)
+}
+
+func buildSePayCheckoutForRequest(c *gin.Context, tradeNo string, amount decimal.Decimal, description string, customerID string) sePayCheckout {
+	returnURL := paymentReturnPathForRequest(c, "/api/sepay/return")
 	return buildSePayCheckoutWithReturnURLs(tradeNo, amount, description, customerID, returnURL, returnURL, returnURL)
 }
 
@@ -186,7 +239,7 @@ func sePayTopUpReturnURL(callbackURL string, status string, tradeNo string, retu
 	query := parsed.Query()
 	query.Set("pay", status)
 	query.Set("trade_no", tradeNo)
-	if validatedOrigin := validatedPaymentReturnOrigin(returnOrigin); validatedOrigin != "" {
+	if validatedOrigin := validatedPaymentReturnOrigin(returnOrigin, tradeNo); validatedOrigin != "" {
 		query.Set("return_origin", validatedOrigin)
 	}
 	parsed.RawQuery = query.Encode()
@@ -278,7 +331,7 @@ func RequestSePay(c *gin.Context) {
 		providerMoney,
 		fmt.Sprintf("Top-up %s", tradeNo),
 		strconv.Itoa(userID),
-		c.GetHeader("Origin"),
+		paymentReturnOriginForRequest(c),
 	)
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }
@@ -448,7 +501,6 @@ func sePayWebhookAmountMatches(tradeNo string, amount decimal.Decimal) (bool, bo
 }
 
 func SePayIPN(c *gin.Context) {
-	mode := c.Param("mode")
 	if !isPaymentComplianceConfirmed() {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
@@ -458,7 +510,7 @@ func SePayIPN(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
 	}
-	if _, authorized := sePayNotificationCredentials(c, body, mode); !authorized {
+	if !sePayIPNAuthorized(c, body) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false})
 		return
 	}
@@ -546,9 +598,9 @@ func SePayReturn(c *gin.Context) {
 	if !sePayTopUpTradeNoPattern.MatchString(tradeNo) {
 		tradeNo = ""
 	}
-	baseAddress := validatedPaymentReturnOrigin(c.Query("return_origin"))
+	baseAddress := validatedPaymentReturnOrigin(c.Query("return_origin"), tradeNo)
 	if baseAddress == "" {
-		baseAddress = strings.TrimRight(system_setting.ServerAddress, "/")
+		baseAddress = strings.TrimRight(paymentReturnPathForRequest(c, ""), "/")
 	}
 	query := url.Values{"pay": {status}}
 	if tradeNo != "" {

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -42,6 +43,7 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 	previousMerchantID := setting.SePayMerchantID
 	previousSecretKey := setting.SePaySecretKey
 	previousWebhookSecret := setting.SePayWebhookSecret
+	previousAllowedIPs := setting.SePayIPNAllowedIPs
 	previousSandboxMode := setting.SePaySandbox
 	previousSandboxMerchantID, previousSandboxSecretKey := setting.SePaySandboxMerchantID, setting.SePaySandboxSecretKey
 	previousLiveMerchantID, previousLiveSecretKey := setting.SePayLiveMerchantID, setting.SePayLiveSecretKey
@@ -49,6 +51,7 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 		setting.SePayMerchantID = previousMerchantID
 		setting.SePaySecretKey = previousSecretKey
 		setting.SePayWebhookSecret = previousWebhookSecret
+		setting.SePayIPNAllowedIPs = previousAllowedIPs
 		setting.SePaySandbox = previousSandboxMode
 		setting.SePaySandboxMerchantID, setting.SePaySandboxSecretKey = previousSandboxMerchantID, previousSandboxSecretKey
 		setting.SePayLiveMerchantID, setting.SePayLiveSecretKey = previousLiveMerchantID, previousLiveSecretKey
@@ -56,6 +59,7 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 	setting.SePayMerchantID = "merchant-test"
 	setting.SePaySecretKey = "checkout-secret"
 	setting.SePayWebhookSecret = "webhook-secret"
+	setting.SePayIPNAllowedIPs = ""
 	setting.SePaySandbox = true
 	setting.SePaySandboxMerchantID, setting.SePaySandboxSecretKey = "", ""
 	setting.SePayLiveMerchantID, setting.SePayLiveSecretKey = "", ""
@@ -80,6 +84,16 @@ func sendSePayIPN(body string, authorization string) *httptest.ResponseRecorder 
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/ipn", strings.NewReader(body))
 	c.Request.Header.Set("Authorization", authorization)
+	SePayIPN(c)
+	return recorder
+}
+
+func sendUnauthenticatedSePayIPN(body string, remoteAddr string) *httptest.ResponseRecorder {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/ipn", strings.NewReader(body))
+	c.Request.RemoteAddr = remoteAddr
 	SePayIPN(c)
 	return recorder
 }
@@ -138,6 +152,66 @@ func TestSePayPaymentSuccessIPNCreditsMatchingOrder(t *testing.T) {
 	var updatedUser model.User
 	require.NoError(t, db.First(&updatedUser, user.Id).Error)
 	require.Greater(t, updatedUser.Quota, user.Quota)
+}
+
+func TestSePayIPNAcceptsUnauthenticatedRequestFromConfiguredCIDR(t *testing.T) {
+	db, user, topUp := setupSePayWebhookTest(t)
+	setting.SePayIPNAllowedIPs = "172.236.138.0/24"
+	body := `{"timestamp":1793155971,"notification_type":"ORDER_PAID","order":{"id":"aa658c15-d27a-11f1-8895-0afffe87053b","order_id":"TEST_ORDER_1793155971","order_status":"CAPTURED","order_currency":"VND","order_amount":"50000.00","order_invoice_number":"USR1SEPAY123","custom_data":[],"order_description":"SePay IPN test"},"transaction":{"id":"aa659519-d27a-11f1-8895-0afffe87053b","payment_method":"BANK_TRANSFER","transaction_id":"TEST_TXN_1793155971","transaction_type":"PAYMENT","transaction_date":"2026-10-28 09:52:51","transaction_status":"APPROVED","transaction_amount":"50000","transaction_currency":"VND"},"customer":{"id":"customer-id","customer_id":"1"},"agreement":null}`
+
+	response := sendUnauthenticatedSePayIPN(body, "172.236.138.20:443")
+	require.Equal(t, http.StatusOK, response.Code)
+	require.JSONEq(t, `{"success":true}`, response.Body.String())
+
+	var settledTopUp model.TopUp
+	require.NoError(t, db.First(&settledTopUp, topUp.Id).Error)
+	require.Equal(t, common.TopUpStatusSuccess, settledTopUp.Status)
+	var creditedUser model.User
+	require.NoError(t, db.First(&creditedUser, user.Id).Error)
+	require.Greater(t, creditedUser.Quota, user.Quota)
+}
+
+func TestSePayIPNAllowedPrefixesAcceptsIPsAndCIDRsAndRejectsInvalidEntries(t *testing.T) {
+	prefixes, err := sePayIPNAllowedPrefixes("192.0.2.5\n2001:db8::/32")
+	require.NoError(t, err)
+	require.Len(t, prefixes, 2)
+	require.True(t, prefixes[0].Contains(netip.MustParseAddr("192.0.2.5")))
+	require.False(t, prefixes[0].Contains(netip.MustParseAddr("192.0.2.6")))
+	require.True(t, prefixes[1].Contains(netip.MustParseAddr("2001:db8::1")))
+
+	_, err = sePayIPNAllowedPrefixes("192.0.2.5\nnot-an-ip")
+	require.Error(t, err)
+}
+
+func TestSePayIPNRejectsUnauthenticatedRequestFromUntrustedIP(t *testing.T) {
+	setupSePayWebhookTest(t)
+	setting.SePayIPNAllowedIPs = "172.236.138.20"
+	body := `{"timestamp":1793155971,"notification_type":"ORDER_PAID","order":{"order_status":"CAPTURED","order_currency":"VND","order_amount":"50000.00","order_invoice_number":"USR1SEPAY123"},"transaction":{"transaction_status":"APPROVED"}}`
+
+	response := sendUnauthenticatedSePayIPN(body, "198.51.100.10:443")
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+}
+
+func TestSePayIPNAllowsAnySourceWhenAllowlistIsEmpty(t *testing.T) {
+	setupSePayWebhookTest(t)
+	body := `{"timestamp":1793155971,"notification_type":"ORDER_PAID","order":{"order_status":"CAPTURED","order_currency":"VND","order_amount":"50000.00","order_invoice_number":"USR1SEPAY123"},"transaction":{"transaction_status":"APPROVED"}}`
+
+	response := sendUnauthenticatedSePayIPN(body, "198.51.100.10:443")
+	require.Equal(t, http.StatusOK, response.Code)
+}
+
+func TestSePayIPNRejectsInvalidSecretEvenFromPublishedSourceIP(t *testing.T) {
+	setupSePayWebhookTest(t)
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/sepay/ipn", strings.NewReader(`{}`))
+	c.Request.RemoteAddr = "172.236.138.20:443"
+	c.Request.Header.Set("X-Secret-Key", "wrong-secret")
+
+	SePayIPN(c)
+
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
 
 func TestSePayWebhookWizardSampleAcknowledgedWithoutCredit(t *testing.T) {

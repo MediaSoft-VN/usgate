@@ -88,7 +88,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/run /etc/new-api /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/letsencrypt /var/www/html /var/lib/letsencrypt /var/log/letsencrypt
+ReadWritePaths=/run /etc/new-api /etc/nginx/conf.d /etc/letsencrypt /var/www/html /var/lib/letsencrypt /var/log/letsencrypt
 
 [Install]
 WantedBy=multi-user.target

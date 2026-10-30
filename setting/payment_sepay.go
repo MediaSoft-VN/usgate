@@ -1,13 +1,14 @@
 package setting
 
 var (
-	SePayMerchantID    = ""
-	SePaySecretKey     = ""
-	SePayWebhookSecret = ""
-	SePaySandboxMerchantID    = ""
-	SePaySandboxSecretKey     = ""
-	SePayLiveMerchantID       = ""
-	SePayLiveSecretKey        = ""
-	SePaySandbox       = true
-	SePayMinTopUp      = 1
+	SePayMerchantID        = ""
+	SePaySecretKey         = ""
+	SePayWebhookSecret     = ""
+	SePaySandboxMerchantID = ""
+	SePaySandboxSecretKey  = ""
+	SePayLiveMerchantID    = ""
+	SePayLiveSecretKey     = ""
+	SePayIPNAllowedIPs     = ""
+	SePaySandbox           = true
+	SePayMinTopUp          = 1
 )

@@ -186,19 +186,20 @@ func VerifyDomain(domainID, tenantID int) error {
 	if domain.Status != model.DomainPending && domain.Status != model.DomainVerified {
 		return errors.New("domain verification failed")
 	}
+	if !tenantDomainDNSMatches(domain.Hostname) {
+		return errors.New("domain verification failed")
+	}
 	if err := TenantDomainHostOperation("check", domain.Hostname); err != nil {
 		return ErrTenantDomainHostOperation
 	}
-	if !tenantDomainDNSMatches(domain.Hostname) {
-		return errors.New("domain verification failed")
+	if err := TenantDomainHostOperation("provision", domain.Hostname); err != nil {
+		return ErrTenantDomainHostOperation
 	}
 	now := common.GetTimestamp()
 	domain.Status, domain.VerifiedAt, domain.LastCheckedAt, domain.UpdatedAt = model.DomainVerified, &now, &now, now
 	if err := model.DB.Save(&domain).Error; err != nil {
+		_ = TenantDomainHostOperation("cleanup", domain.Hostname)
 		return err
-	}
-	if err := TenantDomainHostOperation("provision", domain.Hostname); err != nil {
-		return ErrTenantDomainHostOperation
 	}
 	return nil
 }

@@ -38,11 +38,18 @@ func TestVerifyDomainMatchesConfiguredDNSRecords(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
 	previousDB := model.DB
 	previousResolver := TenantDomainDNSResolver
+	previousHostOperation := TenantDomainHostOperation
 	model.DB = db
 	TenantDomainDNSResolver = tenantDNSResolverStub{ips: []net.IP{net.ParseIP("203.0.113.10")}, cname: "proxy.example.com."}
+	var hostOperations []string
+	TenantDomainHostOperation = func(operation, hostname string) error {
+		hostOperations = append(hostOperations, operation+":"+hostname)
+		return nil
+	}
 	t.Cleanup(func() {
 		model.DB = previousDB
 		TenantDomainDNSResolver = previousResolver
+		TenantDomainHostOperation = previousHostOperation
 		common.OptionMapRWMutex.Lock()
 		if common.OptionMap == nil {
 			common.OptionMap = map[string]string{}
@@ -77,15 +84,20 @@ func TestVerifyDomainMatchesConfiguredDNSRecords(t *testing.T) {
 
 	setTargets("", "203.0.113.10")
 	require.NoError(t, VerifyDomain(firstDomain.Id, first.Id))
+	require.Equal(t, []string{"check:app.example.com", "provision:app.example.com"}, hostOperations)
+	hostOperations = nil
 	firstDomain.Status = model.DomainPending
 	require.NoError(t, db.Save(&firstDomain).Error)
 	setTargets("proxy.example.com", "")
 	require.NoError(t, VerifyDomain(firstDomain.Id, first.Id))
+	require.Equal(t, []string{"check:app.example.com", "provision:app.example.com"}, hostOperations)
+	hostOperations = nil
 	firstDomain.Status = model.DomainPending
 	require.NoError(t, db.Save(&firstDomain).Error)
 
 	setTargets("wrong.example.com", "")
 	require.EqualError(t, VerifyDomain(firstDomain.Id, first.Id), "domain verification failed")
+	require.Empty(t, hostOperations)
 	setTargets("", "")
 	require.EqualError(t, VerifyDomain(firstDomain.Id, first.Id), "domain verification failed")
 	require.ErrorIs(t, VerifyDomain(secondDomain.Id, first.Id), gorm.ErrRecordNotFound)
@@ -154,7 +166,6 @@ func TestTenantDomainLifecycleRunsHostProvisioning(t *testing.T) {
 	require.Equal(t, model.DomainPending, updated.Status)
 	require.Equal(t, "cleanup:old.example.com", operations[1])
 	matchingResolver := TenantDomainDNSResolver
-	TenantDomainDNSResolver = tenantDNSResolverStub{}
 	failCheck = true
 	require.ErrorIs(t, VerifyDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation)
 	require.NoError(t, db.First(&stored, domain.Id).Error)
@@ -163,7 +174,7 @@ func TestTenantDomainLifecycleRunsHostProvisioning(t *testing.T) {
 	TenantDomainDNSResolver = matchingResolver
 	require.EqualError(t, VerifyDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation.Error())
 	require.NoError(t, db.First(&stored, domain.Id).Error)
-	require.Equal(t, model.DomainVerified, stored.Status)
+	require.Equal(t, model.DomainPending, stored.Status)
 	require.NoError(t, VerifyDomain(domain.Id, tenant.Id))
 	failCleanup = true
 	require.ErrorIs(t, DeleteDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation)
@@ -225,8 +236,7 @@ func TestOnlySystemAdminsCanUseUsGateDomains(t *testing.T) {
 
 func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	root := t.TempDir()
-	siteDir := filepath.Join(root, "sites-available")
-	enabledDir := filepath.Join(root, "sites-enabled")
+	siteDir := filepath.Join(root, "conf.d")
 	binDir := filepath.Join(root, "bin")
 	certState := filepath.Join(root, "certbot-state")
 	certRenewalDir := filepath.Join(root, "renewal")
@@ -234,11 +244,11 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	certManifestDir := filepath.Join(root, "manifests")
 	acmeWebrootDir := filepath.Join(root, "webroot")
 	effectiveConfig := filepath.Join(root, "nginx-config-dump")
-	for _, dir := range []string{siteDir, enabledDir, binDir, certRenewalDir, acmeWebrootDir} {
+	for _, dir := range []string{siteDir, binDir, certRenewalDir, acmeWebrootDir} {
 		require.NoError(t, os.MkdirAll(dir, 0o755))
 	}
 	require.NoError(t, os.WriteFile(effectiveConfig, nil, 0o600))
-	config := fmt.Sprintf("APP_PORT=%q\nCERTBOT_EMAIL=%q\nNGINX_SITES_AVAILABLE=%q\nNGINX_SITES_ENABLED=%q\nDOMAIN_LOCK_FILE=%q\nCERT_RENEWAL_DIR=%q\nCERT_LIVE_DIR=%q\nCERT_MANIFEST_DIR=%q\nACME_WEBROOT_DIR=%q\n", "3000", "ops@example.com", siteDir, enabledDir, filepath.Join(root, "lock"), certRenewalDir, certLiveDir, certManifestDir, acmeWebrootDir)
+	config := fmt.Sprintf("APP_PORT=%q\nCERTBOT_EMAIL=%q\nNGINX_CONF_DIR=%q\nDOMAIN_LOCK_FILE=%q\nCERT_RENEWAL_DIR=%q\nCERT_LIVE_DIR=%q\nCERT_MANIFEST_DIR=%q\nACME_WEBROOT_DIR=%q\n", "3000", "ops@example.com", siteDir, filepath.Join(root, "lock"), certRenewalDir, certLiveDir, certManifestDir, acmeWebrootDir)
 	configPath := filepath.Join(root, "provisioner.env")
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
 	fakeCommands := map[string]string{
@@ -258,8 +268,6 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	require.NoError(t, os.WriteFile(primaryConfig, primaryContents, 0o644))
 	otherConfig := filepath.Join(siteDir, "partner-other.example.com.conf")
 	require.NoError(t, os.WriteFile(otherConfig, []byte("# Managed by new-api tenant domain provisioner\nserver_name other.example.com;\n"), 0o644))
-	otherLink := filepath.Join(enabledDir, filepath.Base(otherConfig))
-	require.NoError(t, os.Symlink(otherConfig, otherLink))
 	failNginxTestFile := filepath.Join(root, "fail-nginx-test")
 	failCertbotFile := filepath.Join(root, "fail-certbot")
 	failCertbotDeleteFile := filepath.Join(root, "fail-certbot-delete")
@@ -290,7 +298,7 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(failCertbotFile, nil, 0o600))
 	run("check", false)
-	require.NoError(t, os.WriteFile(effectiveConfig, []byte("# configuration file /etc/nginx/sites-enabled/new-api.conf:\nserver {\n    server_name app.example.com;\n}\n"), 0o600))
+	require.NoError(t, os.WriteFile(effectiveConfig, []byte("# configuration file /etc/nginx/conf.d/new-api.conf:\nserver {\n    server_name app.example.com;\n}\n"), 0o600))
 	run("check", true)
 	require.NoFileExists(t, filepath.Join(siteDir, "partner-app.example.com.conf"))
 	run("provision", true)
@@ -298,9 +306,7 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	require.NoError(t, os.WriteFile(effectiveConfig, nil, 0o600))
 	run("provision", true)
 	partnerConfig := filepath.Join(siteDir, "partner-app.example.com.conf")
-	partnerLink := filepath.Join(enabledDir, filepath.Base(partnerConfig))
 	require.NoFileExists(t, partnerConfig)
-	require.NoFileExists(t, partnerLink)
 	require.NoFileExists(t, certState)
 	manifest := filepath.Join(certManifestDir, "partner-app.example.com")
 	require.NoFileExists(t, manifest)
@@ -313,12 +319,10 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	require.Contains(t, string(contents), "listen 443 ssl;")
 	require.Contains(t, string(contents), "/etc/letsencrypt/live/partner-app.example.com/fullchain.pem")
 	require.Contains(t, string(contents), "root "+acmeWebrootDir+";")
-	target, err := os.Readlink(partnerLink)
-	require.NoError(t, err)
-	require.Equal(t, partnerConfig, target)
+	require.NoFileExists(t, filepath.Join(root, "sites-enabled", filepath.Base(partnerConfig)))
 	require.FileExists(t, certState)
 	require.FileExists(t, filepath.Join(certLiveDir, "partner-app.example.com", "cert.pem"))
-	require.NoError(t, os.WriteFile(effectiveConfig, []byte(fmt.Sprintf("# configuration file %s:\nserver {\n    server_name app.example.com;\n}\n", partnerLink)), 0o600))
+	require.NoError(t, os.WriteFile(effectiveConfig, []byte(fmt.Sprintf("# configuration file %s:\nserver {\n    server_name app.example.com;\n}\n", partnerConfig)), 0o600))
 	run("check", false)
 	require.NoError(t, os.WriteFile(effectiveConfig, nil, 0o600))
 
@@ -339,25 +343,21 @@ func TestTenantDomainHostWrapperProvisionAndCleanupAreScoped(t *testing.T) {
 	require.NoError(t, os.WriteFile(failCertbotDeleteFile, nil, 0o600))
 	run("cleanup", true)
 	require.FileExists(t, partnerConfig)
-	require.FileExists(t, partnerLink)
 	require.FileExists(t, certState)
 	require.NoError(t, os.Remove(failCertbotDeleteFile))
 
 	require.NoError(t, os.WriteFile(failNginxTestFile, nil, 0o600))
 	run("cleanup", true)
 	require.FileExists(t, partnerConfig)
-	require.FileExists(t, partnerLink)
 	require.FileExists(t, certState)
 	require.NoError(t, os.Remove(failNginxTestFile))
 	run("cleanup", false)
 	require.NoFileExists(t, partnerConfig)
-	require.NoFileExists(t, partnerLink)
 	require.NoFileExists(t, certState)
 	require.NoFileExists(t, filepath.Join(certRenewalDir, "partner-app.example.com.conf"))
 	require.NoFileExists(t, manifest)
 	require.FileExists(t, primaryConfig)
 	require.FileExists(t, otherConfig)
-	require.FileExists(t, otherLink)
 	primaryAfter, err := os.ReadFile(primaryConfig)
 	require.NoError(t, err)
 	require.Equal(t, primaryContents, primaryAfter)
