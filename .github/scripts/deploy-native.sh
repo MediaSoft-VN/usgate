@@ -27,6 +27,7 @@ release_staging_file="${APP_DIR}/releases/.new-api-${RELEASE_ID}.tmp.$$"
 client_release_dir="${APP_DIR}/client/releases/client-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
 nginx_site=/etc/nginx/conf.d/new-api.conf
+nginx_proxy_snippet=/etc/nginx/snippets/new-api-proxy.conf
 legacy_nginx_site=/etc/nginx/sites-available/new-api.conf
 legacy_nginx_link=/etc/nginx/sites-enabled/new-api.conf
 env_file="${APP_DIR}/.env"
@@ -238,7 +239,7 @@ if [[ -L ${legacy_nginx_link} ]] &&
   echo "Removing the legacy new-api Nginx site link"
   sudo -n rm -- "${legacy_nginx_link}"
 fi
-ensure_nginx_domain_vhost "${DOMAIN}" "${APP_PORT}" "${nginx_site}"
+ensure_nginx_domain_vhost "${DOMAIN}" "${APP_PORT}" "${nginx_site}" "${nginx_proxy_snippet}"
 sudo -n nginx -t
 sudo -n systemctl enable --now nginx
 sudo -n systemctl reload nginx
