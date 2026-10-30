@@ -38,11 +38,18 @@ func TestVerifyDomainMatchesConfiguredDNSRecords(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Tenant{}, &model.TenantMembership{}, &model.TenantDomain{}))
 	previousDB := model.DB
 	previousResolver := TenantDomainDNSResolver
+	previousHostOperation := TenantDomainHostOperation
 	model.DB = db
 	TenantDomainDNSResolver = tenantDNSResolverStub{ips: []net.IP{net.ParseIP("203.0.113.10")}, cname: "proxy.example.com."}
+	var hostOperations []string
+	TenantDomainHostOperation = func(operation, hostname string) error {
+		hostOperations = append(hostOperations, operation+":"+hostname)
+		return nil
+	}
 	t.Cleanup(func() {
 		model.DB = previousDB
 		TenantDomainDNSResolver = previousResolver
+		TenantDomainHostOperation = previousHostOperation
 		common.OptionMapRWMutex.Lock()
 		if common.OptionMap == nil {
 			common.OptionMap = map[string]string{}
@@ -77,15 +84,20 @@ func TestVerifyDomainMatchesConfiguredDNSRecords(t *testing.T) {
 
 	setTargets("", "203.0.113.10")
 	require.NoError(t, VerifyDomain(firstDomain.Id, first.Id))
+	require.Equal(t, []string{"check:app.example.com", "provision:app.example.com"}, hostOperations)
+	hostOperations = nil
 	firstDomain.Status = model.DomainPending
 	require.NoError(t, db.Save(&firstDomain).Error)
 	setTargets("proxy.example.com", "")
 	require.NoError(t, VerifyDomain(firstDomain.Id, first.Id))
+	require.Equal(t, []string{"check:app.example.com", "provision:app.example.com"}, hostOperations)
+	hostOperations = nil
 	firstDomain.Status = model.DomainPending
 	require.NoError(t, db.Save(&firstDomain).Error)
 
 	setTargets("wrong.example.com", "")
 	require.EqualError(t, VerifyDomain(firstDomain.Id, first.Id), "domain verification failed")
+	require.Empty(t, hostOperations)
 	setTargets("", "")
 	require.EqualError(t, VerifyDomain(firstDomain.Id, first.Id), "domain verification failed")
 	require.ErrorIs(t, VerifyDomain(secondDomain.Id, first.Id), gorm.ErrRecordNotFound)
@@ -154,7 +166,6 @@ func TestTenantDomainLifecycleRunsHostProvisioning(t *testing.T) {
 	require.Equal(t, model.DomainPending, updated.Status)
 	require.Equal(t, "cleanup:old.example.com", operations[1])
 	matchingResolver := TenantDomainDNSResolver
-	TenantDomainDNSResolver = tenantDNSResolverStub{}
 	failCheck = true
 	require.ErrorIs(t, VerifyDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation)
 	require.NoError(t, db.First(&stored, domain.Id).Error)
@@ -163,7 +174,7 @@ func TestTenantDomainLifecycleRunsHostProvisioning(t *testing.T) {
 	TenantDomainDNSResolver = matchingResolver
 	require.EqualError(t, VerifyDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation.Error())
 	require.NoError(t, db.First(&stored, domain.Id).Error)
-	require.Equal(t, model.DomainVerified, stored.Status)
+	require.Equal(t, model.DomainPending, stored.Status)
 	require.NoError(t, VerifyDomain(domain.Id, tenant.Id))
 	failCleanup = true
 	require.ErrorIs(t, DeleteDomain(domain.Id, tenant.Id), ErrTenantDomainHostOperation)
