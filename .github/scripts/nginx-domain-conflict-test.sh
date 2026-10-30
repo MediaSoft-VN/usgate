@@ -24,16 +24,37 @@ sudo() {
 
 dump_file="${test_dir}/nginx.dump"
 export NGINX_TEST_DUMP=${dump_file}
-cat >"${dump_file}" <<'CONFIG'
-# configuration file /etc/nginx/conf.d/tenant.conf:
+active_site="${test_dir}/app.example.com.conf"
+cat >"${active_site}" <<'CONFIG'
 server {
     server_name App.Example.Com;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/html;
+        try_files $uri =404;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:3342;
+        proxy_read_timeout 1800s;
+    }
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/app.example.com/fullchain.pem;
 }
-# configuration file /etc/nginx/conf.d/wildcard.conf:
+server {
+    server_name app.example.com;
+    listen 80;
+    return 301 https://$host$request_uri;
+}
+CONFIG
+wildcard_site="${test_dir}/wildcard.conf"
+cat >"${wildcard_site}" <<'CONFIG'
 server {
     server_name *.example.net;
 }
 CONFIG
+printf '# configuration file %s:\n' "${active_site}" >"${dump_file}"
+cat "${active_site}" >>"${dump_file}"
+printf '# configuration file %s:\n' "${wildcard_site}" >>"${dump_file}"
+cat "${wildcard_site}" >>"${dump_file}"
 
 nginx_server_name_configured app.example.com
 nginx_server_name_configured api.example.net
@@ -41,27 +62,31 @@ if nginx_server_name_configured unused.example.org; then
   echo 'unexpected Nginx hostname collision' >&2
   exit 1
 fi
-if nginx_server_name_configured app.example.com /etc/nginx/conf.d/tenant.conf; then
+if nginx_server_name_configured app.example.com "${active_site}"; then
   echo 'managed config was not ignored' >&2
   exit 1
 fi
 
-printf '%s\n' '# configuration file /etc/nginx/conf.d/other.conf:' 'server {' '    server_name app.example.com;' '}' >>"${dump_file}"
-nginx_server_name_configured app.example.com /etc/nginx/conf.d/tenant.conf
-
 reused_site="${test_dir}/reused.conf"
-ensure_nginx_domain_vhost app.example.com 3000 "${reused_site}"
+snippet_file="${test_dir}/snippets/new-api-proxy.conf"
+ensure_nginx_domain_vhost app.example.com 3343 "${reused_site}" "${snippet_file}"
 [[ ! -e ${reused_site} ]]
+grep -Fq 'include '"${snippet_file}"';' "${active_site}"
+grep -Fq 'root /var/www/html;' "${active_site}"
+grep -Fq 'ssl_certificate /etc/letsencrypt/live/app.example.com/fullchain.pem;' "${active_site}"
+! grep -Fq 'proxy_pass http://127.0.0.1:3342;' "${active_site}"
+grep -Fq 'proxy_pass http://127.0.0.1:3343;' "${snippet_file}"
 
 created_site="${test_dir}/created.conf"
-ensure_nginx_domain_vhost fresh.example.org 4321 "${created_site}"
+ensure_nginx_domain_vhost fresh.example.org 4321 "${created_site}" "${snippet_file}"
 grep -Fq '# Managed by new-api native deployment' "${created_site}"
 grep -Fq 'server_name fresh.example.org;' "${created_site}"
-grep -Fq 'proxy_pass http://127.0.0.1:4321;' "${created_site}"
+grep -Fq 'include '"${snippet_file}"';' "${created_site}"
+grep -Fq 'proxy_pass http://127.0.0.1:4321;' "${snippet_file}"
 
 unmanaged_site="${test_dir}/unmanaged.conf"
 printf '%s\n' 'server { server_name someone-else.example.org; }' >"${unmanaged_site}"
-if ensure_nginx_domain_vhost unused.example.org 3000 "${unmanaged_site}"; then
+if ensure_nginx_domain_vhost unused.example.org 3000 "${unmanaged_site}" "${snippet_file}"; then
   echo 'unmanaged Nginx configuration was overwritten' >&2
   exit 1
 fi
@@ -77,7 +102,7 @@ if nginx_server_name_configured unused.example.org; then
 else
   [[ $? == 2 ]]
 fi
-if ensure_nginx_domain_vhost unavailable.example.org 3000 "${test_dir}/unavailable.conf"; then
+if ensure_nginx_domain_vhost unavailable.example.org 3000 "${test_dir}/unavailable.conf" "${snippet_file}"; then
   echo 'Nginx configuration was created without successful inspection' >&2
   exit 1
 fi
