@@ -515,9 +515,16 @@ func requireAvailableProviderFunding(tx *gorm.DB, currency string, amount int64)
 }
 
 func recordTopUpCreditAllocation(tx *gorm.DB, topUp *TopUp, quota int, source string) error {
-	currency := strings.TrimSpace(topUp.ProviderCurrency)
-	if currency == "" {
-		currency = strings.TrimSpace(topUp.Currency)
+	// SePay's Money is the VND amount passed to the gateway, while Amount and
+	// Currency represent the user's top-up value in the system currency.
+	currency := strings.TrimSpace(topUp.Currency)
+	amount := decimal.NewFromInt(topUp.Amount)
+	if topUp.PaymentProvider != PaymentProviderSePay {
+		currency = strings.TrimSpace(topUp.ProviderCurrency)
+		if currency == "" {
+			currency = strings.TrimSpace(topUp.Currency)
+		}
+		amount = decimal.NewFromFloat(topUp.Money)
 	}
 	if currency == "" {
 		currency = operation_setting.GetFinancialCurrencyCode()
@@ -526,7 +533,7 @@ func recordTopUpCreditAllocation(tx *gorm.DB, topUp *TopUp, quota int, source st
 	if len(currency) < 2 || len(currency) > 16 {
 		return ErrInvalidProviderFunding
 	}
-	amountMinor, err := FinancialAmountToMinorUnits(decimal.NewFromFloat(topUp.Money), 2)
+	amountMinor, err := FinancialAmountToMinorUnits(amount, 2)
 	if err != nil {
 		return err
 	}
