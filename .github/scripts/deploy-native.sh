@@ -26,7 +26,9 @@ release_file="${APP_DIR}/releases/new-api-${RELEASE_ID}"
 release_staging_file="${APP_DIR}/releases/.new-api-${RELEASE_ID}.tmp.$$"
 client_release_dir="${APP_DIR}/client/releases/client-${RELEASE_ID}"
 service_file=/etc/systemd/system/new-api.service
-nginx_site=/etc/nginx/sites-available/new-api.conf
+nginx_site=/etc/nginx/conf.d/new-api.conf
+legacy_nginx_site=/etc/nginx/sites-available/new-api.conf
+legacy_nginx_link=/etc/nginx/sites-enabled/new-api.conf
 env_file="${APP_DIR}/.env"
 port_file="${APP_DIR}/.app-port"
 previous_target="$(readlink "${APP_DIR}/new-api" 2>/dev/null || true)"
@@ -236,30 +238,12 @@ fi
 echo "========== Configure Nginx =========="
 sudo -n apt-get update -y
 sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y curl nginx certbot python3-certbot-nginx
-sudo -n install -d -m 0755 /etc/nginx/sites-available /etc/nginx/sites-enabled
-sudo -n tee "${nginx_site}" >/dev/null <<NGINX
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${DOMAIN};
-    client_max_body_size 100m;
-
-    location / {
-        proxy_pass http://127.0.0.1:${APP_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_buffering off;
-        proxy_read_timeout 1800s;
-        proxy_send_timeout 1800s;
-    }
-}
-NGINX
-sudo -n ln -sfn "${nginx_site}" /etc/nginx/sites-enabled/new-api.conf
+if [[ -L ${legacy_nginx_link} ]] &&
+  [[ $(sudo -n readlink "${legacy_nginx_link}") == "${legacy_nginx_site}" ]]; then
+  echo "Removing the legacy new-api Nginx site link"
+  sudo -n rm -- "${legacy_nginx_link}"
+fi
+ensure_nginx_domain_vhost "${DOMAIN}" "${APP_PORT}" "${nginx_site}"
 sudo -n nginx -t
 sudo -n systemctl enable --now nginx
 sudo -n systemctl reload nginx
