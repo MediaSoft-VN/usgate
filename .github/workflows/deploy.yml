@@ -8,6 +8,8 @@ on:
       - deploy/new-api.gz
       - deploy/new-api-client.tar.gz
       - .github/scripts/deploy-native.sh
+      - .github/scripts/nginx-domain-conflict.sh
+      - .github/scripts/nginx-domain-conflict-test.sh
       - .github/scripts/compose-postgres-dsn.py
       - scripts/install-tenant-domain-provisioner.sh
       - scripts/tenant-domain-host.sh
@@ -48,6 +50,10 @@ jobs:
           sha256sum deploy/new-api-client.tar.gz
           bash -n scripts/install-tenant-domain-provisioner.sh
           bash -n scripts/tenant-domain-host.sh
+          bash -n .github/scripts/deploy-native.sh
+          bash -n .github/scripts/nginx-domain-conflict.sh
+          bash -n .github/scripts/nginx-domain-conflict-test.sh
+          .github/scripts/nginx-domain-conflict-test.sh
           python3 -c "compile(open('scripts/tenant-domain-socket.py', encoding='utf-8').read(), 'tenant-domain-socket.py', 'exec')"
 
       - name: Configure SSH
@@ -143,5 +149,6 @@ jobs:
             printf 'TENANT_DOMAIN_INSTALLER_SHA256=%q\n' "${tenant_installer_checksum}"
             printf 'TENANT_DOMAIN_HOST_SHA256=%q\n' "${tenant_host_checksum}"
             printf 'TENANT_DOMAIN_SOCKET_SHA256=%q\n' "${tenant_socket_checksum}"
+            cat .github/scripts/nginx-domain-conflict.sh
             cat .github/scripts/deploy-native.sh
           } | ssh -i ~/.ssh/id_ed25519_newapi -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s'
