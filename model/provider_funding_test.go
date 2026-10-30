@@ -108,6 +108,29 @@ func TestProviderFundingWalletUsesNetLedgerBalancePerCurrency(t *testing.T) {
 	}
 	require.NotNil(t, usdChannelWallet)
 	assert.Equal(t, int64(15000), usdChannelWallet.AmountMinor)
+
+	// Deleting a channel must hide its per-channel wallet summary without
+	// deleting the financial ledger entries or changing the aggregate pool.
+	require.NoError(t, DB.Delete(channel).Error)
+	channelWallets, err = SummarizeProviderFundingByChannel()
+	require.NoError(t, err)
+	assert.Empty(t, channelWallets)
+
+	wallets, err = SummarizeProviderFundingWallets()
+	require.NoError(t, err)
+	require.Len(t, wallets, 2)
+	var retainedPoolAmount int64
+	for i := range wallets {
+		if wallets[i].Currency == "USD" {
+			retainedPoolAmount = wallets[i].AmountMinor
+			break
+		}
+	}
+	assert.Equal(t, int64(12500), retainedPoolAmount)
+	var retainedFlows int64
+	require.NoError(t, DB.Model(&ProviderCashFlow{}).
+		Where("reference LIKE ?", "wallet-ledger-%").Count(&retainedFlows).Error)
+	assert.Equal(t, int64(4), retainedFlows)
 }
 
 func TestSummarizeProviderCashFlowsAppliesDirectionAndDateFilters(t *testing.T) {

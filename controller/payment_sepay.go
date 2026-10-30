@@ -331,7 +331,7 @@ func RequestSePay(c *gin.Context) {
 		providerMoney,
 		fmt.Sprintf("Top-up %s", tradeNo),
 		strconv.Itoa(userID),
-		paymentReturnOriginForRequest(c),
+		paymentReturnOriginForRequest(c, tradeNo),
 	)
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }

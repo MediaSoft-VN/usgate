@@ -30,7 +30,7 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.IdempotencyKey{}, &model.Log{}, &model.ExchangeRate{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TopUp{}, &model.IdempotencyKey{}, &model.Log{}, &model.ExchangeRate{}, &model.ProviderCashFlow{}))
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	model.DB, model.LOG_DB = db, db
 	previousRDB, previousRedisEnabled := common.RDB, common.RedisEnabled
@@ -68,9 +68,16 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 	topUp := &model.TopUp{
 		UserId: user.Id, Amount: 1, Money: 50000, TradeNo: "USR1SEPAY123",
 		PaymentMethod: sePayPaymentMethod, PaymentProvider: model.PaymentProviderSePay,
+		Currency: "USD", ProviderCurrency: "VND",
 		Status: common.TopUpStatusPending,
 	}
 	require.NoError(t, db.Create(topUp).Error)
+	require.NoError(t, db.Create(&model.ProviderCashFlow{
+		Direction: model.ProviderCashFlowDirectionIncoming, Type: model.ProviderCashFlowTypeFunding,
+		Reference: "sepay-test-provider-funding", AmountMinor: 10_000_000,
+		Currency: "VND", Source: model.ProviderFundingSourceManual,
+		CreatedAt: common.GetTimestamp(),
+	}).Error)
 	return db, user, topUp
 }
 
@@ -127,12 +134,27 @@ func TestSePayTransactionWebhookCreditsMatchingOrderOnce(t *testing.T) {
 	require.NoError(t, db.First(&credited, user.Id).Error)
 	firstQuota := credited.Quota
 	require.Greater(t, firstQuota, user.Quota)
+	var allocation model.ProviderCashFlow
+	require.NoError(t, db.Where("reference = ? AND direction = ?", topUp.TradeNo, model.ProviderCashFlowDirectionOutgoing).First(&allocation).Error)
+	require.Equal(t, model.ProviderCashFlowTypeAllocation, allocation.Type)
+	require.Equal(t, user.Id, allocation.UserID)
+	require.Equal(t, "VND", allocation.Currency)
+	require.Equal(t, int64(5_000_000), allocation.AmountMinor)
+	wallets, err := model.SummarizeProviderFundingWallets()
+	require.NoError(t, err)
+	require.Len(t, wallets, 1)
+	require.Equal(t, int64(5_000_000), wallets[0].AvailableMinor)
 
 	replayed := sendSePayWebhook(body, "Apikey webhook-secret")
 	require.Equal(t, http.StatusOK, replayed.Code)
 	require.JSONEq(t, `{"success":true}`, replayed.Body.String())
 	require.NoError(t, db.First(&credited, user.Id).Error)
 	require.Equal(t, firstQuota, credited.Quota)
+	var allocationCount int64
+	require.NoError(t, db.Model(&model.ProviderCashFlow{}).
+		Where("reference = ? AND direction = ?", topUp.TradeNo, model.ProviderCashFlowDirectionOutgoing).
+		Count(&allocationCount).Error)
+	require.Equal(t, int64(1), allocationCount)
 	var idempotency model.IdempotencyKey
 	require.NoError(t, db.Where("scope = ? AND key = ?", "sepay_webhook", "92704").First(&idempotency).Error)
 	require.Equal(t, model.IdempotencyCompleted, idempotency.Status)

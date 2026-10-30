@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -223,7 +224,10 @@ func RechargeTopUpWithProvider(tradeNo string, provider string, actualPaymentMet
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
 		}
-		return creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil)
+		if err := creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil); err != nil {
+			return err
+		}
+		return recordTopUpCreditAllocation(tx, topUp, quotaToAdd, "payment")
 	})
 	if err != nil {
 		if !errors.Is(err, ErrTopUpNotFound) && !errors.Is(err, ErrPaymentMethodMismatch) && !errors.Is(err, ErrTopUpStatusInvalid) {
@@ -245,7 +249,7 @@ func RechargeEpay(tradeNo string, actualPaymentMethod string, callerIp string) (
 	return RechargeTopUpWithProvider(tradeNo, PaymentProviderEpay, actualPaymentMethod, callerIp)
 }
 
-func Recharge(referenceId string, customerId string, callerIp string) (err error) {
+func Recharge(referenceId string, customerId string, callerIp string, actualCurrency ...string) (err error) {
 	if referenceId == "" {
 		return errors.New("payment order number not provided")
 	}
@@ -271,6 +275,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		if topUp.Status != common.TopUpStatusPending {
 			return errors.New("invalid top-up order status")
 		}
+		if len(actualCurrency) > 0 && strings.TrimSpace(actualCurrency[0]) != "" {
+			topUp.Currency = strings.ToUpper(strings.TrimSpace(actualCurrency[0]))
+		}
 
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
@@ -285,9 +292,12 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		if err != nil || quota <= 0 {
 			return ErrInvalidTopUpQuota
 		}
-		return creditTopUpQuota(tx, topUp.UserId, quota, map[string]any{
+		if err := creditTopUpQuota(tx, topUp.UserId, quota, map[string]any{
 			"stripe_customer": customerId,
-		})
+		}); err != nil {
+			return err
+		}
+		return recordTopUpCreditAllocation(tx, topUp, quota, "payment")
 	})
 
 	if err != nil {
@@ -518,6 +528,9 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		if err := creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil); err != nil {
 			return err
 		}
+		if err := recordTopUpCreditAllocation(tx, topUp, quotaToAdd, "admin"); err != nil {
+			return err
+		}
 
 		userId = topUp.UserId
 		payMoney = topUp.Money
@@ -592,7 +605,10 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 			}
 		}
 
-		return creditTopUpQuota(tx, topUp.UserId, quota, updateFields)
+		if err := creditTopUpQuota(tx, topUp.UserId, quota, updateFields); err != nil {
+			return err
+		}
+		return recordTopUpCreditAllocation(tx, topUp, quota, "payment")
 	})
 
 	if err != nil {
@@ -650,7 +666,10 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return err
 		}
 
-		return creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil)
+		if err := creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil); err != nil {
+			return err
+		}
+		return recordTopUpCreditAllocation(tx, topUp, quotaToAdd, "payment")
 	})
 
 	if err != nil {
@@ -710,7 +729,10 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return err
 		}
 
-		return creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil)
+		if err := creditTopUpQuota(tx, topUp.UserId, quotaToAdd, nil); err != nil {
+			return err
+		}
+		return recordTopUpCreditAllocation(tx, topUp, quotaToAdd, "payment")
 	})
 
 	if err != nil {

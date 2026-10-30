@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -479,11 +481,77 @@ func SummarizeProviderFundingByChannel() ([]ProviderFundingChannelSummary, error
 	err := DB.Model(&ProviderCashFlow{}).
 		Select("provider_cash_flows.channel_id, channels.name AS channel_name, provider_cash_flows.currency, SUM(provider_cash_flows.amount_minor) AS amount_minor").
 		Where("provider_cash_flows.direction = ?", ProviderCashFlowDirectionIncoming).
-		Joins("LEFT JOIN channels ON channels.id = provider_cash_flows.channel_id").
+		Joins("JOIN channels ON channels.id = provider_cash_flows.channel_id").
 		Group("provider_cash_flows.channel_id, channels.name, provider_cash_flows.currency").
 		Order("channel_id ASC, currency ASC").
 		Scan(&summaries).Error
 	return summaries, err
+}
+
+func requireAvailableProviderFunding(tx *gorm.DB, currency string, amount int64) error {
+	var deposits []ProviderCashFlow
+	if err := lockForUpdate(tx).
+		Where("currency = ? AND direction = ?", currency, ProviderCashFlowDirectionIncoming).
+		Find(&deposits).Error; err != nil {
+		return err
+	}
+	var funded int64
+	for i := range deposits {
+		if deposits[i].AmountMinor > FinancialMaxMinorUnits-funded {
+			return ErrFinancialAmountOverflow
+		}
+		funded += deposits[i].AmountMinor
+	}
+	var allocated int64
+	if err := tx.Model(&ProviderCashFlow{}).
+		Where("currency = ? AND direction = ?", currency, ProviderCashFlowDirectionOutgoing).
+		Select("COALESCE(SUM(amount_minor), 0)").Scan(&allocated).Error; err != nil {
+		return err
+	}
+	if amount > funded-allocated {
+		return ErrProviderFundingInsufficient
+	}
+	return nil
+}
+
+func recordTopUpCreditAllocation(tx *gorm.DB, topUp *TopUp, quota int, source string) error {
+	currency := strings.TrimSpace(topUp.ProviderCurrency)
+	if currency == "" {
+		currency = strings.TrimSpace(topUp.Currency)
+	}
+	if currency == "" {
+		currency = operation_setting.GetFinancialCurrencyCode()
+	}
+	currency = normalizeProviderFundingCurrency(currency)
+	if len(currency) < 2 || len(currency) > 16 {
+		return ErrInvalidProviderFunding
+	}
+	amountMinor, err := FinancialAmountToMinorUnits(decimal.NewFromFloat(topUp.Money), 2)
+	if err != nil {
+		return err
+	}
+	flow := ProviderCashFlow{
+		UserID: topUp.UserId, Direction: ProviderCashFlowDirectionOutgoing,
+		Type: ProviderCashFlowTypeAllocation, Reference: topUp.TradeNo,
+		AmountMinor: amountMinor, Currency: currency, Source: source,
+		Quota: quota, ExchangeRate: topUp.ExchangeRate,
+		CreatedAt: topUp.CompleteTime, CreatedBy: source,
+	}
+	var existing ProviderCashFlow
+	err = tx.Where("reference = ? AND direction = ?", flow.Reference, flow.Direction).First(&existing).Error
+	if err == nil {
+		if existing.UserID != flow.UserID || existing.Type != flow.Type || existing.AmountMinor != flow.AmountMinor || existing.Currency != flow.Currency || existing.Quota != flow.Quota {
+			return ErrProviderFundingConflict
+		}
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	if err := requireAvailableProviderFunding(tx, currency, amountMinor); err != nil {
+		return err
+	}
+	return tx.Create(&flow).Error
 }
 
 // AllocateProviderFunding atomically debits the aggregate provider pool and
@@ -515,23 +583,8 @@ func AllocateProviderFunding(allocation *ProviderFundingAllocation) (*ProviderFu
 		if err := lockForUpdate(tx).First(&user, allocation.UserID).Error; err != nil {
 			return err
 		}
-		var deposits []ProviderCashFlow
-		if err := lockForUpdate(tx).Where("currency = ? AND direction = ?", allocation.Currency, ProviderCashFlowDirectionIncoming).Find(&deposits).Error; err != nil {
+		if err := requireAvailableProviderFunding(tx, allocation.Currency, allocation.AmountMinor); err != nil {
 			return err
-		}
-		var funded int64
-		for i := range deposits {
-			if deposits[i].AmountMinor > FinancialMaxMinorUnits-funded {
-				return ErrFinancialAmountOverflow
-			}
-			funded += deposits[i].AmountMinor
-		}
-		var allocated int64
-		if err := tx.Model(&ProviderCashFlow{}).Where("currency = ? AND direction = ?", allocation.Currency, ProviderCashFlowDirectionOutgoing).Select("COALESCE(SUM(amount_minor), 0)").Scan(&allocated).Error; err != nil {
-			return err
-		}
-		if allocation.AmountMinor > funded-allocated {
-			return ErrProviderFundingInsufficient
 		}
 		if user.Quota > common.MaxWalletQuota || int64(user.Quota)+int64(allocation.Quota) > int64(common.MaxWalletQuota) {
 			return ErrWalletQuotaLimitExceeded
