@@ -98,3 +98,58 @@ it('shows the filtered financial report and exports the same filter set', async 
     expect(providerFundingMocks.exportProviderFundings).toHaveBeenCalledWith({})
   )
 })
+
+it('shows a payment top-up as an outgoing credit allocation', async () => {
+  providerFundingMocks.getProviderFundings.mockResolvedValueOnce({
+    items: [],
+    total: 1,
+    page: 1,
+    page_size: 20,
+    wallets: [],
+    provider_wallets: [],
+    allocations: [],
+    cash_flows: [
+      {
+        id: 2,
+        channel_id: 0,
+        user_id: 12,
+        direction: 'outgoing',
+        type: 'allocation',
+        reference: 'PAYMENT-ORDER-12',
+        amount_minor: 999,
+        currency: 'USD',
+        source: 'payment',
+        quota: 500000,
+        exchange_rate: '1',
+        counterparty_name: 'Top-up User (topup-user)',
+        created_at: 2,
+        created_by: 'payment',
+      },
+    ],
+    cash_flow_total: 1,
+    report: [
+      {
+        currency: 'USD',
+        incoming_minor: 0,
+        outgoing_minor: 999,
+        net_minor: -999,
+        count: 1,
+      },
+    ],
+  })
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <I18nextProvider i18n={i18n}>
+        <ProviderFunding />
+      </I18nextProvider>
+    </QueryClientProvider>
+  )
+
+  expect(await screen.findByText('Credit allocation')).toBeInTheDocument()
+  expect(screen.getByText('Top-up User (topup-user)')).toBeInTheDocument()
+  expect(screen.getByText('PAYMENT-ORDER-12')).toBeInTheDocument()
+})

@@ -228,6 +228,7 @@ func RequestWaffoPay(c *gin.Context) {
 		TradeNo:         merchantOrderId,
 		PaymentMethod:   model.PaymentMethodWaffo,
 		PaymentProvider: model.PaymentProviderWaffo,
+		Currency:        getWaffoCurrency(),
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
 	}

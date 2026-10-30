@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,6 +55,7 @@ func insertSubscriptionOrderForPaymentGuardTest(t *testing.T, tradeNo string, us
 
 func insertTopUpForPaymentGuardTest(t *testing.T, tradeNo string, userID int, paymentProvider string) {
 	t.Helper()
+	currency := operation_setting.GetFinancialCurrencyCode()
 	topUp := &TopUp{
 		UserId:          userID,
 		Amount:          2,
@@ -61,10 +63,29 @@ func insertTopUpForPaymentGuardTest(t *testing.T, tradeNo string, userID int, pa
 		TradeNo:         tradeNo,
 		PaymentMethod:   paymentProvider,
 		PaymentProvider: paymentProvider,
+		Currency:        currency,
 		Status:          common.TopUpStatusPending,
 		CreateTime:      time.Now().Unix(),
 	}
 	require.NoError(t, topUp.Insert())
+	seedProviderFundingForTopUpTest(t, tradeNo, currency, 10000)
+	t.Cleanup(func() {
+		DB.Where("reference = ? AND direction = ?", tradeNo, ProviderCashFlowDirectionOutgoing).Delete(&ProviderCashFlow{})
+	})
+}
+
+func seedProviderFundingForTopUpTest(t *testing.T, reference, currency string, amountMinor int64) {
+	t.Helper()
+	flow := &ProviderCashFlow{
+		Direction: ProviderCashFlowDirectionIncoming, Type: ProviderCashFlowTypeFunding,
+		Reference: "payment-test-funding-" + reference, AmountMinor: amountMinor,
+		Currency: currency, Source: ProviderFundingSourceManual,
+		CreatedAt: common.GetTimestamp(),
+	}
+	require.NoError(t, DB.Create(flow).Error)
+	t.Cleanup(func() {
+		DB.Where("reference = ?", flow.Reference).Delete(&ProviderCashFlow{})
+	})
 }
 
 func getTopUpStatusForPaymentGuardTest(t *testing.T, tradeNo string) string {
@@ -176,6 +197,7 @@ func TestExpireSubscriptionOrder_RejectsMismatchedPaymentProvider(t *testing.T) 
 
 func createEpayTestOrder(t *testing.T, userId int, tradeNo string, provider string, status string) TopUp {
 	t.Helper()
+	currency := operation_setting.GetFinancialCurrencyCode()
 	topUp := TopUp{
 		UserId:          userId,
 		Amount:          2,
@@ -183,10 +205,15 @@ func createEpayTestOrder(t *testing.T, userId int, tradeNo string, provider stri
 		TradeNo:         tradeNo,
 		PaymentMethod:   "alipay",
 		PaymentProvider: provider,
+		Currency:        currency,
 		CreateTime:      common.GetTimestamp(),
 		Status:          status,
 	}
 	require.NoError(t, DB.Create(&topUp).Error)
+	seedProviderFundingForTopUpTest(t, tradeNo, currency, 10000)
+	t.Cleanup(func() {
+		DB.Where("reference = ? AND direction = ?", tradeNo, ProviderCashFlowDirectionOutgoing).Delete(&ProviderCashFlow{})
+	})
 	return topUp
 }
 
@@ -209,10 +236,61 @@ func TestRechargeEpayCreditsQuotaExactlyOnce(t *testing.T) {
 	require.NotNil(t, reloaded)
 	assert.Equal(t, common.TopUpStatusSuccess, reloaded.Status)
 	assert.NotZero(t, reloaded.CompleteTime)
+	flows, _, err := ListProviderCashFlows(ProviderFundingFilter{Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation, Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	require.Len(t, flows, 1)
+	assert.Equal(t, user.Id, flows[0].UserID)
+	assert.Equal(t, order.TradeNo, flows[0].Reference)
+	assert.Equal(t, ProviderCashFlowTypeAllocation, flows[0].Type)
+	assert.Equal(t, int64(1000), flows[0].AmountMinor)
 
 	alreadyDone, err = RechargeEpay(order.TradeNo, "alipay", "127.0.0.1")
 	require.NoError(t, err)
 	assert.True(t, alreadyDone)
+	assert.Equal(t, 2*500000, getUserQuotaForPaymentGuardTest(t, user.Id))
+}
+
+func TestManualCompleteTopUpRecordsAllocationAndLeavesInsufficientOrderPending(t *testing.T) {
+	truncateTables(t)
+
+	oldQuotaPerUnit := common.QuotaPerUnit
+	common.QuotaPerUnit = 500000
+	t.Cleanup(func() { common.QuotaPerUnit = oldQuotaPerUnit })
+	user := insertUserForPaymentGuardTest(t, 520, 0)
+	currency := operation_setting.GetFinancialCurrencyCode()
+	seedProviderFundingForTopUpTest(t, "admin-approval", currency, 10000)
+	topUp := &TopUp{
+		UserId: user.Id, Amount: 2, Money: 9.99, TradeNo: "admin-approval",
+		PaymentProvider: PaymentProviderEpay, PaymentMethod: "alipay", Currency: currency,
+		Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(),
+	}
+	require.NoError(t, topUp.Insert())
+	t.Cleanup(func() {
+		DB.Where("reference = ? AND direction = ?", topUp.TradeNo, ProviderCashFlowDirectionOutgoing).Delete(&ProviderCashFlow{})
+	})
+
+	require.NoError(t, ManualCompleteTopUp(topUp.TradeNo, "127.0.0.1"))
+	require.NoError(t, ManualCompleteTopUp(topUp.TradeNo, "127.0.0.1"))
+	assert.Equal(t, 2*500000, getUserQuotaForPaymentGuardTest(t, user.Id))
+	flows, total, err := ListProviderCashFlows(ProviderFundingFilter{
+		Direction: ProviderCashFlowDirectionOutgoing, Type: ProviderCashFlowTypeAllocation,
+		Page: 1, PageSize: 20,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	require.Len(t, flows, 1)
+	assert.Equal(t, topUp.TradeNo, flows[0].Reference)
+	assert.Equal(t, user.Id, flows[0].UserID)
+
+	shortCurrencyTopUp := &TopUp{
+		UserId: user.Id, Amount: 1, Money: 1, TradeNo: "insufficient-wallet-approval",
+		PaymentProvider: PaymentProviderEpay, PaymentMethod: "alipay", Currency: "ZZZ",
+		Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(),
+	}
+	require.NoError(t, shortCurrencyTopUp.Insert())
+	err = ManualCompleteTopUp(shortCurrencyTopUp.TradeNo, "127.0.0.1")
+	require.ErrorIs(t, err, ErrProviderFundingInsufficient)
+	assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, shortCurrencyTopUp.TradeNo))
 	assert.Equal(t, 2*500000, getUserQuotaForPaymentGuardTest(t, user.Id))
 }
 
