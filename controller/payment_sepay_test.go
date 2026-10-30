@@ -74,8 +74,8 @@ func setupSePayWebhookTest(t *testing.T) (*gorm.DB, model.User, *model.TopUp) {
 	require.NoError(t, db.Create(topUp).Error)
 	require.NoError(t, db.Create(&model.ProviderCashFlow{
 		Direction: model.ProviderCashFlowDirectionIncoming, Type: model.ProviderCashFlowTypeFunding,
-		Reference: "sepay-test-provider-funding", AmountMinor: 10_000_000,
-		Currency: "VND", Source: model.ProviderFundingSourceManual,
+		Reference: "sepay-test-provider-funding", AmountMinor: 10_000,
+		Currency: "USD", Source: model.ProviderFundingSourceManual,
 		CreatedAt: common.GetTimestamp(),
 	}).Error)
 	return db, user, topUp
@@ -138,12 +138,12 @@ func TestSePayTransactionWebhookCreditsMatchingOrderOnce(t *testing.T) {
 	require.NoError(t, db.Where("reference = ? AND direction = ?", topUp.TradeNo, model.ProviderCashFlowDirectionOutgoing).First(&allocation).Error)
 	require.Equal(t, model.ProviderCashFlowTypeAllocation, allocation.Type)
 	require.Equal(t, user.Id, allocation.UserID)
-	require.Equal(t, "VND", allocation.Currency)
-	require.Equal(t, int64(5_000_000), allocation.AmountMinor)
+	require.Equal(t, "USD", allocation.Currency)
+	require.Equal(t, int64(100), allocation.AmountMinor)
 	wallets, err := model.SummarizeProviderFundingWallets()
 	require.NoError(t, err)
 	require.Len(t, wallets, 1)
-	require.Equal(t, int64(5_000_000), wallets[0].AvailableMinor)
+	require.Equal(t, int64(9_900), wallets[0].AvailableMinor)
 
 	replayed := sendSePayWebhook(body, "Apikey webhook-secret")
 	require.Equal(t, http.StatusOK, replayed.Code)
@@ -174,6 +174,27 @@ func TestSePayPaymentSuccessIPNCreditsMatchingOrder(t *testing.T) {
 	var updatedUser model.User
 	require.NoError(t, db.First(&updatedUser, user.Id).Error)
 	require.Greater(t, updatedUser.Quota, user.Quota)
+}
+
+func TestSePayIPNWithInsufficientUSDProviderWalletLeavesOrderPending(t *testing.T) {
+	db, user, topUp := setupSePayWebhookTest(t)
+	require.NoError(t, db.Where("reference = ?", "sepay-test-provider-funding").Delete(&model.ProviderCashFlow{}).Error)
+	body := `{"timestamp":1793155971,"notification_type":"ORDER_PAID","order":{"id":"aa658c15-d27a-11f1-8895-0afffe87053b","order_id":"TEST_ORDER_1793155971","order_status":"CAPTURED","order_currency":"VND","order_amount":"50000.00","order_invoice_number":"USR1SEPAY123","custom_data":[],"order_description":"SePay IPN test"},"transaction":{"id":"aa659519-d27a-11f1-8895-0afffe87053b","payment_method":"BANK_TRANSFER","transaction_id":"TEST_TXN_1793155971","transaction_type":"PAYMENT","transaction_date":"2026-10-28 09:52:51","transaction_status":"APPROVED","transaction_amount":"50000","transaction_currency":"VND"},"customer":null,"agreement":null}`
+
+	response := sendSePayIPN(body, "Apikey webhook-secret")
+	require.Equal(t, http.StatusBadRequest, response.Code)
+
+	var pending model.TopUp
+	require.NoError(t, db.First(&pending, topUp.Id).Error)
+	require.Equal(t, common.TopUpStatusPending, pending.Status)
+	var unchanged model.User
+	require.NoError(t, db.First(&unchanged, user.Id).Error)
+	require.Equal(t, user.Quota, unchanged.Quota)
+	var allocations int64
+	require.NoError(t, db.Model(&model.ProviderCashFlow{}).
+		Where("reference = ? AND direction = ?", topUp.TradeNo, model.ProviderCashFlowDirectionOutgoing).
+		Count(&allocations).Error)
+	require.Zero(t, allocations)
 }
 
 func TestSePayIPNAcceptsUnauthenticatedRequestFromConfiguredCIDR(t *testing.T) {

@@ -250,6 +250,43 @@ func TestRechargeEpayCreditsQuotaExactlyOnce(t *testing.T) {
 	assert.Equal(t, 2*500000, getUserQuotaForPaymentGuardTest(t, user.Id))
 }
 
+func TestRechargeSePayAllocatesSystemAmountInSystemCurrency(t *testing.T) {
+	truncateTables(t)
+
+	oldQuotaPerUnit := common.QuotaPerUnit
+	common.QuotaPerUnit = 500000
+	t.Cleanup(func() { common.QuotaPerUnit = oldQuotaPerUnit })
+	user := insertUserForPaymentGuardTest(t, 515, 0)
+	seedProviderFundingForTopUpTest(t, "sepay-usd-funding", "USD", 10000)
+	topUp := &TopUp{
+		UserId: user.Id, Amount: 1, Money: 27170, TradeNo: "sepay-usd-allocation",
+		PaymentProvider: PaymentProviderSePay, PaymentMethod: "sepay",
+		Currency: "USD", ProviderCurrency: "VND", ExchangeRate: "27170",
+		Status: common.TopUpStatusPending, CreateTime: common.GetTimestamp(),
+	}
+	require.NoError(t, topUp.Insert())
+	t.Cleanup(func() {
+		DB.Where("reference = ? AND direction = ?", topUp.TradeNo, ProviderCashFlowDirectionOutgoing).Delete(&ProviderCashFlow{})
+	})
+
+	_, err := RechargeTopUpWithProvider(topUp.TradeNo, PaymentProviderSePay, "sepay", "127.0.0.1")
+	require.NoError(t, err)
+	assert.Equal(t, 500000, getUserQuotaForPaymentGuardTest(t, user.Id))
+	var allocation ProviderCashFlow
+	require.NoError(t, DB.Where("reference = ? AND direction = ?", topUp.TradeNo, ProviderCashFlowDirectionOutgoing).First(&allocation).Error)
+	assert.Equal(t, "USD", allocation.Currency)
+	assert.Equal(t, int64(100), allocation.AmountMinor)
+	wallets, err := SummarizeProviderFundingWallets()
+	require.NoError(t, err)
+	var usdAvailable int64
+	for i := range wallets {
+		if wallets[i].Currency == "USD" {
+			usdAvailable = wallets[i].AvailableMinor
+		}
+	}
+	assert.Equal(t, int64(9900), usdAvailable)
+}
+
 func TestManualCompleteTopUpRecordsAllocationAndLeavesInsufficientOrderPending(t *testing.T) {
 	truncateTables(t)
 
