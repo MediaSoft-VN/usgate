@@ -72,6 +72,6 @@ func SubscriptionRequestSePay(c *gin.Context) {
 		common.ApiErrorT(c, "Failed to create order")
 		return
 	}
-	checkout := buildSePayCheckout(tradeNo, providerMoney, "Subscription "+strings.TrimSpace(plan.Title), strconv.Itoa(userID))
+	checkout := buildSePayCheckoutForRequest(c, tradeNo, providerMoney, "Subscription "+strings.TrimSpace(plan.Title), strconv.Itoa(userID))
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }

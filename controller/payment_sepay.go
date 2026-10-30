@@ -21,7 +21,6 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
-	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 )
@@ -177,6 +176,11 @@ func buildSePayCheckout(tradeNo string, amount decimal.Decimal, description stri
 	return buildSePayCheckoutWithReturnURLs(tradeNo, amount, description, customerID, returnURL, returnURL, returnURL)
 }
 
+func buildSePayCheckoutForRequest(c *gin.Context, tradeNo string, amount decimal.Decimal, description string, customerID string) sePayCheckout {
+	returnURL := paymentReturnPathForRequest(c, "/api/sepay/return")
+	return buildSePayCheckoutWithReturnURLs(tradeNo, amount, description, customerID, returnURL, returnURL, returnURL)
+}
+
 func buildSePayTopUpCheckout(tradeNo string, amount decimal.Decimal, description string, customerID string, returnOrigin string) sePayCheckout {
 	callbackAddress := strings.TrimRight(service.GetCallbackAddress(), "/")
 	callbackURL := callbackAddress + "/api/sepay/return"
@@ -235,7 +239,7 @@ func sePayTopUpReturnURL(callbackURL string, status string, tradeNo string, retu
 	query := parsed.Query()
 	query.Set("pay", status)
 	query.Set("trade_no", tradeNo)
-	if validatedOrigin := validatedPaymentReturnOrigin(returnOrigin); validatedOrigin != "" {
+	if validatedOrigin := validatedPaymentReturnOrigin(returnOrigin, tradeNo); validatedOrigin != "" {
 		query.Set("return_origin", validatedOrigin)
 	}
 	parsed.RawQuery = query.Encode()
@@ -327,7 +331,7 @@ func RequestSePay(c *gin.Context) {
 		providerMoney,
 		fmt.Sprintf("Top-up %s", tradeNo),
 		strconv.Itoa(userID),
-		c.GetHeader("Origin"),
+		paymentReturnOriginForRequest(c),
 	)
 	c.JSON(http.StatusOK, gin.H{"message": "success", "data": checkout.Params, "url": checkout.URL})
 }
@@ -594,9 +598,9 @@ func SePayReturn(c *gin.Context) {
 	if !sePayTopUpTradeNoPattern.MatchString(tradeNo) {
 		tradeNo = ""
 	}
-	baseAddress := validatedPaymentReturnOrigin(c.Query("return_origin"))
+	baseAddress := validatedPaymentReturnOrigin(c.Query("return_origin"), tradeNo)
 	if baseAddress == "" {
-		baseAddress = strings.TrimRight(system_setting.ServerAddress, "/")
+		baseAddress = strings.TrimRight(paymentReturnPathForRequest(c, ""), "/")
 	}
 	query := url.Values{"pay": {status}}
 	if tradeNo != "" {
