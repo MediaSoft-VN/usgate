@@ -290,3 +290,44 @@ func TestGlobalWebRateLimitCountsFrontendFilesInStaticBucket(t *testing.T) {
 		assert.Equal(t, "1", webCount)
 	})
 }
+
+func TestDisabledGlobalAPILimitKeepsCriticalLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	useRateLimitMiniRedis(t)
+	previousAPILimitEnabled := common.GlobalApiRateLimitEnable
+	previousWebLimitEnabled := common.GlobalWebRateLimitEnable
+	previousCriticalLimitEnabled := common.CriticalRateLimitEnable
+	previousCriticalLimitNum, previousCriticalLimitDuration := common.CriticalRateLimitNum, common.CriticalRateLimitDuration
+	t.Cleanup(func() {
+		common.GlobalApiRateLimitEnable = previousAPILimitEnabled
+		common.GlobalWebRateLimitEnable = previousWebLimitEnabled
+		common.CriticalRateLimitEnable = previousCriticalLimitEnabled
+		common.CriticalRateLimitNum, common.CriticalRateLimitDuration = previousCriticalLimitNum, previousCriticalLimitDuration
+	})
+	common.GlobalApiRateLimitEnable = false
+	common.GlobalWebRateLimitEnable = false
+	common.CriticalRateLimitEnable = true
+	common.CriticalRateLimitNum, common.CriticalRateLimitDuration = 2, 41
+
+	router := gin.New()
+	require.NoError(t, router.SetTrustedProxies(nil))
+	router.GET("/api", GlobalAPIRateLimit(), CriticalRateLimit(), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	remoteAddr := "192.0.2.80:12345"
+	for range 2 {
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(router, "/api", remoteAddr).Code)
+	}
+	assert.Equal(t, http.StatusTooManyRequests, performRateLimitRequest(router, "/api", remoteAddr).Code)
+
+	webRouter := gin.New()
+	require.NoError(t, webRouter.SetTrustedProxies(nil))
+	frontendFS := static.LocalFile(t.TempDir(), false)
+	webRouter.NoRoute(GlobalWebRateLimit(frontendFS), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	for range 3 {
+		assert.Equal(t, http.StatusNoContent, performRateLimitRequest(webRouter, "/", remoteAddr).Code)
+	}
+}
