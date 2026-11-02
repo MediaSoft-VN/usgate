@@ -76,7 +76,7 @@ it('loads pricing API models and renders the model list on the dashboard route',
   const router = createRouter({
     routeTree: rootRoute.addChildren([dashboardRoute]),
     history: createMemoryHistory({
-      initialEntries: ['/dashboard/model-catalog'],
+      initialEntries: ['/dashboard/model-catalog?view=table'],
     }),
   })
   const queryClient = new QueryClient({

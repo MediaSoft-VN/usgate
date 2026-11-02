@@ -16,20 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  EmptyState,
-  LoadingSkeleton,
-  ModelCardGrid,
-  ModelDetailsDrawer,
-  PricingTable,
-  SearchBar,
-} from '@/features/pricing/components'
-import { VIEW_MODES } from '@/features/pricing/constants'
+import { EmptyState } from '@/features/pricing/components/empty-state'
+import { LoadingSkeleton } from '@/features/pricing/components/loading-skeleton'
+import { PricingTable } from '@/features/pricing/components/pricing-table'
+import { SearchBar } from '@/features/pricing/components/search-bar'
 import { useFilters } from '@/features/pricing/hooks/use-filters'
 import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
+
+const LazyModelDetailsDrawer = lazy(() =>
+  import('@/features/pricing/components/model-details').then((module) => ({
+    default: module.ModelDetailsDrawer,
+  }))
+)
 
 export function ModelCatalog() {
   const { t } = useTranslation()
@@ -55,7 +56,6 @@ export function ModelCatalog() {
     hasActiveFilters,
     groupFilter,
     tokenUnit,
-    viewMode,
     showRechargePrice,
   } = useFilters(models)
   const selectedModel = useMemo(
@@ -73,19 +73,7 @@ export function ModelCatalog() {
     />
   )
 
-  if (filteredModels.length > 0 && viewMode === VIEW_MODES.CARD) {
-    modelList = (
-      <ModelCardGrid
-        models={filteredModels}
-        onModelClick={setSelectedModelName}
-        priceRate={priceRate}
-        usdExchangeRate={usdExchangeRate}
-        tokenUnit={tokenUnit}
-        showRechargePrice={showRechargePrice}
-        selectedGroup={groupFilter}
-      />
-    )
-  } else if (filteredModels.length > 0) {
+  if (filteredModels.length > 0) {
     modelList = (
       <PricingTable
         models={filteredModels}
@@ -100,7 +88,7 @@ export function ModelCatalog() {
   }
 
   if (isLoading) {
-    return <LoadingSkeleton viewMode={viewMode} />
+    return <LoadingSkeleton />
   }
 
   return (
@@ -128,23 +116,25 @@ export function ModelCatalog() {
       {modelList}
 
       {selectedModel && (
-        <ModelDetailsDrawer
-          open={Boolean(selectedModel)}
-          onOpenChange={(open) => {
-            if (!open) setSelectedModelName(null)
-          }}
-          model={selectedModel}
-          groupRatio={groupRatio}
-          usableGroup={usableGroup}
-          endpointMap={
-            endpointMap as Record<string, { path?: string; method?: string }>
-          }
-          autoGroups={autoGroups}
-          priceRate={priceRate}
-          usdExchangeRate={usdExchangeRate}
-          tokenUnit={tokenUnit}
-          showRechargePrice={showRechargePrice}
-        />
+        <Suspense fallback={null}>
+          <LazyModelDetailsDrawer
+            open={Boolean(selectedModel)}
+            onOpenChange={(open) => {
+              if (!open) setSelectedModelName(null)
+            }}
+            model={selectedModel}
+            groupRatio={groupRatio}
+            usableGroup={usableGroup}
+            endpointMap={
+              endpointMap as Record<string, { path?: string; method?: string }>
+            }
+            autoGroups={autoGroups}
+            priceRate={priceRate}
+            usdExchangeRate={usdExchangeRate}
+            tokenUnit={tokenUnit}
+            showRechargePrice={showRechargePrice}
+          />
+        </Suspense>
       )}
     </div>
   )
