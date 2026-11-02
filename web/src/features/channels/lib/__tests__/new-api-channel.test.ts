@@ -60,7 +60,7 @@ describe('New API channel', () => {
 
     expect(option).toEqual({
       value: CHANNEL_TYPE_NEW_API,
-      label: 'New API',
+      label: 'Us Gate',
     })
     expect(
       CHANNEL_TYPE_OPTIONS.findIndex(
