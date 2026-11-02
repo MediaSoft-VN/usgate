@@ -154,7 +154,7 @@ describe.each([
   })
 })
 
-describe('New API channel task plugin extensions', () => {
+describe('Us Gate channel task plugin extensions', () => {
   const plugins: TaskPluginOption[] = [
     {
       key: 'doubao',
@@ -177,7 +177,7 @@ describe('New API channel task plugin extensions', () => {
     },
   ]
 
-  test('only plugins declaring a New API upstream can be bound to a New API channel', () => {
+  test('only plugins declaring a Us Gate upstream can be bound to a Us Gate channel', () => {
     expect(plugins.filter(supportsNewAPIUpstream).map((p) => p.key)).toEqual([
       'doubao',
       'kling',
@@ -186,7 +186,7 @@ describe('New API channel task plugin extensions', () => {
     expect(supportsNewAPIUpstream({})).toBe(false)
   })
 
-  test('reads the extension list together with a single key on New API channels only', () => {
+  test('reads the extension list together with a single key on Us Gate channels only', () => {
     expect(
       readTaskExtendPluginKeys(CHANNEL_TYPE_NEW_API, {
         task_plugin_key: 'kling',
@@ -211,7 +211,7 @@ describe('New API channel task plugin extensions', () => {
     ])
   })
 
-  test('round-trips bound plugins through the channel setting for New API channels only', () => {
+  test('round-trips bound plugins through the channel setting for Us Gate channels only', () => {
     const channel = channelSchema.parse({
       id: 7,
       name: 'Gateway',

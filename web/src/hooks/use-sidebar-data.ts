@@ -86,7 +86,7 @@ export function useSidebarData(): SidebarData {
           },
           {
             title: t('Model Square'),
-            url: '/pricing',
+            url: '/dashboard/model-catalog',
             icon: Box,
           },
           {

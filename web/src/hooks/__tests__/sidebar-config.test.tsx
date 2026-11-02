@@ -23,6 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { checkIsActive } from '@/components/layout/lib/url-utils'
 import type { NavGroup } from '@/components/layout/types'
+import { DASHBOARD_SECTION_IDS } from '@/features/dashboard/section-registry'
 import {
   parseSidebarModulesAdmin,
   serializeSidebarModulesAdmin,
@@ -228,8 +229,11 @@ describe('model catalog sidebar entry', () => {
     const catalogLink = enabledSidebar.result.current
       .flatMap((group) => group.items)
       .find((item) => item.title === 'Model Square')
-    expect(catalogLink).toMatchObject({ url: '/pricing' })
-    expect(catalogLink && checkIsActive('/pricing', catalogLink)).toBe(true)
+    expect(catalogLink).toMatchObject({ url: '/dashboard/model-catalog' })
+    expect(DASHBOARD_SECTION_IDS).toContain('model-catalog')
+    expect(
+      catalogLink && checkIsActive('/dashboard/model-catalog', catalogLink)
+    ).toBe(true)
     enabledSidebar.unmount()
 
     config.general['model-catalog'] = false
