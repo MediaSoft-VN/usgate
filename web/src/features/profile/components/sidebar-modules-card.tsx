@@ -58,6 +58,18 @@ export function SidebarModulesCard() {
 
   const sectionDefs: SectionDef[] = [
     {
+      key: 'general',
+      title: t('General'),
+      description: t('General navigation links.'),
+      modules: [
+        {
+          key: 'model-catalog',
+          title: t('Model Square'),
+          description: t('Public model catalog and pricing page.'),
+        },
+      ],
+    },
+    {
       key: 'chat',
       title: t('Chat Area'),
       description: t('Playground and chat functions'),

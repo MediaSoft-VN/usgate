@@ -214,6 +214,46 @@ describe('financial sidebar entries', () => {
   })
 })
 
+describe('model catalog sidebar entry', () => {
+  it('is visible by default and can be hidden by admin or user configuration', () => {
+    const config = parseSidebarModulesAdmin('')
+    expect(config.general['model-catalog']).toBe(true)
+
+    const enabledSidebar = sidebarFor(config)
+    expect(
+      enabledSidebar.result.current
+        .flatMap((group) => group.items)
+        .some((item) => item.title === 'Model Square')
+    ).toBe(true)
+    const catalogLink = enabledSidebar.result.current
+      .flatMap((group) => group.items)
+      .find((item) => item.title === 'Model Square')
+    expect(catalogLink).toMatchObject({ url: '/pricing' })
+    expect(catalogLink && checkIsActive('/pricing', catalogLink)).toBe(true)
+    enabledSidebar.unmount()
+
+    config.general['model-catalog'] = false
+    const adminHiddenSidebar = sidebarFor(
+      parseSidebarModulesAdmin(serializeSidebarModulesAdmin(config))
+    )
+    expect(
+      adminHiddenSidebar.result.current
+        .flatMap((group) => group.items)
+        .some((item) => item.title === 'Model Square')
+    ).toBe(false)
+    adminHiddenSidebar.unmount()
+
+    const userHiddenSidebar = sidebarFor(undefined, {
+      general: { enabled: true, 'model-catalog': false },
+    })
+    expect(
+      userHiddenSidebar.result.current
+        .flatMap((group) => group.items)
+        .some((item) => item.title === 'Model Square')
+    ).toBe(false)
+  })
+})
+
 describe('partner workspace sidebar entries', () => {
   const partnerNavGroups: NavGroup[] = [
     {
