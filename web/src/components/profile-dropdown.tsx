@@ -40,7 +40,11 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const avatarFallbackClassName = 'font-semibold text-white'
 
-export function ProfileDropdown() {
+type ProfileDropdownProps = {
+  sidebar?: boolean
+}
+
+export function ProfileDropdown(props: ProfileDropdownProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [open, setOpen] = useDialogState()
@@ -60,9 +64,19 @@ export function ProfileDropdown() {
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
-          render={<Button variant='ghost' className='relative size-6 p-0' />}
+          render={
+            <Button
+              variant='ghost'
+              className={
+                props.sidebar
+                  ? 'h-10 w-full justify-start gap-2 px-2 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0'
+                  : 'relative size-6 p-0'
+              }
+              aria-label={props.sidebar ? displayName : undefined}
+            />
+          }
         >
-          <Avatar className='size-6'>
+          <Avatar className={props.sidebar ? 'size-8' : 'size-6'}>
             <AvatarFallback
               className={`${avatarFallbackClassName} text-[11px]`}
               style={avatarFallbackStyle}
@@ -70,8 +84,18 @@ export function ProfileDropdown() {
               {avatarFallback}
             </AvatarFallback>
           </Avatar>
+          {props.sidebar && (
+            <span className='min-w-0 flex-1 truncate text-start text-sm group-data-[collapsible=icon]:hidden'>
+              {displayName}
+            </span>
+          )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' sideOffset={8} className='w-56'>
+        <DropdownMenuContent
+          align={props.sidebar ? 'start' : 'end'}
+          side={props.sidebar ? 'top' : undefined}
+          sideOffset={8}
+          className='w-56'
+        >
           <div className='flex items-center gap-2 px-1.5 py-1.5'>
             <Avatar className='size-8'>
               <AvatarFallback

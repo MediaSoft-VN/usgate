@@ -69,6 +69,10 @@ export function SidebarModulesSection({
       title: t('Chat area'),
       description: t('Playground experiments and live conversations.'),
     },
+    general: {
+      title: t('General'),
+      description: t('General navigation links.'),
+    },
     console: {
       title: t('Console area'),
       description: t('Dashboards, tokens, and usage analytics.'),
@@ -99,6 +103,12 @@ export function SidebarModulesSection({
       chat: {
         title: t('Chat'),
         description: t('Access previous conversations and start new ones.'),
+      },
+    },
+    general: {
+      'model-catalog': {
+        title: t('Model Square'),
+        description: t('Public model catalog and pricing page.'),
       },
     },
     console: {

@@ -180,7 +180,7 @@ sudo -n ln -sfn "${release_file}" "${APP_DIR}/new-api"
 
 sudo -n tee "${service_file}" >/dev/null <<SERVICE
 [Unit]
-Description=New API
+Description=Us Gate
 Wants=network-online.target
 After=network-online.target
 
@@ -273,7 +273,7 @@ for _ in {1..30}; do
   sleep 2
 done
 if [[ ${healthy} != true ]]; then
-  echo "New API did not become healthy after tenant-domain provisioner restart" >&2
+  echo "Us Gate did not become healthy after tenant-domain provisioner restart" >&2
   exit 1
 fi
 curl --fail --silent --show-error --retry 10 --retry-delay 3 \

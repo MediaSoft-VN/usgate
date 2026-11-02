@@ -35,6 +35,11 @@ const DASHBOARD_SECTIONS = [
     build: () => null,
   },
   {
+    id: 'model-catalog',
+    titleKey: 'Model Square',
+    build: () => null,
+  },
+  {
     id: 'flow',
     titleKey: 'Flow',
     build: () => null,

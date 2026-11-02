@@ -115,6 +115,12 @@ const LazyFlowCharts = lazy(() =>
   }))
 )
 
+const LazyModelCatalog = lazy(() =>
+  import('./components/model-catalog').then((m) => ({
+    default: m.ModelCatalog,
+  }))
+)
+
 function LogStatCardsFallback() {
   return (
     <div className='overflow-hidden rounded-lg border'>
@@ -187,6 +193,9 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   },
   models: {
     titleKey: 'Model Call Analytics',
+  },
+  'model-catalog': {
+    titleKey: 'Model Square',
   },
   flow: {
     titleKey: 'Flow',
@@ -324,6 +333,25 @@ export function Dashboard() {
 
   if (activeSection === 'overview') {
     return <OverviewDashboard />
+  }
+
+  if (activeSection === 'model-catalog') {
+    return (
+      <SectionPageLayout>
+        <SectionPageLayout.Content>
+          <Suspense
+            fallback={
+              <div className='space-y-3'>
+                <Skeleton className='h-8 w-52' />
+                <Skeleton className='h-[60vh] w-full' />
+              </div>
+            }
+          >
+            <LazyModelCatalog />
+          </Suspense>
+        </SectionPageLayout.Content>
+      </SectionPageLayout>
+    )
   }
 
   return (

@@ -59,6 +59,10 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     playground: true,
     chat: true,
   },
+  general: {
+    enabled: true,
+    'model-catalog': true,
+  },
   console: {
     enabled: true,
     detail: true,

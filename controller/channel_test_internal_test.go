@@ -119,7 +119,7 @@ func TestNewAPIChannelRegistration(t *testing.T) {
 
 	require.True(t, ok)
 	assert.Equal(t, constant.APITypeNewAPI, apiType)
-	assert.Equal(t, "New API", constant.GetChannelTypeName(constant.ChannelTypeNewAPI))
+	assert.Equal(t, "Us Gate", constant.GetChannelTypeName(constant.ChannelTypeNewAPI))
 	require.Greater(t, len(constant.ChannelBaseURLs), constant.ChannelTypeNewAPI)
 	assert.Empty(t, constant.ChannelBaseURLs[constant.ChannelTypeNewAPI])
 }

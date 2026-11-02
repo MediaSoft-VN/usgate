@@ -111,7 +111,7 @@ type Meta struct {
 
 // Upstream kinds a plugin driver can address. Every driver speaks to its
 // vendor; a driver that also builds its own native-route URLs when the channel
-// points at another New API gateway declares UpstreamKindNewAPI in
+// points at another Us Gate gateway declares UpstreamKindNewAPI in
 // meta.upstreams, which is what makes it bindable to a type-60 channel.
 const (
 	UpstreamKindVendor = "vendor"
@@ -738,6 +738,12 @@ func (r *Registry) prepareGeneration(
 	if err != nil {
 		return nil, nil, err
 	}
+	// The preparer decides admission by whether a key is built in, which the
+	// filtered factory passed here no longer tells for a switched-off key.
+	generation.factoryKeys = pluginMapKeys(r.factory)
+	for key := range factory {
+		generation.factoryKeys[key] = struct{}{}
+	}
 	if r.preparer != nil {
 		prepared, prepareErr := r.preparer(generation, current)
 		if prepareErr != nil {
@@ -1297,6 +1303,14 @@ func normalizeV1Meta(meta *Meta) error {
 	if !ValidPluginKey(meta.Key) {
 		return fmt.Errorf("plugin meta key must match %s", pluginKeyPattern)
 	}
+	// The host serves the plugin's routes under /{key}, so the key must not
+	// name a host namespace.
+	if meta.Key == "api" || slices.ContainsFunc(reservedRouteNamespaces, func(namespace string) bool {
+		first, _, _ := strings.Cut(strings.TrimPrefix(namespace, "/"), "/")
+		return first == meta.Key
+	}) {
+		return fmt.Errorf("plugin meta key %q is a reserved path segment", meta.Key)
+	}
 	if !pluginVersionPattern.MatchString(meta.Version) {
 		return fmt.Errorf("plugin meta version must be semver")
 	}
@@ -1315,7 +1329,7 @@ func normalizeV1Meta(meta *Meta) error {
 			return fmt.Errorf("plugin meta channelTypes must not contain the task plugin channel type")
 		}
 		if channelType == constant.ChannelTypeNewAPI {
-			return fmt.Errorf("plugin meta channelTypes must not contain the New API channel type; bind the plugin through task_extend_plugin_keys instead")
+			return fmt.Errorf("plugin meta channelTypes must not contain the Us Gate channel type; bind the plugin through task_extend_plugin_keys instead")
 		}
 		if _, duplicate := seenChannelTypes[channelType]; duplicate {
 			return fmt.Errorf("plugin meta channelTypes must be unique")

@@ -154,16 +154,6 @@ export function HeaderNavigationSection({
     description: string
   }> = [
     {
-      key: 'home',
-      title: t('Home'),
-      description: t('Landing page with system overview.'),
-    },
-    {
-      key: 'console',
-      title: t('Console'),
-      description: t('User dashboard and quota controls.'),
-    },
-    {
       key: 'docs',
       title: t('Docs'),
       description: t('Documentation or external knowledge base.'),
@@ -184,17 +174,6 @@ export function HeaderNavigationSection({
     requireAuthTitle: string
     requireAuthDescription: string
   }> = [
-    {
-      enabledKey: 'pricingEnabled',
-      requireAuthKey: 'pricingRequireAuth',
-      requireAuthDependsOn: 'pricingEnabled',
-      title: t('Model Square'),
-      description: t('Public model catalog and pricing page.'),
-      requireAuthTitle: t('Require login to view models'),
-      requireAuthDescription: t(
-        'Visitors must authenticate before accessing the pricing directory.'
-      ),
-    },
     {
       enabledKey: 'rankingsEnabled',
       requireAuthKey: 'rankingsRequireAuth',
