@@ -154,16 +154,6 @@ export function HeaderNavigationSection({
     description: string
   }> = [
     {
-      key: 'home',
-      title: t('Home'),
-      description: t('Landing page with system overview.'),
-    },
-    {
-      key: 'console',
-      title: t('Console'),
-      description: t('User dashboard and quota controls.'),
-    },
-    {
       key: 'docs',
       title: t('Docs'),
       description: t('Documentation or external knowledge base.'),

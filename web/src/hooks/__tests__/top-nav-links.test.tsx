@@ -25,7 +25,7 @@ import { useTopNavLinks } from '../use-top-nav-links'
 
 afterEach(cleanup)
 
-it('omits the model catalog header link even when legacy config enables pricing', () => {
+it('omits home, dashboard, and model catalog links even when legacy config enables them', () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -49,9 +49,5 @@ it('omits the model catalog header link even when legacy config enables pricing'
 
   const { result } = renderHook(() => useTopNavLinks(), { wrapper: Wrapper })
 
-  expect(result.current.map((link) => link.href)).toEqual([
-    '/',
-    '/dashboard',
-    '/rankings',
-  ])
+  expect(result.current.map((link) => link.href)).toEqual(['/rankings'])
 })
