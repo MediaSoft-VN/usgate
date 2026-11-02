@@ -152,6 +152,18 @@ describe('security sidebar visibility', () => {
 })
 
 describe('audit log sidebar entry', () => {
+  it('keeps the single Usage Logs and Audit Logs entries instead of billing duplicates', () => {
+    const { result } = sidebarFor()
+    const titles = result.current.flatMap((group) =>
+      group.items.map((item) => item.title)
+    )
+
+    expect(titles).toContain('Usage Logs')
+    expect(titles).toContain('Audit Logs')
+    expect(titles).not.toContain('Billing')
+    expect(titles).not.toContain('Billing Audit Logs')
+  })
+
   it('admin settings default Audit Logs to visible and preserve its independent toggle when saved', () => {
     const config = parseSidebarModulesAdmin(
       '{"console":{"enabled":true,"log":true}}'

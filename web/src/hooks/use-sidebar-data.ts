@@ -164,12 +164,6 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             icon: Wallet,
           },
           {
-            title: t('Billing'),
-            url: '/usage-logs/common',
-            activeUrls: ['/usage-logs'],
-            icon: FileText,
-          },
-          {
             title: t('Cash flow history'),
             url: '/provider-funding',
             icon: Wallet,
@@ -180,12 +174,6 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             activeUrls: ['/system-settings/billing'],
             icon: CreditCard,
             requiredRole: ROLE.SUPER_ADMIN,
-          },
-          {
-            title: `${t('Billing')} ${t('Audit Logs')}`,
-            url: '/usage-logs/audit',
-            activeUrls: ['/usage-logs/audit'],
-            icon: ClipboardList,
           },
           {
             title: t('Redemption Codes'),
